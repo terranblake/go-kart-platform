@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "nanopb.proto";  // Add this import
+
 // Main component type enum
 enum ComponentType {
   COMPONENT_UNKNOWN = 0;
