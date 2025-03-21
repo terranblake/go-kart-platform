@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROTO_DIR="${SCRIPT_DIR}"
 NANOPB_DIR="${SCRIPT_DIR}/nanopb"
 OUTPUT_DIR="${SCRIPT_DIR}/generated"
-PROTO_FILE="${SCRIPT_DIR}/kart_protocol.proto"
+PROTO_FILE="${SCRIPT_DIR}/kart.proto"
 
 # Verify nanopb.proto exists
 NANOPB_PROTO_DIR="${NANOPB_DIR}/generator/proto"
@@ -75,25 +75,25 @@ These files were generated from the Protocol Buffer definitions in \`${PROTO_FIL
 ## Usage
 
 \`\`\`python
-import kart_protocol_pb2
+import kart_pb2
 
 # Create a message
-message = kart_protocol_pb2.KartMessage()
-message.component_type = kart_protocol_pb2.COMPONENT_LIGHTS
+message = kart_pb2.KartMessage()
+message.component_type = kart_pb2.COMPONENT_LIGHTS
 message.timestamp = int(time.time() * 1000)  # Current time in milliseconds
 message.sequence = 1
 message.node_id = 10
 
 # Access light command
 light_cmd = message.light_command
-light_cmd.component_id = kart_protocol_pb2.LIGHT_FRONT
-light_cmd.mode = kart_protocol_pb2.LIGHT_MODE_HIGH
+light_cmd.component_id = kart_pb2.LIGHT_FRONT
+light_cmd.mode = kart_pb2.LIGHT_MODE_HIGH
 
 # Serialize to binary
 binary_data = message.SerializeToString()
 
 # Deserialize from binary
-received_message = kart_protocol_pb2.KartMessage()
+received_message = kart_pb2.KartMessage()
 received_message.ParseFromString(binary_data)
 \`\`\`
 
@@ -109,7 +109,7 @@ These files were generated from the Protocol Buffer definitions in \`${PROTO_FIL
 ## Usage
 
 \`\`\`c
-#include "kart_protocol.pb.h"
+#include "kart.pb.h"
 
 // Create a message buffer
 uint8_t buffer[128];

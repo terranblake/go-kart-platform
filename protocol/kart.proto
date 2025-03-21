@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+import "nanopb.proto";  // Add this import
+
+// Main component type enum
+enum ComponentType {
+  COMPONENT_UNKNOWN = 0;
+  COMPONENT_LIGHTS = 1;
+  COMPONENT_MOTORS = 2;
+  COMPONENT_BATTERIES = 3;
+  COMPONENT_CONTROLS = 4;
+  COMPONENT_SENSORS = 5;
+  COMPONENT_SYSTEM = 6;  // Added for system-wide messages
+}
+
+// Light Components
+enum LightComponent {
+  LIGHT_UNKNOWN = 0;
+  LIGHT_FRONT = 1;
+  LIGHT_REAR = 2;
+  LIGHT_LEFT_SIGNAL = 3;
+  LIGHT_RIGHT_SIGNAL = 4;
+  LIGHT_BRAKE = 5;
+  LIGHT_INTERIOR = 6;    // Added for interior lighting
+}
+
+// Motor Components
+enum MotorComponent {
+  MOTOR_UNKNOWN = 0;
+  MOTOR_REAR_LEFT = 1;
+  MOTOR_REAR_RIGHT = 2;
+  MOTOR_AUXILIARY = 3;   // Added for auxiliary motor
+}
+
+// Battery Components
+enum BatteryComponent {
+  BATTERY_UNKNOWN = 0;
+  BATTERY_REAR_LEFT = 1;
+  BATTERY_REAR_RIGHT = 2;
+  BATTERY_CENTER = 3;
+  BATTERY_AUXILIARY = 4;  // Added for auxiliary battery
+}
+
+// Control Components
+enum ControlComponent {
+  CONTROL_UNKNOWN = 0;
+  CONTROL_STEERING = 1;
+  CONTROL_THROTTLE = 2;
+  CONTROL_BRAKE = 3;
+  CONTROL_HORN = 4;      // Added for horn control
+}
+
+// Sensor Components
+enum SensorComponent {
+  SENSOR_UNKNOWN = 0;
+  SENSOR_SPEED = 1;
+  SENSOR_TEMPERATURE = 2;
+  SENSOR_CURRENT = 3;
+  SENSOR_VOLTAGE = 4;    // Added for voltage sensor
+  SENSOR_GPS = 5;        // Added for GPS location
+  SENSOR_PROXIMITY = 6;  // Added for proximity detection
+}
+
+// Light Modes
+enum LightMode {
+  LIGHT_MODE_OFF = 0;
+  LIGHT_MODE_LOW = 1;
+  LIGHT_MODE_HIGH = 2;
+  LIGHT_MODE_HAZARD = 3;
+  LIGHT_MODE_PULSE = 4;  // Added for pulsating light mode
+}
+
+// Signal Modes
+enum SignalMode {
+  SIGNAL_OFF = 0;
+  SIGNAL_LEFT = 1;
+  SIGNAL_RIGHT = 2;
+  SIGNAL_HAZARD = 3;     // Added for hazard mode
+}
+
+// Binary States
+enum BinaryState {
+  STATE_OFF = 0;
+  STATE_ON = 1;
+}
+
+// Motor Power States
+enum MotorPowerState {
+  MOTOR_POWER_OFF = 0;
+  MOTOR_POWER_ON = 1;
+  MOTOR_POWER_REVERSE = 2;
+  MOTOR_POWER_BOOST = 3;  // Added for temporary boost
+}
+
+// Calibration States
+enum CalibrationState {
+  CALIBRATE_BEGIN = 0;
+  CALIBRATE_END = 1;
+  CALIBRATE_CANCEL = 2;
+  CALIBRATE_RESET = 3;   // Added for full reset
+}
+
+// System Status States
+enum SystemStatus {
+  STATUS_STANDBY = 0;
+  STATUS_RUNNING = 1;
+  STATUS_ERROR = 2;
+  STATUS_CHARGING = 3;
+  STATUS_MAINTENANCE = 4;  // Added for maintenance mode
+  STATUS_SLEEP = 5;        // Added for low-power sleep
+}
+
+// Command messages for each component type
+message LightCommand {
+  LightComponent component_id = 1;
+  oneof command {
+    LightMode mode = 2;
+    SignalMode signal = 3;
+    BinaryState brake = 4;
+    BinaryState test = 5;
+    uint32 brightness = 6;  // Added for brightness control (0-100%)
+  }
+}
+
+message MotorCommand {
+  MotorComponent component_id = 1;
+  oneof command {
+    MotorPowerState power = 2;
+    uint32 speed = 3;      // RPM or percentage
+    uint32 torque = 4;     // Added for torque control
+    uint32 acceleration = 5; // Added for acceleration profile
+  }
+}
+
+message BatteryCommand {
+  BatteryComponent component_id = 1;
+  oneof command {
+    BinaryState charging = 2;
+    uint32 charge_rate = 3;  // Added for adjustable charging rate
+    BinaryState balance = 4; // Added for cell balancing
+  }
+}
+
+message ControlCommand {
+  ControlComponent component_id = 1;
+  oneof command {
+    CalibrationState calibrate = 2;
+    int32 position = 3;     // For steering/throttle/brake position
+    BinaryState override = 4; // Added for manual override
+  }
+}
+
+message SensorCommand {
+  SensorComponent component_id = 1;
+  oneof command {
+    uint32 sample_rate = 2;  // Sampling frequency
+    BinaryState enabled = 3; // Enable/disable sensor
+    uint32 threshold = 4;    // Alert threshold
+  }
+}
+
+message SystemCommand {
+  oneof command {
+    SystemStatus status = 1;
+    uint32 reset_code = 2;   // For system reset
+    BinaryState debug = 3;   // For debug mode
+    string config_param = 4; // For configuration parameter changes
+  }
+}
+
+// State messages for each component type
+message LightState {
+  LightComponent component_id = 1;
+  oneof state {
+    LightMode mode = 2;
+    SignalMode signal = 3;
+    BinaryState brake = 4;
+    uint32 brightness = 5;  // Current brightness (0-100%)
+    uint32 temperature = 6; // LED temperature
+  }
+}
+
+message MotorState {
+  MotorComponent component_id = 1;
+  oneof state {
+    uint32 rpm = 2;
+    uint32 temperature = 3;
+    uint32 current = 4;    // Current draw
+    uint32 power = 5;      // Current power output
+    uint32 efficiency = 6; // Efficiency percentage
+  }
+}
+
+message BatteryState {
+  BatteryComponent component_id = 1;
+  oneof state {
+    uint32 voltage = 2;    // mV
+    int32 current = 3;     // mA (positive = discharge, negative = charge)
+    uint32 temperature = 4; // 0.1°C
+    uint32 charge = 5;     // Percentage 0-100
+    uint32 health = 6;     // Health percentage
+    uint32 cycles = 7;     // Charge cycles
+  }
+}
+
+message ControlState {
+  ControlComponent component_id = 1;
+  oneof state {
+    int32 angle = 2;       // Steering angle
+    uint32 throttle = 3;   // Throttle position (0-100%)
+    uint32 brake = 4;      // Brake position (0-100%)
+    uint32 response = 5;   // Input response time
+  }
+}
+
+message SensorState {
+  SensorComponent component_id = 1;
+  oneof state {
+    uint32 speed = 2;      // Vehicle speed
+    uint32 temperature = 3; // Sensor temperature
+    uint32 value = 4;      // Generic sensor value
+    bytes gps_data = 5;    // GPS coordinates
+    uint32 distance = 6;   // Distance for proximity sensor
+  }
+}
+
+message SystemState {
+  oneof state {
+    SystemStatus status = 1;
+    uint32 errors = 2;     // Error bitfield
+    uint32 uptime = 3;     // System uptime in seconds
+    uint32 cpu_load = 4;   // CPU utilization
+    uint32 memory_free = 5; // Free memory
+  }
+}
+
+// Main message container
+message KartMessage {
+  ComponentType component_type = 1;
+  
+  // Commands
+  oneof command {
+    LightCommand light_command = 2;
+    MotorCommand motor_command = 3;
+    BatteryCommand battery_command = 4;
+    ControlCommand control_command = 5;
+    SensorCommand sensor_command = 6;
+    SystemCommand system_command = 7;
+  }
+  
+  // States
+  oneof state {
+    LightState light_state = 8;
+    MotorState motor_state = 9;
+    BatteryState battery_state = 10;
+    ControlState control_state = 11;
+    SensorState sensor_state = 12;
+    SystemState system_state = 13;
+  }
+  
+  // Metadata
+  uint32 timestamp = 14;    // Timestamp in ms
+  uint32 sequence = 15;     // Sequence number for packet ordering
+  uint32 node_id = 16;      // Source node ID
+}
+
+// Options for nanopb to optimize for small code size
+option (nanopb_fileopt).max_size = 256;
+option (nanopb_fileopt).max_count = 8;
