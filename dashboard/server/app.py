@@ -45,58 +45,34 @@ class GoKartState:
         }
 
 class CANCommandGenerator:
-    def __init__(self, channel='can0', bitrate=500000, protocol_file='kart_protocol.json'):
-        # Legacy device IDs (for backwards compatibility)
-        self.DEVICE_NANO = 0x01
-        self.DEVICE_RPI = 0x02
+    """Class to generate CAN messages for the go-kart."""
 
-        # Legacy command message ID
-        self.COMMAND_ID = 0x110
-        
-        # Legacy command types
-        self.CMD_EMERGENCY_STOP = 0x01
-        self.CMD_SPEED_CONTROL = 0x02
-        self.CMD_STEERING_CONTROL = 0x03
-        self.CMD_BRAKE_CONTROL = 0x04
+    # Command IDs
+    COMMAND_ID = 0x100
+    DEVICE_NANO = 0x02
+    CMD_EMERGENCY_STOP = 0x0A
+    CMD_SPEED_CONTROL = 0x0B
+    CMD_STEERING_CONTROL = 0x0C
+    CMD_BRAKE_CONTROL = 0x0D
+    CMD_LIGHTS_CONTROL = 0x0E
 
-        # State tracking
-        self.state = GoKartState()
-        self.emergency_stop_active = False
-        
-        # Store 1 minute of data (assuming 10Hz sampling rate = 600 samples)
-        self.history_size = 600
-        self.history = collections.deque(maxlen=self.history_size)
-        
-        # Desired settings (for control)
-        self.desired_speed = 0.0
-        self.desired_steering = 0.0
-        self.desired_brake = 0.0
-
-        # Load protocol definitions from JSON
-        self.protocol = self.load_protocol_definitions(protocol_file)
-        
-        # Debug - save a copy to verify contents
-        try:
-            with open('/tmp/loaded_protocol.json', 'w') as f:
-                json.dump(self.protocol, f, indent=2)
-            logger.info(f"Saved loaded protocol to /tmp/loaded_protocol.json for verification")
-        except Exception as e:
-            logger.error(f"Failed to save protocol copy: {e}")
-        
-        # Initialize light state tracking
-        self.light_states = {}
-
-        # Initialize CAN bus
+    def __init__(self, channel='vcan0', bitrate=500000):
+        """Initialize CAN command generator."""
         try:
             self.bus = can.interface.Bus(channel=channel, bustype='socketcan', bitrate=bitrate)
-            logger.info(f"CAN initialized on {channel}")
+            logger.info(f"CAN bus initialized on channel {channel}")
         except Exception as e:
-            logger.error(f"Failed to initialize CAN: {e}")
+            logger.error(f"Error initializing CAN bus: {e}")
+            self.bus = None
+            
+        # Initialize state tracking
+        self.state = GoKartState()
+        self.history = collections.deque(maxlen=600)  # Store 1 minute of data at 10Hz
+        self.light_states = {}
         
-        # Start state printer thread
-        state_thread = threading.Thread(target=self.periodic_state_printer, daemon=True)
-        state_thread.start()
-    
+        # Load protocol definitions
+        self.protocol = self.load_protocol_definitions('protocol.json')
+
     def load_protocol_definitions(self, filename):
         """Load protocol definitions from JSON file"""
         try:
@@ -117,369 +93,119 @@ class CANCommandGenerator:
             
             logger.info("Kart protocol definitions loaded successfully")
             return protocol
-                
         except FileNotFoundError:
             logger.error(f"Protocol file not found: {filename}")
             return {"kart": {}}
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON in protocol file: {filename}")
             return {"kart": {}}
-        except Exception as e:
-            logger.error(f"Failed to load protocol definitions: {e}")
-            return {"kart": {}}  # Empty protocol
-    
-    def get_component_type_id(self, type_name):
-        """Get component type ID from protocol"""
-        id_str = self.protocol.get('kart', {}).get('component_types', {}).get(type_name, {}).get('id')
-        if id_str:
-            return int(id_str, 16)  # Convert hex string to integer
-        return None
 
-    def get_component_id(self, type_name, component_name):
-        """Get component ID from protocol"""
-        id_str = self.protocol.get('kart', {}).get('components', {}).get(type_name, {}).get(component_name, {}).get('id')
-        if id_str:
-            return int(id_str, 16)
-        return None
+    def get_command_value(self, command_type, command, value_name):
+        """Get numeric value for a command value by name."""
+        try:
+            value_hex = self.protocol["kart"]["commands"][command_type][command]["values"][value_name]
+            return int(value_hex, 16)
+        except (KeyError, ValueError):
+            logger.error(f"Invalid command value: {command_type}.{command}.{value_name}")
+            return 0
 
-    def get_command_id(self, type_name, command_name):
-        """Get command ID from protocol"""
-        id_str = self.protocol.get('kart', {}).get('commands', {}).get(type_name, {}).get(command_name, {}).get('id')
-        if id_str:
-            return int(id_str, 16)
-        return None
-
-    def get_command_value(self, type_name, command_name, value_name):
-        """Get command value from protocol"""
-        value_str = self.protocol.get('kart', {}).get('commands', {}).get(type_name, {}).get(command_name, {}).get('values', {}).get(value_name)
-        if value_str:
-            return int(value_str, 16)
-        return None
-
-    def get_command_values(self, type_name, command_name):
-        """Get all possible values for a command as integers"""
-        values_dict = self.protocol.get('kart', {}).get('commands', {}).get(type_name, {}).get(command_name, {}).get('values', {})
-        if not values_dict:
+    def get_command_values(self, command_type, command):
+        """Get all possible values for a command."""
+        try:
+            return self.protocol["kart"]["commands"][command_type][command]["values"]
+        except KeyError:
+            logger.error(f"Invalid command: {command_type}.{command}")
             return {}
-        
-        # Convert all string values to integers
-        return {k: int(v, 16) for k, v in values_dict.items()}
 
-    def get_command_values_raw(self, type_name, command_name):
-        """Get all possible values for a command (original strings)"""
-        return self.protocol.get('kart', {}).get('commands', {}).get(type_name, {}).get(command_name, {}).get('values', {})
+    def get_component_type_id(self, component_type):
+        """Get numeric ID for a component type."""
+        try:
+            type_id_hex = self.protocol["kart"]["component_types"][component_type]["id"]
+            return int(type_id_hex, 16)
+        except (KeyError, ValueError):
+            logger.error(f"Invalid component type: {component_type}")
+            return 0
 
-    def get_message_header(self, type_name, command_name):
-        """Create a message header byte from component type and command"""
-        component_type_id = self.get_component_type_id(type_name)
-        command_id = self.get_command_id(type_name, command_name)
+    def get_component_id(self, component_type, component):
+        """Get numeric ID for a component."""
+        try:
+            component_id_hex = self.protocol["kart"]["components"][component_type][component]["id"]
+            return int(component_id_hex, 16)
+        except (KeyError, ValueError):
+            logger.error(f"Invalid component: {component_type}.{component}")
+            return 0
+
+    def get_command_id(self, command_type, command):
+        """Get numeric ID for a command."""
+        try:
+            command_id_hex = self.protocol["kart"]["commands"][command_type][command]["id"]
+            return int(command_id_hex, 16)
+        except (KeyError, ValueError):
+            logger.error(f"Invalid command: {command_type}.{command}")
+            return 0
+
+    def get_message_header(self, command_type, command):
+        """Generate message header for a command."""
+        component_type_id = self.get_component_type_id(command_type)
+        command_id = self.get_command_id(command_type, command)
         
         if component_type_id is None or command_id is None:
-            logger.error(f"Invalid component type '{type_name}' or command '{command_name}'")
             return None
-        
-        # Create header byte: [4 bits component_type][4 bits command]
+            
         return (component_type_id << 4) | command_id
-    
-    def send_can_message(self, type_name, command_name, component_name, value_id):
-        """Generic method to send a CAN message based on protocol definition"""
-        header = self.get_message_header(type_name, command_name)
-        if header is None:
+
+    def send_can_message(self, command_type, command, component, value):
+        """Send a CAN message using the protocol."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
             return False
+            
+        header = self.get_message_header(command_type, command)
+        component_id = self.get_component_id(command_type, component)
         
-        component_id = self.get_component_id(type_name, component_name)
-        if component_id is None:
-            logger.error(f"Invalid component '{component_name}' for type '{type_name}'")
+        if header is None or header == 0 or component_id is None or component_id == 0:
+            logger.error(f"Invalid protocol definition for {command_type}.{command}.{component}")
             return False
-        
+            
         message = can.Message(
-            arbitration_id=0x100,  # Standard ID for all kart messages
-            data=[header, component_id, value_id],
+            arbitration_id=self.COMMAND_ID,
+            data=[header, component_id, value],
             is_extended_id=False
         )
         
         try:
             self.bus.send(message)
-            
-            # Update state tracking
-            state_key = f"{type_name}_{command_name}"
-            self.light_states[state_key] = value_id
-            
             return True
         except Exception as e:
-            logger.error(f"Failed to send CAN message: {e}")
+            logger.error(f"Error sending {command_type}.{command} message: {e}")
             return False
-    
-    def send_light_mode_by_index(self, mode_index):
-        """Set light mode by index (0=off, 1=low, 2=high, 3=hazard)"""
-        # Get raw values (with string hex values)
-        mode_values_raw = self.get_command_values_raw('lights', 'mode')
-        if not mode_values_raw:
-            logger.error("No light modes defined in protocol")
-            return False
-        
-        mode_names = list(mode_values_raw.keys())
-        if not mode_names:
-            logger.error("Empty light modes list in protocol")
-            return False
-        
-        if mode_index < 0 or mode_index >= len(mode_names):
-            logger.error(f"Invalid light mode index: {mode_index} (valid range: 0-{len(mode_names)-1})")
-            # Default to OFF if out of range
-            if mode_names:
-                mode_index = 0  # Use first available mode (typically OFF)
-            else:
-                return False
-        
-        mode_name = mode_names[mode_index]
-        value = int(mode_values_raw[mode_name], 16)  # Convert to integer
-        
-        # Debug info
-        logger.info(f"Sending light mode: index={mode_index}, name={mode_name}, value={value}")
-        logger.info(f"Available modes: {mode_names}")
-        
-        success = self.send_can_message('lights', 'mode', 'front', value)
-        if success:
-            self.light_states['lights_mode'] = mode_index
-            logger.info(f"Light Mode: {mode_name.upper()}")
-        return success
-    
-    def send_light_mode(self, mode_name):
-        """Set light mode by name (off, low, high, hazard)"""
-        mode_values_raw = self.get_command_values_raw('lights', 'mode')
-        if mode_name not in mode_values_raw:
-            logger.error(f"Invalid light mode: {mode_name}")
-            return False
-        
-        value = int(mode_values_raw[mode_name], 16)  # Convert to integer
-        
-        # Get the mode index for state tracking
-        mode_names = list(mode_values_raw.keys())
-        mode_index = mode_names.index(mode_name)
-        
-        success = self.send_can_message('lights', 'mode', 'front', value)
-        if success:
-            self.light_states['lights_mode'] = mode_index
-            logger.info(f"Light Mode: {mode_name.upper()}")
-        return success
-    
-    def send_light_signal_by_index(self, signal_index):
-        """Set turn signal by index (0=off, 1=left, 2=right)"""
-        signal_values_raw = self.get_command_values_raw('lights', 'signal')
-        if not signal_values_raw:
-            logger.error("No signal values defined in protocol")
-            return False
-        
-        signal_names = list(signal_values_raw.keys())
-        if not signal_names:
-            logger.error("Empty signal values list in protocol")
-            return False
-        
-        if signal_index < 0 or signal_index >= len(signal_names):
-            logger.error(f"Invalid turn signal index: {signal_index} (valid range: 0-{len(signal_names)-1})")
-            return False
-        
-        signal_name = signal_names[signal_index]
-        value = int(signal_values_raw[signal_name], 16)  # Convert to integer
-        
-        # Send to both front and rear (if they exist)
-        for component in ['front', 'left_signal', 'right_signal']:
-            if self.get_component_id('lights', component) is not None:
-                self.send_can_message('lights', 'signal', component, value)
-        
-        # Store the index directly
-        self.light_states['lights_signal'] = signal_index
-        logger.info(f"Turn Signal: {signal_name.upper()}")
-        return True
-    
-    def send_light_signal(self, signal_name):
-        """Set turn signal by name (off, left, right)"""
-        signal_values_raw = self.get_command_values_raw('lights', 'signal')
-        if signal_name not in signal_values_raw:
-            logger.error(f"Invalid turn signal: {signal_name}")
-            return False
-        
-        value = int(signal_values_raw[signal_name], 16)  # Convert to integer
-        
-        # Send to both front and rear (if they exist)
-        for component in ['front', 'left_signal', 'right_signal']:
-            if self.get_component_id('lights', component) is not None:
-                self.send_can_message('lights', 'signal', component, value)
-        
-        # Get the signal index for state tracking
-        signal_names = list(signal_values_raw.keys())
-        signal_index = signal_names.index(signal_name)
-        self.light_states['lights_signal'] = signal_index
-        
-        logger.info(f"Turn Signal: {signal_name.upper()}")
-        return True
-    
-    def send_light_brake(self, state):
-        """Set brake lights (on/off)"""
-        value_name = 'on' if state else 'off'
-        brake_values_raw = self.get_command_values_raw('lights', 'brake')
-        if value_name not in brake_values_raw:
-            logger.error(f"Invalid brake state: {value_name}")
-            return False
-        
-        value = int(brake_values_raw[value_name], 16)  # Convert to integer
-        
-        success = self.send_can_message('lights', 'brake', 'brake', value)
-        if success:
-            self.light_states['lights_brake'] = value
-            logger.info(f"Brake Lights: {value_name.upper()}")
-        return success
-    
-    def send_light_test(self, enable):
-        """Enable/disable light test mode"""
-        value_name = 'on' if enable else 'off'
-        test_values_raw = self.get_command_values_raw('lights', 'test')
-        if value_name not in test_values_raw:
-            logger.error(f"Invalid test state: {value_name}")
-            return False
-        
-        value = int(test_values_raw[value_name], 16)  # Convert to integer
-        
-        success = self.send_can_message('lights', 'test', 'front', value)
-        if success:
-            self.light_states['lights_test'] = value
-            logger.info(f"Light Test Mode: {value_name.upper()}")
-        return success
-    
-    def send_light_location(self, is_front):
-        """Set light controller location (front/rear)"""
-        # Location command might not be in the protocol, so we'll check
-        header = self.get_message_header('lights', 'location')
-        if header is None:
-            # Use default component type with command 0x05
-            component_type_id = self.get_component_type_id('lights')
-            if component_type_id is None:
-                logger.error("Invalid component type 'lights'")
-                return False
-            header = (component_type_id << 4) | 0x05
-        
-        # Location value is either 1 (front) or 0 (rear)
-        value = 0x01 if is_front else 0x00
-        
-        message = can.Message(
-            arbitration_id=0x100,
-            data=[header, 0x01, value],  # Using component ID 1 as default
-            is_extended_id=False
-        )
-        
-        try:
-            self.bus.send(message)
-            logger.info(f"Light Location Set: {'FRONT' if is_front else 'REAR'}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send light location message: {e}")
-            return False
-    
-    # Legacy methods for backward compatibility
-    def send_emergency_stop(self, activate):
-        """Send emergency stop command."""
-        message = can.Message(
-            arbitration_id=self.COMMAND_ID,
-            data=[self.DEVICE_NANO, self.CMD_EMERGENCY_STOP, 0xFF if activate else 0x00],
-            is_extended_id=False
-        )
-        self.bus.send(message)
-        
-        self.emergency_stop_active = activate
-        logger.info(f"Emergency Stop: {'ACTIVATED' if activate else 'DEACTIVATED'}")
 
-    def send_speed_command(self, speed):
-        """Send speed control command."""
-        speed_val = max(0, min(int(speed), 100))  # Limit to 0-100
-        
-        message = can.Message(
-            arbitration_id=self.COMMAND_ID,
-            data=[self.DEVICE_NANO, self.CMD_SPEED_CONTROL, speed_val],
-            is_extended_id=False
-        )
-        self.bus.send(message)
-        
-        self.desired_speed = speed_val
-        logger.info(f"Speed Command: {speed_val} km/h")
-
-    def send_steering_command(self, angle):
-        """Send steering angle command."""
-        angle_val = max(-45, min(int(angle), 45))  # Limit to -45 to 45 degrees
-        
-        # Convert to 0-90 range for transmission (add 45 to -45/45 range)
-        tx_angle = angle_val + 45
-        message = can.Message(
-            arbitration_id=self.COMMAND_ID,
-            data=[self.DEVICE_NANO, self.CMD_STEERING_CONTROL, tx_angle],
-            is_extended_id=False
-        )
-        self.bus.send(message)
-        
-        self.desired_steering = angle_val
-        logger.info(f"Steering Command: {angle_val} degrees")
-
-    def send_brake_command(self, pressure):
-        """Send brake pressure command."""
-        pressure_val = max(0, min(int(pressure), 100))  # Limit to 0-100%
-        
-        message = can.Message(
-            arbitration_id=self.COMMAND_ID,
-            data=[self.DEVICE_NANO, self.CMD_BRAKE_CONTROL, pressure_val],
-            is_extended_id=False
-        )
-        self.bus.send(message)
-        
-        self.desired_brake = pressure_val
-        logger.info(f"Brake Command: {pressure_val}%")
-
-    def periodic_state_printer(self):
-        """Periodically print go-kart state."""
-        while True:
-            time.sleep(5)  # Print every 5 seconds
-            logger.info("\n--- GO-KART STATE ---")
-            logger.info(f"Speed:          {self.state.speed:.1f} km/h")
-            logger.info(f"Throttle:       {self.state.throttle}%")
-            logger.info(f"Battery:        {self.state.battery_voltage:.1f} V")
-            logger.info(f"Motor Temp:     {self.state.motor_temp:.1f} °C")
-            logger.info(f"Brake Pressure: {self.state.brake_pressure:.1f} %")
-            logger.info(f"Steering Angle: {self.state.steering_angle:.1f} °")
-            logger.info("--------------------")
-    
-    def get_current_state(self):
-        """Return the current state as a dictionary."""
-        state_dict = self.state.to_dict()
-        
-        # Add light states - using simpler, more reliable approach
-        state_dict.update({
-            'light_mode': self.light_states.get('lights_mode', 0),
-            'light_signal': self.light_states.get('lights_signal', 0),
-            'light_brake': 1 if self.light_states.get('lights_brake') == self.get_command_value('lights', 'brake', 'on') else 0,
-            'light_test': 1 if self.light_states.get('lights_test') == self.get_command_value('lights', 'test', 'on') else 0,
-        })
-        
-        return state_dict
-    
-    def get_history(self):
-        """Return the historical state data."""
-        return list(self.history)
-
-    def listen_telemetry(self):
+    def listen_telemetry(self, test_mode=False):
         """Listen for incoming telemetry messages."""
         while True:
             try:
-                message = self.bus.recv(timeout=0.1)
-                if message is None:
+                if not self.bus:
+                    logger.error("CAN bus not initialized")
+                    time.sleep(0.1)
+                    if test_mode:
+                        return
                     continue
                     
-                # Check if message is for this device
-                if len(message.data) > 0 and message.data[0] != self.DEVICE_RPI:
+                message = self.bus.recv(timeout=0.1)
+                if message is None:
+                    # Handle timeout case
+                    logger.debug("CAN bus receive timeout")
+                    if test_mode:
+                        return
                     continue
                 
-                # Raw data print
-                logger.debug(f"RX: ID=0x{message.arbitration_id:03X} " +
-                          f"LEN={message.dlc} " +
-                          f"DATA={' '.join(f'{b:02X}' for b in message.data)}")
-
+                # Check if valid device ID
+                if len(message.data) < 1 or message.data[0] != self.DEVICE_NANO:
+                    logger.debug(f"Ignoring message with invalid device ID: {message.data[0] if len(message.data) > 0 else 'empty'}")
+                    if test_mode:
+                        return
+                    continue
+                
                 # Parse messages based on ID
                 if message.arbitration_id == 0x100:  # Speed Throttle
                     self.state.speed = struct.unpack('>h', message.data[1:3])[0] / 10.0
@@ -499,9 +225,261 @@ class CANCommandGenerator:
                 # Update timestamp and add to history
                 self.state.timestamp = datetime.now().timestamp()
                 self.history.append(self.state.to_dict())
+                
+                # If in test mode, just process one message and return
+                if test_mode:
+                    return
+                
             except Exception as e:
                 logger.error(f"Error in telemetry: {e}")
                 time.sleep(0.1)
+                # If in test mode, raise the exception so the test can fail properly
+                if test_mode:
+                    raise
+
+    def get_current_state(self):
+        """Return the current state as a dictionary."""
+        state_dict = self.state.to_dict()
+        
+        # Add light states
+        state_dict.update({
+            'light_mode': self.light_states.get('lights_mode', 0),
+            'light_signal': self.light_states.get('lights_signal', 0),
+            'light_brake': 1 if self.light_states.get('lights_brake', 0) == 0xFF else 0,
+            'light_test': 1 if self.light_states.get('lights_test', 0) == 0xFF else 0,
+        })
+        
+        return state_dict
+
+    def get_history(self):
+        """Return the historical state data."""
+        return list(self.history)
+
+    def send_emergency_stop(self, activate):
+        """Send emergency stop command."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_EMERGENCY_STOP, 0xFF if activate else 0x00],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending emergency stop command: {e}")
+            return False
+
+    def send_speed_command(self, speed):
+        """Send speed control command."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        # Limit speed to 0-100%
+        speed = max(0, min(100, speed))
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_SPEED_CONTROL, speed],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending speed command: {e}")
+            return False
+
+    def send_steering_command(self, angle):
+        """Send steering control command."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        # Limit angle to -45 to +45 degrees
+        angle = max(-45, min(45, angle))
+        # Convert to 0-90 range for CAN message
+        can_angle = angle + 45
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_STEERING_CONTROL, can_angle],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending steering command: {e}")
+            return False
+
+    def send_brake_command(self, pressure):
+        """Send brake control command."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        # Limit pressure to 0-100%
+        pressure = max(0, min(100, pressure))
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_BRAKE_CONTROL, pressure],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending brake command: {e}")
+            return False
+
+    def send_lights_command(self, lights_on):
+        """Send lights control command."""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, 0xFF if lights_on else 0x00],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending lights command: {e}")
+            return False
+
+    def send_light_mode_by_index(self, mode_index):
+        """Set light mode by index (0=off, 1=low, 2=high, 3=hazard)"""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        
+        # Validate mode index
+        if mode_index < 0 or mode_index > 3:
+            logger.error(f"Invalid light mode index: {mode_index}")
+            return False
+        
+        # Convert mode index to value
+        value = mode_index
+        
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, value],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            self.light_states['lights_mode'] = mode_index
+            logger.info(f"Light Mode: {['OFF', 'LOW', 'HIGH', 'HAZARD'][mode_index]}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending light mode command: {e}")
+            return False
+
+    def send_light_mode(self, mode_name):
+        """Set light mode by name (off, low, high, hazard)"""
+        mode_map = {'off': 0, 'low': 1, 'high': 2, 'hazard': 3}
+        if mode_name.lower() not in mode_map:
+            logger.error(f"Invalid light mode: {mode_name}")
+            return False
+        
+        return self.send_light_mode_by_index(mode_map[mode_name.lower()])
+
+    def send_light_signal_by_index(self, signal_index):
+        """Set turn signal by index (0=off, 1=left, 2=right)"""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        
+        # Validate signal index
+        if signal_index < 0 or signal_index > 2:
+            logger.error(f"Invalid turn signal index: {signal_index}")
+            return False
+        
+        # Convert signal index to value
+        value = signal_index
+        
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, value],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            self.light_states['lights_signal'] = signal_index
+            logger.info(f"Turn Signal: {['OFF', 'LEFT', 'RIGHT'][signal_index]}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending turn signal command: {e}")
+            return False
+
+    def send_light_signal(self, signal_name):
+        """Set turn signal by name (off, left, right)"""
+        signal_map = {'off': 0, 'left': 1, 'right': 2}
+        if signal_name.lower() not in signal_map:
+            logger.error(f"Invalid turn signal: {signal_name}")
+            return False
+        
+        return self.send_light_signal_by_index(signal_map[signal_name.lower()])
+
+    def send_light_brake(self, state):
+        """Set brake lights (on/off)"""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, 0xFF if state else 0x00],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            self.light_states['lights_brake'] = 0xFF if state else 0x00
+            logger.info(f"Brake Lights: {'ON' if state else 'OFF'}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending brake lights command: {e}")
+            return False
+
+    def send_light_test(self, enable):
+        """Enable/disable light test mode"""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, 0xFF if enable else 0x00],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            self.light_states['lights_test'] = 0xFF if enable else 0x00
+            logger.info(f"Light Test Mode: {'ON' if enable else 'OFF'}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending light test command: {e}")
+            return False
+
+    def send_light_location(self, is_front):
+        """Set light controller location (front/rear)"""
+        if not self.bus:
+            logger.error("CAN bus not initialized")
+            return False
+        
+        message = can.Message(
+            arbitration_id=self.COMMAND_ID,
+            data=[self.DEVICE_NANO, self.CMD_LIGHTS_CONTROL, 0xFF if is_front else 0x00],
+            is_extended_id=False
+        )
+        try:
+            self.bus.send(message)
+            logger.info(f"Light Location Set: {'FRONT' if is_front else 'REAR'}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending light location command: {e}")
+            return False
 
 # Create Flask app and SocketIO for real-time updates
 app = Flask(__name__)
@@ -562,12 +540,13 @@ def get_history():
 @app.route('/api/camera/status', methods=['GET'])
 def get_camera_status():
     """Get the current camera status."""
-    return jsonify({ status: 'offline' })
+    return jsonify({'status': 'offline'})
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
+    """Get current settings."""
     return jsonify({
-        'camera_status': { status: 'offline' }
+        'camera_status': {'status': 'offline'}
     })
 
 @app.route('/api/settings', methods=['POST'])
