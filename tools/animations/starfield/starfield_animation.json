@@ -1,0 +1,1180 @@
+{
+  "animations": [
+    {
+      "name": "Twinkling Starfield",
+      "type": "custom",
+      "speed": 120,
+      "direction": "forward",
+      "dimensions": {
+        "length": 60,
+        "height": 1
+      },
+      "frames": [
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#535353"
+            },
+            {
+              "index": 33,
+              "color": "#535353"
+            },
+            {
+              "index": 43,
+              "color": "#474747"
+            },
+            {
+              "index": 22,
+              "color": "#b4b4b4"
+            },
+            {
+              "index": 35,
+              "color": "#9e9e9e"
+            },
+            {
+              "index": 20,
+              "color": "#b3b3b3"
+            },
+            {
+              "index": 17,
+              "color": "#656565"
+            },
+            {
+              "index": 18,
+              "color": "#696969"
+            },
+            {
+              "index": 59,
+              "color": "#cacaca"
+            },
+            {
+              "index": 3,
+              "color": "#6b6b6b"
+            },
+            {
+              "index": 23,
+              "color": "#d0d0d0"
+            },
+            {
+              "index": 47,
+              "color": "#ffffff"
+            },
+            {
+              "index": 11,
+              "color": "#cbcbcb"
+            },
+            {
+              "index": 1,
+              "color": "#ffffff"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#a2a2a2"
+            },
+            {
+              "index": 33,
+              "color": "#f6f6f6"
+            },
+            {
+              "index": 43,
+              "color": "#686868"
+            },
+            {
+              "index": 22,
+              "color": "#d0d0d0"
+            },
+            {
+              "index": 45,
+              "color": "#d9d9d9"
+            },
+            {
+              "index": 35,
+              "color": "#ffffff"
+            },
+            {
+              "index": 20,
+              "color": "#888888"
+            },
+            {
+              "index": 17,
+              "color": "#696969"
+            },
+            {
+              "index": 18,
+              "color": "#e9e9e9"
+            },
+            {
+              "index": 59,
+              "color": "#4c4c4c"
+            },
+            {
+              "index": 3,
+              "color": "#757575"
+            },
+            {
+              "index": 23,
+              "color": "#727272"
+            },
+            {
+              "index": 47,
+              "color": "#dedede"
+            },
+            {
+              "index": 11,
+              "color": "#545454"
+            },
+            {
+              "index": 1,
+              "color": "#727272"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 33,
+              "color": "#414141"
+            },
+            {
+              "index": 43,
+              "color": "#ffffff"
+            },
+            {
+              "index": 22,
+              "color": "#ffffff"
+            },
+            {
+              "index": 45,
+              "color": "#dcdcdc"
+            },
+            {
+              "index": 35,
+              "color": "#9a9a9a"
+            },
+            {
+              "index": 20,
+              "color": "#e8e8e8"
+            },
+            {
+              "index": 17,
+              "color": "#e8e8e8"
+            },
+            {
+              "index": 59,
+              "color": "#969696"
+            },
+            {
+              "index": 3,
+              "color": "#ffffff"
+            },
+            {
+              "index": 23,
+              "color": "#f2f2f2"
+            },
+            {
+              "index": 47,
+              "color": "#d4d4d4"
+            },
+            {
+              "index": 11,
+              "color": "#e9e9e9"
+            },
+            {
+              "index": 1,
+              "color": "#8c8c8c"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#a1a1a1"
+            },
+            {
+              "index": 33,
+              "color": "#c3c3c3"
+            },
+            {
+              "index": 43,
+              "color": "#ffffff"
+            },
+            {
+              "index": 22,
+              "color": "#ffffff"
+            },
+            {
+              "index": 35,
+              "color": "#d5d5d5"
+            },
+            {
+              "index": 20,
+              "color": "#5e5e5e"
+            },
+            {
+              "index": 17,
+              "color": "#ffffff"
+            },
+            {
+              "index": 18,
+              "color": "#4c4c4c"
+            },
+            {
+              "index": 59,
+              "color": "#acacac"
+            },
+            {
+              "index": 3,
+              "color": "#cfcfcf"
+            },
+            {
+              "index": 47,
+              "color": "#c5c5c5"
+            },
+            {
+              "index": 11,
+              "color": "#8a8a8a"
+            },
+            {
+              "index": 1,
+              "color": "#8f8f8f"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#aeaeae"
+            },
+            {
+              "index": 33,
+              "color": "#999999"
+            },
+            {
+              "index": 43,
+              "color": "#fdfdfd"
+            },
+            {
+              "index": 22,
+              "color": "#6e6e6e"
+            },
+            {
+              "index": 35,
+              "color": "#959595"
+            },
+            {
+              "index": 20,
+              "color": "#828282"
+            },
+            {
+              "index": 17,
+              "color": "#626262"
+            },
+            {
+              "index": 18,
+              "color": "#2a2a2a"
+            },
+            {
+              "index": 59,
+              "color": "#6e6e6e"
+            },
+            {
+              "index": 23,
+              "color": "#a8a8a8"
+            },
+            {
+              "index": 11,
+              "color": "#4f4f4f"
+            },
+            {
+              "index": 1,
+              "color": "#626262"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#eeeeee"
+            },
+            {
+              "index": 33,
+              "color": "#fdfdfd"
+            },
+            {
+              "index": 43,
+              "color": "#ffffff"
+            },
+            {
+              "index": 22,
+              "color": "#999999"
+            },
+            {
+              "index": 45,
+              "color": "#c0c0c0"
+            },
+            {
+              "index": 35,
+              "color": "#393939"
+            },
+            {
+              "index": 20,
+              "color": "#8f8f8f"
+            },
+            {
+              "index": 17,
+              "color": "#ffffff"
+            },
+            {
+              "index": 18,
+              "color": "#6b6b6b"
+            },
+            {
+              "index": 59,
+              "color": "#bcbcbc"
+            },
+            {
+              "index": 3,
+              "color": "#727272"
+            },
+            {
+              "index": 47,
+              "color": "#bdbdbd"
+            },
+            {
+              "index": 1,
+              "color": "#626262"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#919191"
+            },
+            {
+              "index": 33,
+              "color": "#f0f0f0"
+            },
+            {
+              "index": 43,
+              "color": "#636363"
+            },
+            {
+              "index": 22,
+              "color": "#474747"
+            },
+            {
+              "index": 45,
+              "color": "#959595"
+            },
+            {
+              "index": 35,
+              "color": "#838383"
+            },
+            {
+              "index": 20,
+              "color": "#ffffff"
+            },
+            {
+              "index": 17,
+              "color": "#888888"
+            },
+            {
+              "index": 18,
+              "color": "#a5a5a5"
+            },
+            {
+              "index": 59,
+              "color": "#f0f0f0"
+            },
+            {
+              "index": 23,
+              "color": "#ffffff"
+            },
+            {
+              "index": 47,
+              "color": "#6b6b6b"
+            },
+            {
+              "index": 1,
+              "color": "#797979"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#4f4f4f"
+            },
+            {
+              "index": 33,
+              "color": "#5d5d5d"
+            },
+            {
+              "index": 43,
+              "color": "#6b6b6b"
+            },
+            {
+              "index": 45,
+              "color": "#505050"
+            },
+            {
+              "index": 35,
+              "color": "#fefefe"
+            },
+            {
+              "index": 20,
+              "color": "#7f7f7f"
+            },
+            {
+              "index": 17,
+              "color": "#757575"
+            },
+            {
+              "index": 18,
+              "color": "#c6c6c6"
+            },
+            {
+              "index": 59,
+              "color": "#6d6d6d"
+            },
+            {
+              "index": 3,
+              "color": "#bfbfbf"
+            },
+            {
+              "index": 23,
+              "color": "#616161"
+            },
+            {
+              "index": 47,
+              "color": "#ffffff"
+            },
+            {
+              "index": 11,
+              "color": "#313131"
+            },
+            {
+              "index": 1,
+              "color": "#e0e0e0"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#f3f3f3"
+            },
+            {
+              "index": 33,
+              "color": "#7a7a7a"
+            },
+            {
+              "index": 43,
+              "color": "#f6f6f6"
+            },
+            {
+              "index": 22,
+              "color": "#969696"
+            },
+            {
+              "index": 45,
+              "color": "#ffffff"
+            },
+            {
+              "index": 35,
+              "color": "#f5f5f5"
+            },
+            {
+              "index": 20,
+              "color": "#767676"
+            },
+            {
+              "index": 17,
+              "color": "#acacac"
+            },
+            {
+              "index": 18,
+              "color": "#a1a1a1"
+            },
+            {
+              "index": 23,
+              "color": "#909090"
+            },
+            {
+              "index": 47,
+              "color": "#727272"
+            },
+            {
+              "index": 11,
+              "color": "#c8c8c8"
+            },
+            {
+              "index": 1,
+              "color": "#cfcfcf"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#7e7e7e"
+            },
+            {
+              "index": 33,
+              "color": "#656565"
+            },
+            {
+              "index": 43,
+              "color": "#434343"
+            },
+            {
+              "index": 22,
+              "color": "#bdbdbd"
+            },
+            {
+              "index": 45,
+              "color": "#dbdbdb"
+            },
+            {
+              "index": 35,
+              "color": "#a7a7a7"
+            },
+            {
+              "index": 20,
+              "color": "#eeeeee"
+            },
+            {
+              "index": 17,
+              "color": "#696969"
+            },
+            {
+              "index": 18,
+              "color": "#ffffff"
+            },
+            {
+              "index": 59,
+              "color": "#b6b6b6"
+            },
+            {
+              "index": 3,
+              "color": "#6f6f6f"
+            },
+            {
+              "index": 23,
+              "color": "#a6a6a6"
+            },
+            {
+              "index": 47,
+              "color": "#e9e9e9"
+            },
+            {
+              "index": 11,
+              "color": "#7b7b7b"
+            },
+            {
+              "index": 1,
+              "color": "#646464"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#373737"
+            },
+            {
+              "index": 33,
+              "color": "#cecece"
+            },
+            {
+              "index": 43,
+              "color": "#f5f5f5"
+            },
+            {
+              "index": 45,
+              "color": "#a4a4a4"
+            },
+            {
+              "index": 35,
+              "color": "#b9b9b9"
+            },
+            {
+              "index": 20,
+              "color": "#c4c4c4"
+            },
+            {
+              "index": 17,
+              "color": "#ffffff"
+            },
+            {
+              "index": 18,
+              "color": "#ffffff"
+            },
+            {
+              "index": 59,
+              "color": "#adadad"
+            },
+            {
+              "index": 3,
+              "color": "#ffffff"
+            },
+            {
+              "index": 23,
+              "color": "#b4b4b4"
+            },
+            {
+              "index": 47,
+              "color": "#454545"
+            },
+            {
+              "index": 11,
+              "color": "#757575"
+            },
+            {
+              "index": 1,
+              "color": "#616161"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#bebebe"
+            },
+            {
+              "index": 33,
+              "color": "#cdcdcd"
+            },
+            {
+              "index": 43,
+              "color": "#ababab"
+            },
+            {
+              "index": 22,
+              "color": "#949494"
+            },
+            {
+              "index": 35,
+              "color": "#7e7e7e"
+            },
+            {
+              "index": 20,
+              "color": "#e4e4e4"
+            },
+            {
+              "index": 17,
+              "color": "#686868"
+            },
+            {
+              "index": 18,
+              "color": "#444444"
+            },
+            {
+              "index": 59,
+              "color": "#545454"
+            },
+            {
+              "index": 3,
+              "color": "#cfcfcf"
+            },
+            {
+              "index": 47,
+              "color": "#ffffff"
+            },
+            {
+              "index": 11,
+              "color": "#4a4a4a"
+            },
+            {
+              "index": 1,
+              "color": "#aeaeae"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#8f8f8f"
+            },
+            {
+              "index": 33,
+              "color": "#d1d1d1"
+            },
+            {
+              "index": 43,
+              "color": "#ffffff"
+            },
+            {
+              "index": 22,
+              "color": "#7b7b7b"
+            },
+            {
+              "index": 45,
+              "color": "#707070"
+            },
+            {
+              "index": 35,
+              "color": "#868686"
+            },
+            {
+              "index": 20,
+              "color": "#696969"
+            },
+            {
+              "index": 17,
+              "color": "#cecece"
+            },
+            {
+              "index": 18,
+              "color": "#939393"
+            },
+            {
+              "index": 59,
+              "color": "#4c4c4c"
+            },
+            {
+              "index": 3,
+              "color": "#d6d6d6"
+            },
+            {
+              "index": 23,
+              "color": "#717171"
+            },
+            {
+              "index": 47,
+              "color": "#dbdbdb"
+            },
+            {
+              "index": 11,
+              "color": "#222222"
+            },
+            {
+              "index": 1,
+              "color": "#ffffff"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#555555"
+            },
+            {
+              "index": 43,
+              "color": "#ffffff"
+            },
+            {
+              "index": 22,
+              "color": "#525252"
+            },
+            {
+              "index": 45,
+              "color": "#757575"
+            },
+            {
+              "index": 18,
+              "color": "#414141"
+            },
+            {
+              "index": 59,
+              "color": "#d1d1d1"
+            },
+            {
+              "index": 3,
+              "color": "#8d8d8d"
+            },
+            {
+              "index": 23,
+              "color": "#575757"
+            },
+            {
+              "index": 47,
+              "color": "#bfbfbf"
+            },
+            {
+              "index": 11,
+              "color": "#b3b3b3"
+            },
+            {
+              "index": 1,
+              "color": "#ececec"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#bbbbbb"
+            },
+            {
+              "index": 33,
+              "color": "#8c8c8c"
+            },
+            {
+              "index": 43,
+              "color": "#707070"
+            },
+            {
+              "index": 22,
+              "color": "#515151"
+            },
+            {
+              "index": 45,
+              "color": "#bbbbbb"
+            },
+            {
+              "index": 35,
+              "color": "#6e6e6e"
+            },
+            {
+              "index": 20,
+              "color": "#b8b8b8"
+            },
+            {
+              "index": 17,
+              "color": "#f4f4f4"
+            },
+            {
+              "index": 18,
+              "color": "#ededed"
+            },
+            {
+              "index": 59,
+              "color": "#505050"
+            },
+            {
+              "index": 3,
+              "color": "#636363"
+            },
+            {
+              "index": 23,
+              "color": "#5b5b5b"
+            },
+            {
+              "index": 47,
+              "color": "#c5c5c5"
+            },
+            {
+              "index": 11,
+              "color": "#d8d8d8"
+            },
+            {
+              "index": 1,
+              "color": "#3b3b3b"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#959595"
+            },
+            {
+              "index": 33,
+              "color": "#8a8a8a"
+            },
+            {
+              "index": 22,
+              "color": "#5f5f5f"
+            },
+            {
+              "index": 45,
+              "color": "#ffffff"
+            },
+            {
+              "index": 35,
+              "color": "#f0f0f0"
+            },
+            {
+              "index": 20,
+              "color": "#ffffff"
+            },
+            {
+              "index": 17,
+              "color": "#8f8f8f"
+            },
+            {
+              "index": 18,
+              "color": "#b6b6b6"
+            },
+            {
+              "index": 59,
+              "color": "#ffffff"
+            },
+            {
+              "index": 3,
+              "color": "#676767"
+            },
+            {
+              "index": 23,
+              "color": "#ffffff"
+            },
+            {
+              "index": 47,
+              "color": "#f5f5f5"
+            },
+            {
+              "index": 11,
+              "color": "#ffffff"
+            },
+            {
+              "index": 1,
+              "color": "#7f7f7f"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#8b8b8b"
+            },
+            {
+              "index": 33,
+              "color": "#484848"
+            },
+            {
+              "index": 22,
+              "color": "#ffffff"
+            },
+            {
+              "index": 45,
+              "color": "#f0f0f0"
+            },
+            {
+              "index": 35,
+              "color": "#ffffff"
+            },
+            {
+              "index": 20,
+              "color": "#ffffff"
+            },
+            {
+              "index": 17,
+              "color": "#ffffff"
+            },
+            {
+              "index": 18,
+              "color": "#a9a9a9"
+            },
+            {
+              "index": 59,
+              "color": "#828282"
+            },
+            {
+              "index": 3,
+              "color": "#ffffff"
+            },
+            {
+              "index": 23,
+              "color": "#a0a0a0"
+            },
+            {
+              "index": 47,
+              "color": "#d0d0d0"
+            },
+            {
+              "index": 1,
+              "color": "#ffffff"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#fcfcfc"
+            },
+            {
+              "index": 33,
+              "color": "#b6b6b6"
+            },
+            {
+              "index": 43,
+              "color": "#f2f2f2"
+            },
+            {
+              "index": 22,
+              "color": "#b6b6b6"
+            },
+            {
+              "index": 35,
+              "color": "#8c8c8c"
+            },
+            {
+              "index": 20,
+              "color": "#9d9d9d"
+            },
+            {
+              "index": 18,
+              "color": "#bbbbbb"
+            },
+            {
+              "index": 59,
+              "color": "#d3d3d3"
+            },
+            {
+              "index": 3,
+              "color": "#ffffff"
+            },
+            {
+              "index": 23,
+              "color": "#dcdcdc"
+            },
+            {
+              "index": 47,
+              "color": "#dddddd"
+            },
+            {
+              "index": 11,
+              "color": "#4b4b4b"
+            },
+            {
+              "index": 1,
+              "color": "#959595"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#c8c8c8"
+            },
+            {
+              "index": 33,
+              "color": "#6a6a6a"
+            },
+            {
+              "index": 43,
+              "color": "#343434"
+            },
+            {
+              "index": 22,
+              "color": "#4e4e4e"
+            },
+            {
+              "index": 45,
+              "color": "#ebebeb"
+            },
+            {
+              "index": 35,
+              "color": "#a1a1a1"
+            },
+            {
+              "index": 20,
+              "color": "#727272"
+            },
+            {
+              "index": 17,
+              "color": "#606060"
+            },
+            {
+              "index": 18,
+              "color": "#8a8a8a"
+            },
+            {
+              "index": 59,
+              "color": "#656565"
+            },
+            {
+              "index": 3,
+              "color": "#bfbfbf"
+            },
+            {
+              "index": 23,
+              "color": "#979797"
+            },
+            {
+              "index": 47,
+              "color": "#c9c9c9"
+            },
+            {
+              "index": 11,
+              "color": "#ffffff"
+            },
+            {
+              "index": 1,
+              "color": "#f1f1f1"
+            }
+          ]
+        },
+        {
+          "leds": [
+            {
+              "index": 51,
+              "color": "#929292"
+            },
+            {
+              "index": 33,
+              "color": "#777777"
+            },
+            {
+              "index": 43,
+              "color": "#545454"
+            },
+            {
+              "index": 22,
+              "color": "#c2c2c2"
+            },
+            {
+              "index": 35,
+              "color": "#727272"
+            },
+            {
+              "index": 20,
+              "color": "#9d9d9d"
+            },
+            {
+              "index": 18,
+              "color": "#ffffff"
+            },
+            {
+              "index": 59,
+              "color": "#474747"
+            },
+            {
+              "index": 3,
+              "color": "#929292"
+            },
+            {
+              "index": 23,
+              "color": "#6f6f6f"
+            },
+            {
+              "index": 47,
+              "color": "#a8a8a8"
+            },
+            {
+              "index": 11,
+              "color": "#c4c4c4"
+            },
+            {
+              "index": 1,
+              "color": "#919191"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
