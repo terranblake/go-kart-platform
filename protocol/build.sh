@@ -6,7 +6,6 @@ set -e  # Exit on error
 
 # Directory paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROTO_DIR="${SCRIPT_DIR}/protocols"
 NANOPB_DIR="${SCRIPT_DIR}/nanopb"
 OUTPUT_DIR="${SCRIPT_DIR}/generated"
 
@@ -46,10 +45,10 @@ mkdir -p "${OUTPUT_DIR}/python"
 mkdir -p "${OUTPUT_DIR}/nanopb"
 
 # Get all proto files
-PROTO_FILES=$(find "${PROTO_DIR}" -name "*.proto")
+PROTO_FILES=$(find "${SCRIPT_DIR}" -name "*.proto")
 
 if [ -z "${PROTO_FILES}" ]; then
-    echo "No .proto files found in ${PROTO_DIR}"
+    echo "No .proto files found in ${SCRIPT_DIR}"
     exit 1
 fi
 
@@ -63,11 +62,11 @@ echo ""
 for proto in ${PROTO_FILES}; do
     echo "[$(basename ${proto})] Compiling Protocol Buffer definitions..."
 
-    PROTO_FILE="${PROTO_DIR}/$(basename ${proto})"
+    PROTO_FILE="${SCRIPT_DIR}/$(basename ${proto})"
 
     # Generate Python bindings
     echo "[$(basename ${proto})] Generating Python bindings..."
-    ${PROTOC} -I="${PROTO_DIR}" -I="${NANOPB_DIR}/generator/proto" \
+    ${PROTOC} -I="${SCRIPT_DIR}" -I="${NANOPB_DIR}/generator/proto" \
         --python_out="${OUTPUT_DIR}/python" "${PROTO_FILE}"
     echo "[$(basename ${proto})] Python bindings generated successfully at ${OUTPUT_DIR}/python"
 
@@ -75,7 +74,7 @@ for proto in ${PROTO_FILES}; do
     echo "[$(basename ${proto})] Generating nanopb (C/C++) bindings at ${OUTPUT_DIR}/nanopb..."
     python "${NANOPB_DIR}/generator/nanopb_generator.py" \
         "${PROTO_FILE}" \
-        -I "${PROTO_DIR}" \
+        -I "${SCRIPT_DIR}" \
         -I "${NANOPB_DIR}/generator/proto" \
         -D "${OUTPUT_DIR}/nanopb"
 
