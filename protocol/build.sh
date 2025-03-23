@@ -45,7 +45,7 @@ mkdir -p "${OUTPUT_DIR}/python"
 mkdir -p "${OUTPUT_DIR}/nanopb"
 
 # Get all proto files
-PROTO_FILES=$(find "${SCRIPT_DIR}" -name "*.proto")
+PROTO_FILES=$(find "${SCRIPT_DIR}" -maxdepth 1 -name "*.proto")
 
 if [ -z "${PROTO_FILES}" ]; then
     echo "No .proto files found in ${SCRIPT_DIR}"
