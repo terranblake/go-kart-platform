@@ -1,0 +1,8024 @@
+{
+  "name": "Horizontal Fire Effect",
+  "type": "custom",
+  "speed": 50,
+  "direction": "forward",
+  "frames": [
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 2,
+          "color": "#ff8200"
+        },
+        {
+          "index": 3,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 4,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 5,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 6,
+          "color": "#ffc911"
+        },
+        {
+          "index": 7,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 8,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 9,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 10,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 11,
+          "color": "#ffffff"
+        },
+        {
+          "index": 12,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 13,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 14,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 15,
+          "color": "#ffab03"
+        },
+        {
+          "index": 16,
+          "color": "#ff9401"
+        },
+        {
+          "index": 17,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 18,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 19,
+          "color": "#ff4200"
+        },
+        {
+          "index": 20,
+          "color": "#ff5200"
+        },
+        {
+          "index": 21,
+          "color": "#ff4400"
+        },
+        {
+          "index": 22,
+          "color": "#0d0400"
+        },
+        {
+          "index": 23,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 2,
+          "color": "#ff4b00"
+        },
+        {
+          "index": 3,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 4,
+          "color": "#ff4600"
+        },
+        {
+          "index": 5,
+          "color": "#ff9401"
+        },
+        {
+          "index": 6,
+          "color": "#ff9100"
+        },
+        {
+          "index": 7,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 8,
+          "color": "#ff8200"
+        },
+        {
+          "index": 9,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 10,
+          "color": "#ff7300"
+        },
+        {
+          "index": 11,
+          "color": "#ff9401"
+        },
+        {
+          "index": 12,
+          "color": "#ff9701"
+        },
+        {
+          "index": 13,
+          "color": "#ff9401"
+        },
+        {
+          "index": 14,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 15,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 16,
+          "color": "#ff6800"
+        },
+        {
+          "index": 17,
+          "color": "#ff5300"
+        },
+        {
+          "index": 18,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 19,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 20,
+          "color": "#ff5400"
+        },
+        {
+          "index": 21,
+          "color": "#150600"
+        },
+        {
+          "index": 22,
+          "color": "#150600"
+        },
+        {
+          "index": 23,
+          "color": "#080200"
+        },
+        {
+          "index": 24,
+          "color": "#000000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff5400"
+        },
+        {
+          "index": 2,
+          "color": "#ff5300"
+        },
+        {
+          "index": 3,
+          "color": "#ff6500"
+        },
+        {
+          "index": 4,
+          "color": "#ff9401"
+        },
+        {
+          "index": 5,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 6,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 7,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 8,
+          "color": "#ffb804"
+        },
+        {
+          "index": 9,
+          "color": "#ffb003"
+        },
+        {
+          "index": 10,
+          "color": "#ffad03"
+        },
+        {
+          "index": 11,
+          "color": "#ffb804"
+        },
+        {
+          "index": 12,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 13,
+          "color": "#ffc30d"
+        },
+        {
+          "index": 14,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 15,
+          "color": "#ffb804"
+        },
+        {
+          "index": 16,
+          "color": "#ffad03"
+        },
+        {
+          "index": 17,
+          "color": "#ff9901"
+        },
+        {
+          "index": 18,
+          "color": "#ff8200"
+        },
+        {
+          "index": 19,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 20,
+          "color": "#ff4900"
+        },
+        {
+          "index": 21,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 22,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 23,
+          "color": "#ff4200"
+        },
+        {
+          "index": 24,
+          "color": "#0a0300"
+        },
+        {
+          "index": 25,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#180700"
+        },
+        {
+          "index": 2,
+          "color": "#ff4900"
+        },
+        {
+          "index": 3,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 4,
+          "color": "#ff9901"
+        },
+        {
+          "index": 5,
+          "color": "#ffa402"
+        },
+        {
+          "index": 6,
+          "color": "#ffa903"
+        },
+        {
+          "index": 7,
+          "color": "#ffab03"
+        },
+        {
+          "index": 8,
+          "color": "#ffa903"
+        },
+        {
+          "index": 9,
+          "color": "#ffa402"
+        },
+        {
+          "index": 10,
+          "color": "#ff9901"
+        },
+        {
+          "index": 11,
+          "color": "#ffa402"
+        },
+        {
+          "index": 12,
+          "color": "#ffab03"
+        },
+        {
+          "index": 13,
+          "color": "#ffad03"
+        },
+        {
+          "index": 14,
+          "color": "#ffab03"
+        },
+        {
+          "index": 15,
+          "color": "#ffa402"
+        },
+        {
+          "index": 16,
+          "color": "#ff9701"
+        },
+        {
+          "index": 17,
+          "color": "#ff9100"
+        },
+        {
+          "index": 18,
+          "color": "#ff8200"
+        },
+        {
+          "index": 19,
+          "color": "#ff6800"
+        },
+        {
+          "index": 20,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 21,
+          "color": "#ff4500"
+        },
+        {
+          "index": 22,
+          "color": "#ff5500"
+        },
+        {
+          "index": 23,
+          "color": "#ff4700"
+        },
+        {
+          "index": 24,
+          "color": "#100500"
+        },
+        {
+          "index": 25,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff4900"
+        },
+        {
+          "index": 2,
+          "color": "#ff4600"
+        },
+        {
+          "index": 3,
+          "color": "#ff8200"
+        },
+        {
+          "index": 4,
+          "color": "#ff9701"
+        },
+        {
+          "index": 5,
+          "color": "#ffa602"
+        },
+        {
+          "index": 6,
+          "color": "#ffb003"
+        },
+        {
+          "index": 7,
+          "color": "#ffb203"
+        },
+        {
+          "index": 8,
+          "color": "#ffb604"
+        },
+        {
+          "index": 9,
+          "color": "#ffb404"
+        },
+        {
+          "index": 10,
+          "color": "#ffb003"
+        },
+        {
+          "index": 11,
+          "color": "#ffa602"
+        },
+        {
+          "index": 12,
+          "color": "#ffb003"
+        },
+        {
+          "index": 13,
+          "color": "#ffb804"
+        },
+        {
+          "index": 14,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 15,
+          "color": "#ffb804"
+        },
+        {
+          "index": 16,
+          "color": "#ffb003"
+        },
+        {
+          "index": 17,
+          "color": "#ffa102"
+        },
+        {
+          "index": 18,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 19,
+          "color": "#ff9100"
+        },
+        {
+          "index": 20,
+          "color": "#ff7700"
+        },
+        {
+          "index": 21,
+          "color": "#ff5300"
+        },
+        {
+          "index": 22,
+          "color": "#ff4700"
+        },
+        {
+          "index": 23,
+          "color": "#ff5800"
+        },
+        {
+          "index": 24,
+          "color": "#ff4900"
+        },
+        {
+          "index": 25,
+          "color": "#080200"
+        },
+        {
+          "index": 26,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff4700"
+        },
+        {
+          "index": 2,
+          "color": "#ff4400"
+        },
+        {
+          "index": 3,
+          "color": "#ff7300"
+        },
+        {
+          "index": 4,
+          "color": "#ff8800"
+        },
+        {
+          "index": 5,
+          "color": "#ff9901"
+        },
+        {
+          "index": 6,
+          "color": "#ffa402"
+        },
+        {
+          "index": 7,
+          "color": "#ffa903"
+        },
+        {
+          "index": 8,
+          "color": "#ffab03"
+        },
+        {
+          "index": 9,
+          "color": "#ffa903"
+        },
+        {
+          "index": 10,
+          "color": "#ffa402"
+        },
+        {
+          "index": 11,
+          "color": "#ff9901"
+        },
+        {
+          "index": 12,
+          "color": "#ff9701"
+        },
+        {
+          "index": 13,
+          "color": "#ffa402"
+        },
+        {
+          "index": 14,
+          "color": "#ffab03"
+        },
+        {
+          "index": 15,
+          "color": "#ffad03"
+        },
+        {
+          "index": 16,
+          "color": "#ffab03"
+        },
+        {
+          "index": 17,
+          "color": "#ffa402"
+        },
+        {
+          "index": 18,
+          "color": "#ff9701"
+        },
+        {
+          "index": 19,
+          "color": "#ff9100"
+        },
+        {
+          "index": 20,
+          "color": "#ff8200"
+        },
+        {
+          "index": 21,
+          "color": "#ff6800"
+        },
+        {
+          "index": 22,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 23,
+          "color": "#ff4500"
+        },
+        {
+          "index": 24,
+          "color": "#ff5500"
+        },
+        {
+          "index": 25,
+          "color": "#ff4700"
+        },
+        {
+          "index": 26,
+          "color": "#100500"
+        },
+        {
+          "index": 27,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff4700"
+        },
+        {
+          "index": 2,
+          "color": "#ff4600"
+        },
+        {
+          "index": 3,
+          "color": "#ff8500"
+        },
+        {
+          "index": 4,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 5,
+          "color": "#ffb203"
+        },
+        {
+          "index": 6,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 7,
+          "color": "#ffc911"
+        },
+        {
+          "index": 8,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 9,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 10,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 11,
+          "color": "#ffc911"
+        },
+        {
+          "index": 12,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 13,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 14,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 15,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 16,
+          "color": "#ffffff"
+        },
+        {
+          "index": 17,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 18,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 19,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 20,
+          "color": "#ffb804"
+        },
+        {
+          "index": 21,
+          "color": "#ffab03"
+        },
+        {
+          "index": 22,
+          "color": "#ff9401"
+        },
+        {
+          "index": 23,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 24,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 25,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 26,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 27,
+          "color": "#120500"
+        },
+        {
+          "index": 28,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#ff4200"
+        },
+        {
+          "index": 2,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 3,
+          "color": "#ff6500"
+        },
+        {
+          "index": 4,
+          "color": "#ff8500"
+        },
+        {
+          "index": 5,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 6,
+          "color": "#ffb203"
+        },
+        {
+          "index": 7,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 8,
+          "color": "#ffc911"
+        },
+        {
+          "index": 9,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 10,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 11,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 12,
+          "color": "#ffc911"
+        },
+        {
+          "index": 13,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 14,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 15,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 16,
+          "color": "#ffffff"
+        },
+        {
+          "index": 17,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 18,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 19,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 20,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 21,
+          "color": "#ffb804"
+        },
+        {
+          "index": 22,
+          "color": "#ffab03"
+        },
+        {
+          "index": 23,
+          "color": "#ff9401"
+        },
+        {
+          "index": 24,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 25,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 26,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 27,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 28,
+          "color": "#120500"
+        },
+        {
+          "index": 29,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#120500"
+        },
+        {
+          "index": 2,
+          "color": "#ff5400"
+        },
+        {
+          "index": 3,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 4,
+          "color": "#ff6500"
+        },
+        {
+          "index": 5,
+          "color": "#ff8500"
+        },
+        {
+          "index": 6,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 7,
+          "color": "#ffb203"
+        },
+        {
+          "index": 8,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 9,
+          "color": "#ffc911"
+        },
+        {
+          "index": 10,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 11,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 12,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 13,
+          "color": "#ffc911"
+        },
+        {
+          "index": 14,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 15,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 16,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 17,
+          "color": "#ffffff"
+        },
+        {
+          "index": 18,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 19,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 20,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 21,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 22,
+          "color": "#ffb804"
+        },
+        {
+          "index": 23,
+          "color": "#ffab03"
+        },
+        {
+          "index": 24,
+          "color": "#ff9401"
+        },
+        {
+          "index": 25,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 26,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 27,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 28,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 29,
+          "color": "#120500"
+        },
+        {
+          "index": 30,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#0d0400"
+        },
+        {
+          "index": 2,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 3,
+          "color": "#ff4400"
+        },
+        {
+          "index": 4,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 5,
+          "color": "#ff6500"
+        },
+        {
+          "index": 6,
+          "color": "#ff8500"
+        },
+        {
+          "index": 7,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 8,
+          "color": "#ffb203"
+        },
+        {
+          "index": 9,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 10,
+          "color": "#ffc911"
+        },
+        {
+          "index": 11,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 12,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 13,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 14,
+          "color": "#ffc911"
+        },
+        {
+          "index": 15,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 16,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 17,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 18,
+          "color": "#ffffff"
+        },
+        {
+          "index": 19,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 20,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 21,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 22,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 23,
+          "color": "#ffb804"
+        },
+        {
+          "index": 24,
+          "color": "#ffab03"
+        },
+        {
+          "index": 25,
+          "color": "#ff9401"
+        },
+        {
+          "index": 26,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 27,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 28,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 29,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 30,
+          "color": "#120500"
+        },
+        {
+          "index": 31,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#050100"
+        },
+        {
+          "index": 2,
+          "color": "#180700"
+        },
+        {
+          "index": 3,
+          "color": "#ff5200"
+        },
+        {
+          "index": 4,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 5,
+          "color": "#ff4800"
+        },
+        {
+          "index": 6,
+          "color": "#ff5000"
+        },
+        {
+          "index": 7,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 8,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 9,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 10,
+          "color": "#ffa903"
+        },
+        {
+          "index": 11,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 12,
+          "color": "#ffb804"
+        },
+        {
+          "index": 13,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 14,
+          "color": "#ffb804"
+        },
+        {
+          "index": 15,
+          "color": "#ffb404"
+        },
+        {
+          "index": 16,
+          "color": "#ffa903"
+        },
+        {
+          "index": 17,
+          "color": "#ffb404"
+        },
+        {
+          "index": 18,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 19,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 20,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 21,
+          "color": "#ffb404"
+        },
+        {
+          "index": 22,
+          "color": "#ffa602"
+        },
+        {
+          "index": 23,
+          "color": "#ffa602"
+        },
+        {
+          "index": 24,
+          "color": "#ffa102"
+        },
+        {
+          "index": 25,
+          "color": "#ff9401"
+        },
+        {
+          "index": 26,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 27,
+          "color": "#ff5600"
+        },
+        {
+          "index": 28,
+          "color": "#ff4800"
+        },
+        {
+          "index": 29,
+          "color": "#ff5900"
+        },
+        {
+          "index": 30,
+          "color": "#ff4900"
+        },
+        {
+          "index": 31,
+          "color": "#100500"
+        },
+        {
+          "index": 32,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#000000"
+        },
+        {
+          "index": 2,
+          "color": "#0a0300"
+        },
+        {
+          "index": 3,
+          "color": "#ff4200"
+        },
+        {
+          "index": 4,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 5,
+          "color": "#ff5500"
+        },
+        {
+          "index": 6,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 7,
+          "color": "#ff5500"
+        },
+        {
+          "index": 8,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 9,
+          "color": "#ff5600"
+        },
+        {
+          "index": 10,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 11,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 12,
+          "color": "#ff8500"
+        },
+        {
+          "index": 13,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 14,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 15,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 16,
+          "color": "#ff8500"
+        },
+        {
+          "index": 17,
+          "color": "#ff8800"
+        },
+        {
+          "index": 18,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 19,
+          "color": "#ff9100"
+        },
+        {
+          "index": 20,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 21,
+          "color": "#ff8800"
+        },
+        {
+          "index": 22,
+          "color": "#ff7700"
+        },
+        {
+          "index": 23,
+          "color": "#ff7300"
+        },
+        {
+          "index": 24,
+          "color": "#ff7700"
+        },
+        {
+          "index": 25,
+          "color": "#ff7300"
+        },
+        {
+          "index": 26,
+          "color": "#ff6500"
+        },
+        {
+          "index": 27,
+          "color": "#ff5000"
+        },
+        {
+          "index": 28,
+          "color": "#ff4500"
+        },
+        {
+          "index": 29,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 30,
+          "color": "#ff5100"
+        },
+        {
+          "index": 31,
+          "color": "#ff4400"
+        },
+        {
+          "index": 32,
+          "color": "#080200"
+        },
+        {
+          "index": 33,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#020000"
+        },
+        {
+          "index": 2,
+          "color": "#0d0400"
+        },
+        {
+          "index": 3,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 4,
+          "color": "#ff5700"
+        },
+        {
+          "index": 5,
+          "color": "#ff4400"
+        },
+        {
+          "index": 6,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 7,
+          "color": "#ff6500"
+        },
+        {
+          "index": 8,
+          "color": "#ff8500"
+        },
+        {
+          "index": 9,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 10,
+          "color": "#ffb203"
+        },
+        {
+          "index": 11,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 12,
+          "color": "#ffc911"
+        },
+        {
+          "index": 13,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 14,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 15,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 16,
+          "color": "#ffc911"
+        },
+        {
+          "index": 17,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 18,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 19,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 20,
+          "color": "#ffffff"
+        },
+        {
+          "index": 21,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 22,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 23,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 24,
+          "color": "#ffb804"
+        },
+        {
+          "index": 25,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 26,
+          "color": "#ffb804"
+        },
+        {
+          "index": 27,
+          "color": "#ffab03"
+        },
+        {
+          "index": 28,
+          "color": "#ff9401"
+        },
+        {
+          "index": 29,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 30,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 31,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 32,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 33,
+          "color": "#120500"
+        },
+        {
+          "index": 34,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 1,
+          "color": "#000000"
+        },
+        {
+          "index": 2,
+          "color": "#050100"
+        },
+        {
+          "index": 3,
+          "color": "#150600"
+        },
+        {
+          "index": 4,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 5,
+          "color": "#ff5700"
+        },
+        {
+          "index": 6,
+          "color": "#ff4400"
+        },
+        {
+          "index": 7,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 8,
+          "color": "#ff6500"
+        },
+        {
+          "index": 9,
+          "color": "#ff8500"
+        },
+        {
+          "index": 10,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 11,
+          "color": "#ffb203"
+        },
+        {
+          "index": 12,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 13,
+          "color": "#ffc911"
+        },
+        {
+          "index": 14,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 15,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 16,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 17,
+          "color": "#ffc911"
+        },
+        {
+          "index": 18,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 19,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 20,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 21,
+          "color": "#ffffff"
+        },
+        {
+          "index": 22,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 23,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 24,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 25,
+          "color": "#ffb804"
+        },
+        {
+          "index": 26,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 27,
+          "color": "#ffb804"
+        },
+        {
+          "index": 28,
+          "color": "#ffab03"
+        },
+        {
+          "index": 29,
+          "color": "#ff9401"
+        },
+        {
+          "index": 30,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 31,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 32,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 33,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 34,
+          "color": "#120500"
+        },
+        {
+          "index": 35,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 2,
+          "color": "#000000"
+        },
+        {
+          "index": 3,
+          "color": "#080200"
+        },
+        {
+          "index": 4,
+          "color": "#150600"
+        },
+        {
+          "index": 5,
+          "color": "#ff4900"
+        },
+        {
+          "index": 6,
+          "color": "#ff5400"
+        },
+        {
+          "index": 7,
+          "color": "#ff4200"
+        },
+        {
+          "index": 8,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 9,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 10,
+          "color": "#ff7700"
+        },
+        {
+          "index": 11,
+          "color": "#ff9401"
+        },
+        {
+          "index": 12,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 13,
+          "color": "#ffb404"
+        },
+        {
+          "index": 14,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 15,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 16,
+          "color": "#ffc710"
+        },
+        {
+          "index": 17,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 18,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 19,
+          "color": "#ffb404"
+        },
+        {
+          "index": 20,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 21,
+          "color": "#ffc710"
+        },
+        {
+          "index": 22,
+          "color": "#ffc911"
+        },
+        {
+          "index": 23,
+          "color": "#ffc710"
+        },
+        {
+          "index": 24,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 25,
+          "color": "#ffb203"
+        },
+        {
+          "index": 26,
+          "color": "#ffad03"
+        },
+        {
+          "index": 27,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 28,
+          "color": "#ffad03"
+        },
+        {
+          "index": 29,
+          "color": "#ffa102"
+        },
+        {
+          "index": 30,
+          "color": "#ff8800"
+        },
+        {
+          "index": 31,
+          "color": "#ff6100"
+        },
+        {
+          "index": 32,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 33,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 34,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 35,
+          "color": "#100500"
+        },
+        {
+          "index": 36,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 3,
+          "color": "#020000"
+        },
+        {
+          "index": 4,
+          "color": "#0a0300"
+        },
+        {
+          "index": 5,
+          "color": "#150600"
+        },
+        {
+          "index": 6,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 7,
+          "color": "#ff5700"
+        },
+        {
+          "index": 8,
+          "color": "#ff4400"
+        },
+        {
+          "index": 9,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 10,
+          "color": "#ff6500"
+        },
+        {
+          "index": 11,
+          "color": "#ff8500"
+        },
+        {
+          "index": 12,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 13,
+          "color": "#ffb203"
+        },
+        {
+          "index": 14,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 15,
+          "color": "#ffc911"
+        },
+        {
+          "index": 16,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 17,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 18,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 19,
+          "color": "#ffc911"
+        },
+        {
+          "index": 20,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 21,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 22,
+          "color": "#ffffff"
+        },
+        {
+          "index": 23,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 24,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 25,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 26,
+          "color": "#ffab03"
+        },
+        {
+          "index": 27,
+          "color": "#ffb804"
+        },
+        {
+          "index": 28,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 29,
+          "color": "#ffb804"
+        },
+        {
+          "index": 30,
+          "color": "#ffab03"
+        },
+        {
+          "index": 31,
+          "color": "#ff9401"
+        },
+        {
+          "index": 32,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 33,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 34,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 35,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 36,
+          "color": "#120500"
+        },
+        {
+          "index": 37,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 4,
+          "color": "#000000"
+        },
+        {
+          "index": 5,
+          "color": "#050100"
+        },
+        {
+          "index": 6,
+          "color": "#100500"
+        },
+        {
+          "index": 7,
+          "color": "#ff4400"
+        },
+        {
+          "index": 8,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 9,
+          "color": "#ff5700"
+        },
+        {
+          "index": 10,
+          "color": "#ff4200"
+        },
+        {
+          "index": 11,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 12,
+          "color": "#ff5000"
+        },
+        {
+          "index": 13,
+          "color": "#ff6500"
+        },
+        {
+          "index": 14,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 15,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 16,
+          "color": "#ff4900"
+        },
+        {
+          "index": 17,
+          "color": "#ff8500"
+        },
+        {
+          "index": 18,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 19,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 20,
+          "color": "#ff9701"
+        },
+        {
+          "index": 21,
+          "color": "#ff9701"
+        },
+        {
+          "index": 22,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 23,
+          "color": "#ffa102"
+        },
+        {
+          "index": 24,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 25,
+          "color": "#ff4600"
+        },
+        {
+          "index": 26,
+          "color": "#ff8800"
+        },
+        {
+          "index": 27,
+          "color": "#ff7300"
+        },
+        {
+          "index": 28,
+          "color": "#ff8500"
+        },
+        {
+          "index": 29,
+          "color": "#ff8800"
+        },
+        {
+          "index": 30,
+          "color": "#ff8500"
+        },
+        {
+          "index": 31,
+          "color": "#ff7300"
+        },
+        {
+          "index": 32,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 33,
+          "color": "#ff5900"
+        },
+        {
+          "index": 34,
+          "color": "#ff4200"
+        },
+        {
+          "index": 35,
+          "color": "#ff5400"
+        },
+        {
+          "index": 36,
+          "color": "#ff4600"
+        },
+        {
+          "index": 37,
+          "color": "#0d0400"
+        },
+        {
+          "index": 38,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 5,
+          "color": "#000000"
+        },
+        {
+          "index": 6,
+          "color": "#080200"
+        },
+        {
+          "index": 7,
+          "color": "#100500"
+        },
+        {
+          "index": 8,
+          "color": "#ff4600"
+        },
+        {
+          "index": 9,
+          "color": "#ff4200"
+        },
+        {
+          "index": 10,
+          "color": "#ff5900"
+        },
+        {
+          "index": 11,
+          "color": "#ff4400"
+        },
+        {
+          "index": 12,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 13,
+          "color": "#ff5600"
+        },
+        {
+          "index": 14,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 15,
+          "color": "#ff8800"
+        },
+        {
+          "index": 16,
+          "color": "#ff9701"
+        },
+        {
+          "index": 17,
+          "color": "#ffa102"
+        },
+        {
+          "index": 18,
+          "color": "#ffa602"
+        },
+        {
+          "index": 19,
+          "color": "#ffa903"
+        },
+        {
+          "index": 20,
+          "color": "#ffa602"
+        },
+        {
+          "index": 21,
+          "color": "#ffa102"
+        },
+        {
+          "index": 22,
+          "color": "#ffa102"
+        },
+        {
+          "index": 23,
+          "color": "#ffa903"
+        },
+        {
+          "index": 24,
+          "color": "#ffab03"
+        },
+        {
+          "index": 25,
+          "color": "#ffa903"
+        },
+        {
+          "index": 26,
+          "color": "#ffa102"
+        },
+        {
+          "index": 27,
+          "color": "#ff9401"
+        },
+        {
+          "index": 28,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 29,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 30,
+          "color": "#ff9401"
+        },
+        {
+          "index": 31,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 32,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 33,
+          "color": "#ff4b00"
+        },
+        {
+          "index": 34,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 35,
+          "color": "#ff4400"
+        },
+        {
+          "index": 36,
+          "color": "#ff5500"
+        },
+        {
+          "index": 37,
+          "color": "#ff4700"
+        },
+        {
+          "index": 38,
+          "color": "#100500"
+        },
+        {
+          "index": 39,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 6,
+          "color": "#020000"
+        },
+        {
+          "index": 7,
+          "color": "#0a0300"
+        },
+        {
+          "index": 8,
+          "color": "#150600"
+        },
+        {
+          "index": 9,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 10,
+          "color": "#ff5700"
+        },
+        {
+          "index": 11,
+          "color": "#ff4400"
+        },
+        {
+          "index": 12,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 13,
+          "color": "#ff6500"
+        },
+        {
+          "index": 14,
+          "color": "#ff8500"
+        },
+        {
+          "index": 15,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 16,
+          "color": "#ffb203"
+        },
+        {
+          "index": 17,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 18,
+          "color": "#ffc911"
+        },
+        {
+          "index": 19,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 20,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 21,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 22,
+          "color": "#ffc911"
+        },
+        {
+          "index": 23,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 24,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 25,
+          "color": "#ffffff"
+        },
+        {
+          "index": 26,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 27,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 28,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 29,
+          "color": "#ffab03"
+        },
+        {
+          "index": 30,
+          "color": "#ffb804"
+        },
+        {
+          "index": 31,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 32,
+          "color": "#ffb804"
+        },
+        {
+          "index": 33,
+          "color": "#ffab03"
+        },
+        {
+          "index": 34,
+          "color": "#ff9401"
+        },
+        {
+          "index": 35,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 36,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 37,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 38,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 39,
+          "color": "#120500"
+        },
+        {
+          "index": 40,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 6,
+          "color": "#000000"
+        },
+        {
+          "index": 7,
+          "color": "#050100"
+        },
+        {
+          "index": 8,
+          "color": "#100500"
+        },
+        {
+          "index": 9,
+          "color": "#ff4200"
+        },
+        {
+          "index": 10,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 11,
+          "color": "#ff5500"
+        },
+        {
+          "index": 12,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 13,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 14,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 15,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 16,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 17,
+          "color": "#ff6800"
+        },
+        {
+          "index": 18,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 19,
+          "color": "#ff9100"
+        },
+        {
+          "index": 20,
+          "color": "#ff9100"
+        },
+        {
+          "index": 21,
+          "color": "#ff9100"
+        },
+        {
+          "index": 22,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 23,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 24,
+          "color": "#ff9401"
+        },
+        {
+          "index": 25,
+          "color": "#ff9701"
+        },
+        {
+          "index": 26,
+          "color": "#ff9401"
+        },
+        {
+          "index": 27,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 28,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 29,
+          "color": "#ff6500"
+        },
+        {
+          "index": 30,
+          "color": "#ff5000"
+        },
+        {
+          "index": 31,
+          "color": "#ff6800"
+        },
+        {
+          "index": 32,
+          "color": "#ff7700"
+        },
+        {
+          "index": 33,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 34,
+          "color": "#ff7700"
+        },
+        {
+          "index": 35,
+          "color": "#ff6800"
+        },
+        {
+          "index": 36,
+          "color": "#ff5000"
+        },
+        {
+          "index": 37,
+          "color": "#ff4900"
+        },
+        {
+          "index": 38,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 39,
+          "color": "#ff5100"
+        },
+        {
+          "index": 40,
+          "color": "#ff4400"
+        },
+        {
+          "index": 41,
+          "color": "#0d0400"
+        },
+        {
+          "index": 42,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 7,
+          "color": "#000000"
+        },
+        {
+          "index": 8,
+          "color": "#080200"
+        },
+        {
+          "index": 9,
+          "color": "#120500"
+        },
+        {
+          "index": 10,
+          "color": "#ff4700"
+        },
+        {
+          "index": 11,
+          "color": "#ff5100"
+        },
+        {
+          "index": 12,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 13,
+          "color": "#ff4700"
+        },
+        {
+          "index": 14,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 15,
+          "color": "#ff6500"
+        },
+        {
+          "index": 16,
+          "color": "#ff8200"
+        },
+        {
+          "index": 17,
+          "color": "#ff9701"
+        },
+        {
+          "index": 18,
+          "color": "#ffa402"
+        },
+        {
+          "index": 19,
+          "color": "#ffad03"
+        },
+        {
+          "index": 20,
+          "color": "#ffb404"
+        },
+        {
+          "index": 21,
+          "color": "#ffb003"
+        },
+        {
+          "index": 22,
+          "color": "#ffb404"
+        },
+        {
+          "index": 23,
+          "color": "#ffad03"
+        },
+        {
+          "index": 24,
+          "color": "#ffb003"
+        },
+        {
+          "index": 25,
+          "color": "#ffb604"
+        },
+        {
+          "index": 26,
+          "color": "#ffb804"
+        },
+        {
+          "index": 27,
+          "color": "#ffb604"
+        },
+        {
+          "index": 28,
+          "color": "#ffb003"
+        },
+        {
+          "index": 29,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 30,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 31,
+          "color": "#ff7700"
+        },
+        {
+          "index": 32,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 33,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 34,
+          "color": "#ffa102"
+        },
+        {
+          "index": 35,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 36,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 37,
+          "color": "#ff7700"
+        },
+        {
+          "index": 38,
+          "color": "#ff5300"
+        },
+        {
+          "index": 39,
+          "color": "#ff4700"
+        },
+        {
+          "index": 40,
+          "color": "#ff5800"
+        },
+        {
+          "index": 41,
+          "color": "#ff4900"
+        },
+        {
+          "index": 42,
+          "color": "#0a0300"
+        },
+        {
+          "index": 43,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 8,
+          "color": "#020000"
+        },
+        {
+          "index": 9,
+          "color": "#0a0300"
+        },
+        {
+          "index": 10,
+          "color": "#150600"
+        },
+        {
+          "index": 11,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 12,
+          "color": "#ff5700"
+        },
+        {
+          "index": 13,
+          "color": "#ff4400"
+        },
+        {
+          "index": 14,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 15,
+          "color": "#ff6500"
+        },
+        {
+          "index": 16,
+          "color": "#ff8500"
+        },
+        {
+          "index": 17,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 18,
+          "color": "#ffb203"
+        },
+        {
+          "index": 19,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 20,
+          "color": "#ffc911"
+        },
+        {
+          "index": 21,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 22,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 23,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 24,
+          "color": "#ffc911"
+        },
+        {
+          "index": 25,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 26,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 27,
+          "color": "#ffffff"
+        },
+        {
+          "index": 28,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 29,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 30,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 31,
+          "color": "#ffab03"
+        },
+        {
+          "index": 32,
+          "color": "#ff9401"
+        },
+        {
+          "index": 33,
+          "color": "#ffab03"
+        },
+        {
+          "index": 34,
+          "color": "#ffb804"
+        },
+        {
+          "index": 35,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 36,
+          "color": "#ffb804"
+        },
+        {
+          "index": 37,
+          "color": "#ffab03"
+        },
+        {
+          "index": 38,
+          "color": "#ff9401"
+        },
+        {
+          "index": 39,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 40,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 41,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 42,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 43,
+          "color": "#120500"
+        },
+        {
+          "index": 44,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 9,
+          "color": "#000000"
+        },
+        {
+          "index": 10,
+          "color": "#080200"
+        },
+        {
+          "index": 11,
+          "color": "#150600"
+        },
+        {
+          "index": 12,
+          "color": "#ff4900"
+        },
+        {
+          "index": 13,
+          "color": "#ff5400"
+        },
+        {
+          "index": 14,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 15,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 16,
+          "color": "#ff5600"
+        },
+        {
+          "index": 17,
+          "color": "#ff7700"
+        },
+        {
+          "index": 18,
+          "color": "#ff9100"
+        },
+        {
+          "index": 19,
+          "color": "#ffa602"
+        },
+        {
+          "index": 20,
+          "color": "#ffb404"
+        },
+        {
+          "index": 21,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 22,
+          "color": "#ffc30d"
+        },
+        {
+          "index": 23,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 24,
+          "color": "#ffc30d"
+        },
+        {
+          "index": 25,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 26,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 27,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 28,
+          "color": "#ffc911"
+        },
+        {
+          "index": 29,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 30,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 31,
+          "color": "#ffb003"
+        },
+        {
+          "index": 32,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 33,
+          "color": "#ff8800"
+        },
+        {
+          "index": 34,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 35,
+          "color": "#ffad03"
+        },
+        {
+          "index": 36,
+          "color": "#ffb003"
+        },
+        {
+          "index": 37,
+          "color": "#ffad03"
+        },
+        {
+          "index": 38,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 39,
+          "color": "#ff8800"
+        },
+        {
+          "index": 40,
+          "color": "#ff6100"
+        },
+        {
+          "index": 41,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 42,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 43,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 44,
+          "color": "#120500"
+        },
+        {
+          "index": 45,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 10,
+          "color": "#000000"
+        },
+        {
+          "index": 11,
+          "color": "#050100"
+        },
+        {
+          "index": 12,
+          "color": "#0d0400"
+        },
+        {
+          "index": 13,
+          "color": "#ff4200"
+        },
+        {
+          "index": 14,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 15,
+          "color": "#ff5500"
+        },
+        {
+          "index": 16,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 17,
+          "color": "#ff4800"
+        },
+        {
+          "index": 18,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 19,
+          "color": "#ff5600"
+        },
+        {
+          "index": 20,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 21,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 22,
+          "color": "#ff8500"
+        },
+        {
+          "index": 23,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 24,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 25,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 26,
+          "color": "#ff8800"
+        },
+        {
+          "index": 27,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 28,
+          "color": "#ff9100"
+        },
+        {
+          "index": 29,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 30,
+          "color": "#ff8800"
+        },
+        {
+          "index": 31,
+          "color": "#ff7700"
+        },
+        {
+          "index": 32,
+          "color": "#ff6100"
+        },
+        {
+          "index": 33,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 34,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 35,
+          "color": "#ff6500"
+        },
+        {
+          "index": 36,
+          "color": "#ff7300"
+        },
+        {
+          "index": 37,
+          "color": "#ff7700"
+        },
+        {
+          "index": 38,
+          "color": "#ff7300"
+        },
+        {
+          "index": 39,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 40,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 41,
+          "color": "#ff4900"
+        },
+        {
+          "index": 42,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 43,
+          "color": "#ff5100"
+        },
+        {
+          "index": 44,
+          "color": "#ff4400"
+        },
+        {
+          "index": 45,
+          "color": "#0d0400"
+        },
+        {
+          "index": 46,
+          "color": "#000000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 11,
+          "color": "#020000"
+        },
+        {
+          "index": 12,
+          "color": "#0a0300"
+        },
+        {
+          "index": 13,
+          "color": "#150600"
+        },
+        {
+          "index": 14,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 15,
+          "color": "#ff5700"
+        },
+        {
+          "index": 16,
+          "color": "#ff4400"
+        },
+        {
+          "index": 17,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 18,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 19,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 20,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 21,
+          "color": "#ffb203"
+        },
+        {
+          "index": 22,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 23,
+          "color": "#ffc911"
+        },
+        {
+          "index": 24,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 25,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 26,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 27,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 28,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 29,
+          "color": "#ffffff"
+        },
+        {
+          "index": 30,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 31,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 32,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 33,
+          "color": "#ffab03"
+        },
+        {
+          "index": 34,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 35,
+          "color": "#ff9401"
+        },
+        {
+          "index": 36,
+          "color": "#ffab03"
+        },
+        {
+          "index": 37,
+          "color": "#ffb804"
+        },
+        {
+          "index": 38,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 39,
+          "color": "#ffb804"
+        },
+        {
+          "index": 40,
+          "color": "#ffab03"
+        },
+        {
+          "index": 41,
+          "color": "#ff9401"
+        },
+        {
+          "index": 42,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 43,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 44,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 45,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 46,
+          "color": "#120500"
+        },
+        {
+          "index": 47,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 12,
+          "color": "#000000"
+        },
+        {
+          "index": 13,
+          "color": "#080200"
+        },
+        {
+          "index": 14,
+          "color": "#120500"
+        },
+        {
+          "index": 15,
+          "color": "#ff4700"
+        },
+        {
+          "index": 16,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 17,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 18,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 19,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 20,
+          "color": "#ff7700"
+        },
+        {
+          "index": 21,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 22,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 23,
+          "color": "#ff6100"
+        },
+        {
+          "index": 24,
+          "color": "#ffb604"
+        },
+        {
+          "index": 25,
+          "color": "#ffa102"
+        },
+        {
+          "index": 26,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 27,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 28,
+          "color": "#ffb604"
+        },
+        {
+          "index": 29,
+          "color": "#ffa102"
+        },
+        {
+          "index": 30,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 31,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 32,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 33,
+          "color": "#ffab03"
+        },
+        {
+          "index": 34,
+          "color": "#ff9701"
+        },
+        {
+          "index": 35,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 36,
+          "color": "#ff6100"
+        },
+        {
+          "index": 37,
+          "color": "#ff9901"
+        },
+        {
+          "index": 38,
+          "color": "#ffa602"
+        },
+        {
+          "index": 39,
+          "color": "#ffab03"
+        },
+        {
+          "index": 40,
+          "color": "#ffa602"
+        },
+        {
+          "index": 41,
+          "color": "#ff9901"
+        },
+        {
+          "index": 42,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 43,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 44,
+          "color": "#ff4900"
+        },
+        {
+          "index": 45,
+          "color": "#ff5900"
+        },
+        {
+          "index": 46,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 47,
+          "color": "#080200"
+        },
+        {
+          "index": 48,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 12,
+          "color": "#020000"
+        },
+        {
+          "index": 13,
+          "color": "#0a0300"
+        },
+        {
+          "index": 14,
+          "color": "#150600"
+        },
+        {
+          "index": 15,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 16,
+          "color": "#ff5700"
+        },
+        {
+          "index": 17,
+          "color": "#ff4400"
+        },
+        {
+          "index": 18,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 19,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 20,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 21,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 22,
+          "color": "#ffb203"
+        },
+        {
+          "index": 23,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 24,
+          "color": "#ffc911"
+        },
+        {
+          "index": 25,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 26,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 27,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 28,
+          "color": "#ffc911"
+        },
+        {
+          "index": 29,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 30,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 31,
+          "color": "#ffffff"
+        },
+        {
+          "index": 32,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 33,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 34,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 35,
+          "color": "#ffab03"
+        },
+        {
+          "index": 36,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 37,
+          "color": "#ff9401"
+        },
+        {
+          "index": 38,
+          "color": "#ffab03"
+        },
+        {
+          "index": 39,
+          "color": "#ffb804"
+        },
+        {
+          "index": 40,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 41,
+          "color": "#ffb804"
+        },
+        {
+          "index": 42,
+          "color": "#ffab03"
+        },
+        {
+          "index": 43,
+          "color": "#ff9401"
+        },
+        {
+          "index": 44,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 45,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 46,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 47,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 48,
+          "color": "#120500"
+        },
+        {
+          "index": 49,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 13,
+          "color": "#020000"
+        },
+        {
+          "index": 14,
+          "color": "#080200"
+        },
+        {
+          "index": 15,
+          "color": "#150600"
+        },
+        {
+          "index": 16,
+          "color": "#ff4400"
+        },
+        {
+          "index": 17,
+          "color": "#ff5700"
+        },
+        {
+          "index": 18,
+          "color": "#ff4400"
+        },
+        {
+          "index": 19,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 20,
+          "color": "#ff6100"
+        },
+        {
+          "index": 21,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 22,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 23,
+          "color": "#ffb203"
+        },
+        {
+          "index": 24,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 25,
+          "color": "#ff5300"
+        },
+        {
+          "index": 26,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 27,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 28,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 29,
+          "color": "#ffc911"
+        },
+        {
+          "index": 30,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 31,
+          "color": "#ffffff"
+        },
+        {
+          "index": 32,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 33,
+          "color": "#ffc911"
+        },
+        {
+          "index": 34,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 35,
+          "color": "#ffa903"
+        },
+        {
+          "index": 36,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 37,
+          "color": "#ff7300"
+        },
+        {
+          "index": 38,
+          "color": "#ff9401"
+        },
+        {
+          "index": 39,
+          "color": "#ffab03"
+        },
+        {
+          "index": 40,
+          "color": "#ffb804"
+        },
+        {
+          "index": 41,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 42,
+          "color": "#ffb804"
+        },
+        {
+          "index": 43,
+          "color": "#ffab03"
+        },
+        {
+          "index": 44,
+          "color": "#ff9401"
+        },
+        {
+          "index": 45,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 46,
+          "color": "#ff5900"
+        },
+        {
+          "index": 47,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 48,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 49,
+          "color": "#120500"
+        },
+        {
+          "index": 50,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 14,
+          "color": "#000000"
+        },
+        {
+          "index": 15,
+          "color": "#050100"
+        },
+        {
+          "index": 16,
+          "color": "#100500"
+        },
+        {
+          "index": 17,
+          "color": "#150600"
+        },
+        {
+          "index": 18,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 19,
+          "color": "#ff5500"
+        },
+        {
+          "index": 20,
+          "color": "#ff5400"
+        },
+        {
+          "index": 21,
+          "color": "#ff4900"
+        },
+        {
+          "index": 22,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 23,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 24,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 25,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 26,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 27,
+          "color": "#ff9100"
+        },
+        {
+          "index": 28,
+          "color": "#ff9100"
+        },
+        {
+          "index": 29,
+          "color": "#ff9100"
+        },
+        {
+          "index": 30,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 31,
+          "color": "#ff9401"
+        },
+        {
+          "index": 32,
+          "color": "#ff9701"
+        },
+        {
+          "index": 33,
+          "color": "#ff9401"
+        },
+        {
+          "index": 34,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 35,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 36,
+          "color": "#ff6500"
+        },
+        {
+          "index": 37,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 38,
+          "color": "#ff4b00"
+        },
+        {
+          "index": 39,
+          "color": "#ff5000"
+        },
+        {
+          "index": 40,
+          "color": "#ff6800"
+        },
+        {
+          "index": 41,
+          "color": "#ff7700"
+        },
+        {
+          "index": 42,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 43,
+          "color": "#ff7700"
+        },
+        {
+          "index": 44,
+          "color": "#ff6800"
+        },
+        {
+          "index": 45,
+          "color": "#ff5000"
+        },
+        {
+          "index": 46,
+          "color": "#ff4900"
+        },
+        {
+          "index": 47,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 48,
+          "color": "#ff5100"
+        },
+        {
+          "index": 49,
+          "color": "#100500"
+        },
+        {
+          "index": 50,
+          "color": "#0d0400"
+        },
+        {
+          "index": 51,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 15,
+          "color": "#020000"
+        },
+        {
+          "index": 16,
+          "color": "#0a0300"
+        },
+        {
+          "index": 17,
+          "color": "#150600"
+        },
+        {
+          "index": 18,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 19,
+          "color": "#ff5700"
+        },
+        {
+          "index": 20,
+          "color": "#ff4400"
+        },
+        {
+          "index": 21,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 22,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 23,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 24,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 25,
+          "color": "#ffb203"
+        },
+        {
+          "index": 26,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 27,
+          "color": "#ffc911"
+        },
+        {
+          "index": 28,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 29,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 30,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 31,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 32,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 33,
+          "color": "#ffffff"
+        },
+        {
+          "index": 34,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 35,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 36,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 37,
+          "color": "#ffab03"
+        },
+        {
+          "index": 38,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 39,
+          "color": "#ff7700"
+        },
+        {
+          "index": 40,
+          "color": "#ff9401"
+        },
+        {
+          "index": 41,
+          "color": "#ffab03"
+        },
+        {
+          "index": 42,
+          "color": "#ffb804"
+        },
+        {
+          "index": 43,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 44,
+          "color": "#ffb804"
+        },
+        {
+          "index": 45,
+          "color": "#ffab03"
+        },
+        {
+          "index": 46,
+          "color": "#ff9401"
+        },
+        {
+          "index": 47,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 48,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 49,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 50,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 51,
+          "color": "#120500"
+        },
+        {
+          "index": 52,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 16,
+          "color": "#020000"
+        },
+        {
+          "index": 17,
+          "color": "#0d0400"
+        },
+        {
+          "index": 18,
+          "color": "#ff4400"
+        },
+        {
+          "index": 19,
+          "color": "#ff5100"
+        },
+        {
+          "index": 20,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 21,
+          "color": "#ff4900"
+        },
+        {
+          "index": 22,
+          "color": "#ff5300"
+        },
+        {
+          "index": 23,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 24,
+          "color": "#ff8500"
+        },
+        {
+          "index": 25,
+          "color": "#ff9100"
+        },
+        {
+          "index": 26,
+          "color": "#ff9901"
+        },
+        {
+          "index": 27,
+          "color": "#ffa903"
+        },
+        {
+          "index": 28,
+          "color": "#ffb203"
+        },
+        {
+          "index": 29,
+          "color": "#ffb804"
+        },
+        {
+          "index": 30,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 31,
+          "color": "#ffb804"
+        },
+        {
+          "index": 32,
+          "color": "#ffb404"
+        },
+        {
+          "index": 33,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 34,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 35,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 36,
+          "color": "#ffb404"
+        },
+        {
+          "index": 37,
+          "color": "#ffa602"
+        },
+        {
+          "index": 38,
+          "color": "#ff9100"
+        },
+        {
+          "index": 39,
+          "color": "#ff7700"
+        },
+        {
+          "index": 40,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 41,
+          "color": "#ff7700"
+        },
+        {
+          "index": 42,
+          "color": "#ff9401"
+        },
+        {
+          "index": 43,
+          "color": "#ffa102"
+        },
+        {
+          "index": 44,
+          "color": "#ffa602"
+        },
+        {
+          "index": 45,
+          "color": "#ffa102"
+        },
+        {
+          "index": 46,
+          "color": "#ff9401"
+        },
+        {
+          "index": 47,
+          "color": "#ff4700"
+        },
+        {
+          "index": 48,
+          "color": "#ff5600"
+        },
+        {
+          "index": 49,
+          "color": "#ff4800"
+        },
+        {
+          "index": 50,
+          "color": "#ff5800"
+        },
+        {
+          "index": 51,
+          "color": "#ff4900"
+        },
+        {
+          "index": 52,
+          "color": "#100500"
+        },
+        {
+          "index": 53,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 17,
+          "color": "#020000"
+        },
+        {
+          "index": 18,
+          "color": "#0d0400"
+        },
+        {
+          "index": 19,
+          "color": "#ff4600"
+        },
+        {
+          "index": 20,
+          "color": "#ff5400"
+        },
+        {
+          "index": 21,
+          "color": "#ff4300"
+        },
+        {
+          "index": 22,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 23,
+          "color": "#ff6800"
+        },
+        {
+          "index": 24,
+          "color": "#ff8500"
+        },
+        {
+          "index": 25,
+          "color": "#ff9901"
+        },
+        {
+          "index": 26,
+          "color": "#ffa602"
+        },
+        {
+          "index": 27,
+          "color": "#ffad03"
+        },
+        {
+          "index": 28,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 29,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 30,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 31,
+          "color": "#ffff8c"
+        },
+        {
+          "index": 32,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 33,
+          "color": "#ffff8c"
+        },
+        {
+          "index": 34,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 35,
+          "color": "#ffff8c"
+        },
+        {
+          "index": 36,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 37,
+          "color": "#ffb804"
+        },
+        {
+          "index": 38,
+          "color": "#ffa602"
+        },
+        {
+          "index": 39,
+          "color": "#ff9100"
+        },
+        {
+          "index": 40,
+          "color": "#ff8500"
+        },
+        {
+          "index": 41,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 42,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 43,
+          "color": "#ffa602"
+        },
+        {
+          "index": 44,
+          "color": "#ffb404"
+        },
+        {
+          "index": 45,
+          "color": "#ffb804"
+        },
+        {
+          "index": 46,
+          "color": "#ffb404"
+        },
+        {
+          "index": 47,
+          "color": "#ffa602"
+        },
+        {
+          "index": 48,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 49,
+          "color": "#ff6800"
+        },
+        {
+          "index": 50,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 51,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 52,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 53,
+          "color": "#120500"
+        },
+        {
+          "index": 54,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 18,
+          "color": "#020000"
+        },
+        {
+          "index": 19,
+          "color": "#0d0400"
+        },
+        {
+          "index": 20,
+          "color": "#ff4700"
+        },
+        {
+          "index": 21,
+          "color": "#ff5500"
+        },
+        {
+          "index": 22,
+          "color": "#ff4400"
+        },
+        {
+          "index": 23,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 24,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 25,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 26,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 27,
+          "color": "#ffab03"
+        },
+        {
+          "index": 28,
+          "color": "#ffb203"
+        },
+        {
+          "index": 29,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 30,
+          "color": "#ffc911"
+        },
+        {
+          "index": 31,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 32,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 33,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 34,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 35,
+          "color": "#ffffff"
+        },
+        {
+          "index": 36,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 37,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 38,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 39,
+          "color": "#ffab03"
+        },
+        {
+          "index": 40,
+          "color": "#ff9401"
+        },
+        {
+          "index": 41,
+          "color": "#ff8800"
+        },
+        {
+          "index": 42,
+          "color": "#ff7700"
+        },
+        {
+          "index": 43,
+          "color": "#ff9401"
+        },
+        {
+          "index": 44,
+          "color": "#ffab03"
+        },
+        {
+          "index": 45,
+          "color": "#ffb804"
+        },
+        {
+          "index": 46,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 47,
+          "color": "#ffb804"
+        },
+        {
+          "index": 48,
+          "color": "#ffab03"
+        },
+        {
+          "index": 49,
+          "color": "#ff9401"
+        },
+        {
+          "index": 50,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 51,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 52,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 53,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 54,
+          "color": "#120500"
+        },
+        {
+          "index": 55,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 18,
+          "color": "#020000"
+        },
+        {
+          "index": 19,
+          "color": "#0d0400"
+        },
+        {
+          "index": 20,
+          "color": "#ff4700"
+        },
+        {
+          "index": 21,
+          "color": "#ff5500"
+        },
+        {
+          "index": 22,
+          "color": "#ff4400"
+        },
+        {
+          "index": 23,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 24,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 25,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 26,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 27,
+          "color": "#ffab03"
+        },
+        {
+          "index": 28,
+          "color": "#ffb203"
+        },
+        {
+          "index": 29,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 30,
+          "color": "#ffc911"
+        },
+        {
+          "index": 31,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 32,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 33,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 34,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 35,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 36,
+          "color": "#ffffff"
+        },
+        {
+          "index": 37,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 38,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 39,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 40,
+          "color": "#ffab03"
+        },
+        {
+          "index": 41,
+          "color": "#ff9401"
+        },
+        {
+          "index": 42,
+          "color": "#ff8800"
+        },
+        {
+          "index": 43,
+          "color": "#ff7700"
+        },
+        {
+          "index": 44,
+          "color": "#ff9401"
+        },
+        {
+          "index": 45,
+          "color": "#ffab03"
+        },
+        {
+          "index": 46,
+          "color": "#ffb804"
+        },
+        {
+          "index": 47,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 48,
+          "color": "#ffb804"
+        },
+        {
+          "index": 49,
+          "color": "#ffab03"
+        },
+        {
+          "index": 50,
+          "color": "#ff9401"
+        },
+        {
+          "index": 51,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 52,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 53,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 54,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 55,
+          "color": "#120500"
+        },
+        {
+          "index": 56,
+          "color": "#050100"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 19,
+          "color": "#020000"
+        },
+        {
+          "index": 20,
+          "color": "#0a0300"
+        },
+        {
+          "index": 21,
+          "color": "#150600"
+        },
+        {
+          "index": 22,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 23,
+          "color": "#ff5500"
+        },
+        {
+          "index": 24,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 25,
+          "color": "#ff4800"
+        },
+        {
+          "index": 26,
+          "color": "#ff4200"
+        },
+        {
+          "index": 27,
+          "color": "#ff5600"
+        },
+        {
+          "index": 28,
+          "color": "#ff6100"
+        },
+        {
+          "index": 29,
+          "color": "#ff6800"
+        },
+        {
+          "index": 30,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 31,
+          "color": "#ff8500"
+        },
+        {
+          "index": 32,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 33,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 34,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 35,
+          "color": "#ff8500"
+        },
+        {
+          "index": 36,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 37,
+          "color": "#ff9100"
+        },
+        {
+          "index": 38,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 39,
+          "color": "#ff8500"
+        },
+        {
+          "index": 40,
+          "color": "#ff7700"
+        },
+        {
+          "index": 41,
+          "color": "#ff6100"
+        },
+        {
+          "index": 42,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 43,
+          "color": "#ff4200"
+        },
+        {
+          "index": 44,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 45,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 46,
+          "color": "#ff6500"
+        },
+        {
+          "index": 47,
+          "color": "#ff7300"
+        },
+        {
+          "index": 48,
+          "color": "#ff7700"
+        },
+        {
+          "index": 49,
+          "color": "#ff5000"
+        },
+        {
+          "index": 50,
+          "color": "#ff6500"
+        },
+        {
+          "index": 51,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 52,
+          "color": "#ff4800"
+        },
+        {
+          "index": 53,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 54,
+          "color": "#ff5100"
+        },
+        {
+          "index": 55,
+          "color": "#ff4400"
+        },
+        {
+          "index": 56,
+          "color": "#0d0400"
+        },
+        {
+          "index": 57,
+          "color": "#000000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 20,
+          "color": "#020000"
+        },
+        {
+          "index": 21,
+          "color": "#0d0400"
+        },
+        {
+          "index": 22,
+          "color": "#ff4700"
+        },
+        {
+          "index": 23,
+          "color": "#ff5500"
+        },
+        {
+          "index": 24,
+          "color": "#ff4400"
+        },
+        {
+          "index": 25,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 26,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 27,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 28,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 29,
+          "color": "#ffab03"
+        },
+        {
+          "index": 30,
+          "color": "#ffb203"
+        },
+        {
+          "index": 31,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 32,
+          "color": "#ffc911"
+        },
+        {
+          "index": 33,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 34,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 35,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 36,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 37,
+          "color": "#ffffff"
+        },
+        {
+          "index": 38,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 39,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 40,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 41,
+          "color": "#ffab03"
+        },
+        {
+          "index": 42,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 43,
+          "color": "#ff9401"
+        },
+        {
+          "index": 44,
+          "color": "#ff8800"
+        },
+        {
+          "index": 45,
+          "color": "#ff7700"
+        },
+        {
+          "index": 46,
+          "color": "#ff9401"
+        },
+        {
+          "index": 47,
+          "color": "#ffab03"
+        },
+        {
+          "index": 48,
+          "color": "#ffb804"
+        },
+        {
+          "index": 49,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 50,
+          "color": "#ffb804"
+        },
+        {
+          "index": 51,
+          "color": "#ffab03"
+        },
+        {
+          "index": 52,
+          "color": "#ff9401"
+        },
+        {
+          "index": 53,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 54,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 55,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 56,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 57,
+          "color": "#0d0400"
+        },
+        {
+          "index": 58,
+          "color": "#000000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 21,
+          "color": "#020000"
+        },
+        {
+          "index": 22,
+          "color": "#0a0300"
+        },
+        {
+          "index": 23,
+          "color": "#100500"
+        },
+        {
+          "index": 24,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 25,
+          "color": "#ff5500"
+        },
+        {
+          "index": 26,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 27,
+          "color": "#ff4800"
+        },
+        {
+          "index": 28,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 29,
+          "color": "#ff5600"
+        },
+        {
+          "index": 30,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 31,
+          "color": "#ff6800"
+        },
+        {
+          "index": 32,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 33,
+          "color": "#ff8500"
+        },
+        {
+          "index": 34,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 35,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 36,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 37,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 38,
+          "color": "#ff9100"
+        },
+        {
+          "index": 39,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 40,
+          "color": "#ff8500"
+        },
+        {
+          "index": 41,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 42,
+          "color": "#ff4700"
+        },
+        {
+          "index": 43,
+          "color": "#ff5800"
+        },
+        {
+          "index": 44,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 45,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 46,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 47,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 48,
+          "color": "#ff6100"
+        },
+        {
+          "index": 49,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 50,
+          "color": "#ff7700"
+        },
+        {
+          "index": 51,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 52,
+          "color": "#ff6100"
+        },
+        {
+          "index": 53,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 54,
+          "color": "#ff4800"
+        },
+        {
+          "index": 55,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 56,
+          "color": "#ff5100"
+        },
+        {
+          "index": 57,
+          "color": "#120500"
+        },
+        {
+          "index": 58,
+          "color": "#020000"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 21,
+          "color": "#020000"
+        },
+        {
+          "index": 22,
+          "color": "#0d0400"
+        },
+        {
+          "index": 23,
+          "color": "#ff4700"
+        },
+        {
+          "index": 24,
+          "color": "#ff5500"
+        },
+        {
+          "index": 25,
+          "color": "#ff4400"
+        },
+        {
+          "index": 26,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 27,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 28,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 29,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 30,
+          "color": "#ffab03"
+        },
+        {
+          "index": 31,
+          "color": "#ffad03"
+        },
+        {
+          "index": 32,
+          "color": "#ffb203"
+        },
+        {
+          "index": 33,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 34,
+          "color": "#ffc911"
+        },
+        {
+          "index": 35,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 36,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 37,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 38,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 39,
+          "color": "#ffffff"
+        },
+        {
+          "index": 40,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 41,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 42,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 43,
+          "color": "#ffab03"
+        },
+        {
+          "index": 44,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 45,
+          "color": "#ff9401"
+        },
+        {
+          "index": 46,
+          "color": "#ff8800"
+        },
+        {
+          "index": 47,
+          "color": "#ff7700"
+        },
+        {
+          "index": 48,
+          "color": "#ff9401"
+        },
+        {
+          "index": 49,
+          "color": "#ffab03"
+        },
+        {
+          "index": 50,
+          "color": "#ffb804"
+        },
+        {
+          "index": 51,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 52,
+          "color": "#ffb804"
+        },
+        {
+          "index": 53,
+          "color": "#ffab03"
+        },
+        {
+          "index": 54,
+          "color": "#ff9401"
+        },
+        {
+          "index": 55,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 56,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 57,
+          "color": "#ff5100"
+        },
+        {
+          "index": 58,
+          "color": "#0d0400"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 22,
+          "color": "#020000"
+        },
+        {
+          "index": 23,
+          "color": "#0a0300"
+        },
+        {
+          "index": 24,
+          "color": "#180700"
+        },
+        {
+          "index": 25,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 26,
+          "color": "#ff5800"
+        },
+        {
+          "index": 27,
+          "color": "#ff4400"
+        },
+        {
+          "index": 28,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 29,
+          "color": "#ff5300"
+        },
+        {
+          "index": 30,
+          "color": "#ff6800"
+        },
+        {
+          "index": 31,
+          "color": "#ff7300"
+        },
+        {
+          "index": 32,
+          "color": "#ff7700"
+        },
+        {
+          "index": 33,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 34,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 35,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 36,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 37,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 38,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 39,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 40,
+          "color": "#ffa102"
+        },
+        {
+          "index": 41,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 42,
+          "color": "#ff9701"
+        },
+        {
+          "index": 43,
+          "color": "#ff8800"
+        },
+        {
+          "index": 44,
+          "color": "#ff7300"
+        },
+        {
+          "index": 45,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 46,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 47,
+          "color": "#ff5300"
+        },
+        {
+          "index": 48,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 49,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 50,
+          "color": "#ff7300"
+        },
+        {
+          "index": 51,
+          "color": "#ff8500"
+        },
+        {
+          "index": 52,
+          "color": "#ff8800"
+        },
+        {
+          "index": 53,
+          "color": "#ff8500"
+        },
+        {
+          "index": 54,
+          "color": "#ff7300"
+        },
+        {
+          "index": 55,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 56,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 57,
+          "color": "#ff5200"
+        },
+        {
+          "index": 58,
+          "color": "#120500"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 23,
+          "color": "#020000"
+        },
+        {
+          "index": 24,
+          "color": "#0a0300"
+        },
+        {
+          "index": 25,
+          "color": "#180700"
+        },
+        {
+          "index": 26,
+          "color": "#ff4200"
+        },
+        {
+          "index": 27,
+          "color": "#ff5800"
+        },
+        {
+          "index": 28,
+          "color": "#ff4400"
+        },
+        {
+          "index": 29,
+          "color": "#ff4800"
+        },
+        {
+          "index": 30,
+          "color": "#ff5300"
+        },
+        {
+          "index": 31,
+          "color": "#ff6500"
+        },
+        {
+          "index": 32,
+          "color": "#ff7300"
+        },
+        {
+          "index": 33,
+          "color": "#ff7700"
+        },
+        {
+          "index": 34,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 35,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 36,
+          "color": "#ff9701"
+        },
+        {
+          "index": 37,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 38,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 39,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 40,
+          "color": "#ffa102"
+        },
+        {
+          "index": 41,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 42,
+          "color": "#ff9701"
+        },
+        {
+          "index": 43,
+          "color": "#ff8800"
+        },
+        {
+          "index": 44,
+          "color": "#ff7300"
+        },
+        {
+          "index": 45,
+          "color": "#ff6500"
+        },
+        {
+          "index": 46,
+          "color": "#ff6500"
+        },
+        {
+          "index": 47,
+          "color": "#ff6500"
+        },
+        {
+          "index": 48,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 49,
+          "color": "#ff5300"
+        },
+        {
+          "index": 50,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 51,
+          "color": "#ff7300"
+        },
+        {
+          "index": 52,
+          "color": "#ff8500"
+        },
+        {
+          "index": 53,
+          "color": "#ff8800"
+        },
+        {
+          "index": 54,
+          "color": "#ff8500"
+        },
+        {
+          "index": 55,
+          "color": "#ff7300"
+        },
+        {
+          "index": 56,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 57,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4200"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 23,
+          "color": "#020000"
+        },
+        {
+          "index": 24,
+          "color": "#080200"
+        },
+        {
+          "index": 25,
+          "color": "#150600"
+        },
+        {
+          "index": 26,
+          "color": "#ff4900"
+        },
+        {
+          "index": 27,
+          "color": "#ff5400"
+        },
+        {
+          "index": 28,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 29,
+          "color": "#ff4700"
+        },
+        {
+          "index": 30,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 31,
+          "color": "#ff5000"
+        },
+        {
+          "index": 32,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 33,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 34,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 35,
+          "color": "#ff6100"
+        },
+        {
+          "index": 36,
+          "color": "#ff7300"
+        },
+        {
+          "index": 37,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 38,
+          "color": "#ff8500"
+        },
+        {
+          "index": 39,
+          "color": "#ff8800"
+        },
+        {
+          "index": 40,
+          "color": "#ff7700"
+        },
+        {
+          "index": 41,
+          "color": "#ff6800"
+        },
+        {
+          "index": 42,
+          "color": "#ff8800"
+        },
+        {
+          "index": 43,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 44,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 45,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 46,
+          "color": "#ff5000"
+        },
+        {
+          "index": 47,
+          "color": "#ff5000"
+        },
+        {
+          "index": 48,
+          "color": "#ff5000"
+        },
+        {
+          "index": 49,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 50,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 51,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 52,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 53,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 54,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 55,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 56,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 57,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4400"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 24,
+          "color": "#000000"
+        },
+        {
+          "index": 25,
+          "color": "#080200"
+        },
+        {
+          "index": 26,
+          "color": "#150600"
+        },
+        {
+          "index": 27,
+          "color": "#ff4900"
+        },
+        {
+          "index": 28,
+          "color": "#ff5200"
+        },
+        {
+          "index": 29,
+          "color": "#ff5c00"
+        },
+        {
+          "index": 30,
+          "color": "#ff4600"
+        },
+        {
+          "index": 31,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 32,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 33,
+          "color": "#ff5600"
+        },
+        {
+          "index": 34,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 35,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 36,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 37,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 38,
+          "color": "#ff8200"
+        },
+        {
+          "index": 39,
+          "color": "#ff8200"
+        },
+        {
+          "index": 40,
+          "color": "#ff8200"
+        },
+        {
+          "index": 41,
+          "color": "#ff8500"
+        },
+        {
+          "index": 42,
+          "color": "#ff8800"
+        },
+        {
+          "index": 43,
+          "color": "#ff5000"
+        },
+        {
+          "index": 44,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 45,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 46,
+          "color": "#ff5600"
+        },
+        {
+          "index": 47,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 48,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 49,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 50,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 51,
+          "color": "#ff4b00"
+        },
+        {
+          "index": 52,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 53,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 54,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 55,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 56,
+          "color": "#ff6800"
+        },
+        {
+          "index": 57,
+          "color": "#ff4400"
+        },
+        {
+          "index": 58,
+          "color": "#ff4900"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 25,
+          "color": "#020000"
+        },
+        {
+          "index": 26,
+          "color": "#0d0400"
+        },
+        {
+          "index": 27,
+          "color": "#ff4700"
+        },
+        {
+          "index": 28,
+          "color": "#ff5500"
+        },
+        {
+          "index": 29,
+          "color": "#ff4400"
+        },
+        {
+          "index": 30,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 31,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 32,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 33,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 34,
+          "color": "#ffab03"
+        },
+        {
+          "index": 35,
+          "color": "#ffad03"
+        },
+        {
+          "index": 36,
+          "color": "#ffb203"
+        },
+        {
+          "index": 37,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 38,
+          "color": "#ffc911"
+        },
+        {
+          "index": 39,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 40,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 41,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 42,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 43,
+          "color": "#ffffff"
+        },
+        {
+          "index": 44,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 45,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 46,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 47,
+          "color": "#ffab03"
+        },
+        {
+          "index": 48,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 49,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 50,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 51,
+          "color": "#ff9401"
+        },
+        {
+          "index": 52,
+          "color": "#ff8800"
+        },
+        {
+          "index": 53,
+          "color": "#ff9401"
+        },
+        {
+          "index": 54,
+          "color": "#ffab03"
+        },
+        {
+          "index": 55,
+          "color": "#ffb804"
+        },
+        {
+          "index": 56,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 57,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5800"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 26,
+          "color": "#020000"
+        },
+        {
+          "index": 27,
+          "color": "#0d0400"
+        },
+        {
+          "index": 28,
+          "color": "#ff4700"
+        },
+        {
+          "index": 29,
+          "color": "#ff5500"
+        },
+        {
+          "index": 30,
+          "color": "#ff4400"
+        },
+        {
+          "index": 31,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 32,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 33,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 34,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 35,
+          "color": "#ffab03"
+        },
+        {
+          "index": 36,
+          "color": "#ffad03"
+        },
+        {
+          "index": 37,
+          "color": "#ffb203"
+        },
+        {
+          "index": 38,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 39,
+          "color": "#ffc911"
+        },
+        {
+          "index": 40,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 41,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 42,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 43,
+          "color": "#ffffff"
+        },
+        {
+          "index": 44,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 45,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 46,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 47,
+          "color": "#ffab03"
+        },
+        {
+          "index": 48,
+          "color": "#ff9401"
+        },
+        {
+          "index": 49,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 50,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 51,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 52,
+          "color": "#ff9401"
+        },
+        {
+          "index": 53,
+          "color": "#ff8800"
+        },
+        {
+          "index": 54,
+          "color": "#ff9401"
+        },
+        {
+          "index": 55,
+          "color": "#ffab03"
+        },
+        {
+          "index": 56,
+          "color": "#ffb804"
+        },
+        {
+          "index": 57,
+          "color": "#ff7300"
+        },
+        {
+          "index": 58,
+          "color": "#ff5b00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 26,
+          "color": "#020000"
+        },
+        {
+          "index": 27,
+          "color": "#0d0400"
+        },
+        {
+          "index": 28,
+          "color": "#ff4700"
+        },
+        {
+          "index": 29,
+          "color": "#ff5500"
+        },
+        {
+          "index": 30,
+          "color": "#ff4400"
+        },
+        {
+          "index": 31,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 32,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 33,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 34,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 35,
+          "color": "#ffab03"
+        },
+        {
+          "index": 36,
+          "color": "#ffad03"
+        },
+        {
+          "index": 37,
+          "color": "#ffab03"
+        },
+        {
+          "index": 38,
+          "color": "#ffb203"
+        },
+        {
+          "index": 39,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 40,
+          "color": "#ffc911"
+        },
+        {
+          "index": 41,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 42,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 43,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 44,
+          "color": "#ffffff"
+        },
+        {
+          "index": 45,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 46,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 47,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 48,
+          "color": "#ffab03"
+        },
+        {
+          "index": 49,
+          "color": "#ff9401"
+        },
+        {
+          "index": 50,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 51,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 52,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 53,
+          "color": "#ff9401"
+        },
+        {
+          "index": 54,
+          "color": "#ff8800"
+        },
+        {
+          "index": 55,
+          "color": "#ff9401"
+        },
+        {
+          "index": 56,
+          "color": "#ffab03"
+        },
+        {
+          "index": 57,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5c00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 27,
+          "color": "#020000"
+        },
+        {
+          "index": 28,
+          "color": "#0a0300"
+        },
+        {
+          "index": 29,
+          "color": "#180700"
+        },
+        {
+          "index": 30,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 31,
+          "color": "#ff5800"
+        },
+        {
+          "index": 32,
+          "color": "#ff4400"
+        },
+        {
+          "index": 33,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 34,
+          "color": "#ff4500"
+        },
+        {
+          "index": 35,
+          "color": "#ff6800"
+        },
+        {
+          "index": 36,
+          "color": "#ff7300"
+        },
+        {
+          "index": 37,
+          "color": "#ff7700"
+        },
+        {
+          "index": 38,
+          "color": "#ff7300"
+        },
+        {
+          "index": 39,
+          "color": "#ff4400"
+        },
+        {
+          "index": 40,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 41,
+          "color": "#ff9701"
+        },
+        {
+          "index": 42,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 43,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 44,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 45,
+          "color": "#ffa102"
+        },
+        {
+          "index": 46,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 47,
+          "color": "#ff9701"
+        },
+        {
+          "index": 48,
+          "color": "#ff8800"
+        },
+        {
+          "index": 49,
+          "color": "#ff7300"
+        },
+        {
+          "index": 50,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 51,
+          "color": "#ff6500"
+        },
+        {
+          "index": 52,
+          "color": "#ff6500"
+        },
+        {
+          "index": 53,
+          "color": "#ff6500"
+        },
+        {
+          "index": 54,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 55,
+          "color": "#ff5300"
+        },
+        {
+          "index": 56,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 57,
+          "color": "#ff4900"
+        },
+        {
+          "index": 58,
+          "color": "#ff5200"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 28,
+          "color": "#020000"
+        },
+        {
+          "index": 29,
+          "color": "#0a0300"
+        },
+        {
+          "index": 30,
+          "color": "#180700"
+        },
+        {
+          "index": 31,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 32,
+          "color": "#ff5700"
+        },
+        {
+          "index": 33,
+          "color": "#ff4200"
+        },
+        {
+          "index": 34,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 35,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 36,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 37,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 38,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 39,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 40,
+          "color": "#ff4300"
+        },
+        {
+          "index": 41,
+          "color": "#ff8500"
+        },
+        {
+          "index": 42,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 43,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 44,
+          "color": "#ff9701"
+        },
+        {
+          "index": 45,
+          "color": "#ff9701"
+        },
+        {
+          "index": 46,
+          "color": "#ff9901"
+        },
+        {
+          "index": 47,
+          "color": "#ff9701"
+        },
+        {
+          "index": 48,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 49,
+          "color": "#ff8200"
+        },
+        {
+          "index": 50,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 51,
+          "color": "#ff5600"
+        },
+        {
+          "index": 52,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 53,
+          "color": "#ff4700"
+        },
+        {
+          "index": 54,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 55,
+          "color": "#ff5600"
+        },
+        {
+          "index": 56,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 57,
+          "color": "#ff4300"
+        },
+        {
+          "index": 58,
+          "color": "#ff4900"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 28,
+          "color": "#020000"
+        },
+        {
+          "index": 29,
+          "color": "#0a0300"
+        },
+        {
+          "index": 30,
+          "color": "#ff4200"
+        },
+        {
+          "index": 31,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 32,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 33,
+          "color": "#ff4700"
+        },
+        {
+          "index": 34,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 35,
+          "color": "#ff6500"
+        },
+        {
+          "index": 36,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 37,
+          "color": "#ff8800"
+        },
+        {
+          "index": 38,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 39,
+          "color": "#ff8800"
+        },
+        {
+          "index": 40,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 41,
+          "color": "#ff9100"
+        },
+        {
+          "index": 42,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 43,
+          "color": "#ffa903"
+        },
+        {
+          "index": 44,
+          "color": "#ffb003"
+        },
+        {
+          "index": 45,
+          "color": "#ffb203"
+        },
+        {
+          "index": 46,
+          "color": "#ffb404"
+        },
+        {
+          "index": 47,
+          "color": "#ffa602"
+        },
+        {
+          "index": 48,
+          "color": "#ffa903"
+        },
+        {
+          "index": 49,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 50,
+          "color": "#ff8800"
+        },
+        {
+          "index": 51,
+          "color": "#ff4700"
+        },
+        {
+          "index": 52,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 53,
+          "color": "#ff7700"
+        },
+        {
+          "index": 54,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 55,
+          "color": "#ff7700"
+        },
+        {
+          "index": 56,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 57,
+          "color": "#ff4600"
+        },
+        {
+          "index": 58,
+          "color": "#ff4f00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 29,
+          "color": "#020000"
+        },
+        {
+          "index": 30,
+          "color": "#0d0400"
+        },
+        {
+          "index": 31,
+          "color": "#ff4400"
+        },
+        {
+          "index": 32,
+          "color": "#ff5100"
+        },
+        {
+          "index": 33,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 34,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 35,
+          "color": "#ff5600"
+        },
+        {
+          "index": 36,
+          "color": "#ff7300"
+        },
+        {
+          "index": 37,
+          "color": "#ff8800"
+        },
+        {
+          "index": 38,
+          "color": "#ff9401"
+        },
+        {
+          "index": 39,
+          "color": "#ff9901"
+        },
+        {
+          "index": 40,
+          "color": "#ff5300"
+        },
+        {
+          "index": 41,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 42,
+          "color": "#ffab03"
+        },
+        {
+          "index": 43,
+          "color": "#ff6f00"
+        },
+        {
+          "index": 44,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 45,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 46,
+          "color": "#ffa602"
+        },
+        {
+          "index": 47,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 48,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 49,
+          "color": "#ffb604"
+        },
+        {
+          "index": 50,
+          "color": "#ffa903"
+        },
+        {
+          "index": 51,
+          "color": "#ff9401"
+        },
+        {
+          "index": 52,
+          "color": "#ff7700"
+        },
+        {
+          "index": 53,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 54,
+          "color": "#ff8500"
+        },
+        {
+          "index": 55,
+          "color": "#ff8800"
+        },
+        {
+          "index": 56,
+          "color": "#ff8500"
+        },
+        {
+          "index": 57,
+          "color": "#ff4b00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4f00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 30,
+          "color": "#000000"
+        },
+        {
+          "index": 31,
+          "color": "#080200"
+        },
+        {
+          "index": 32,
+          "color": "#ff4200"
+        },
+        {
+          "index": 33,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 34,
+          "color": "#ff5900"
+        },
+        {
+          "index": 35,
+          "color": "#ff4500"
+        },
+        {
+          "index": 36,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 37,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 38,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 39,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 40,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 41,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 42,
+          "color": "#ff8200"
+        },
+        {
+          "index": 43,
+          "color": "#ff9100"
+        },
+        {
+          "index": 44,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 45,
+          "color": "#ffa102"
+        },
+        {
+          "index": 46,
+          "color": "#ffa402"
+        },
+        {
+          "index": 47,
+          "color": "#ffa402"
+        },
+        {
+          "index": 48,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 49,
+          "color": "#ff5000"
+        },
+        {
+          "index": 50,
+          "color": "#ff9901"
+        },
+        {
+          "index": 51,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 52,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 53,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 54,
+          "color": "#ff6100"
+        },
+        {
+          "index": 55,
+          "color": "#ff6800"
+        },
+        {
+          "index": 56,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 57,
+          "color": "#ff4700"
+        },
+        {
+          "index": 58,
+          "color": "#ff4200"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 31,
+          "color": "#020000"
+        },
+        {
+          "index": 32,
+          "color": "#0d0400"
+        },
+        {
+          "index": 33,
+          "color": "#ff4700"
+        },
+        {
+          "index": 34,
+          "color": "#ff5500"
+        },
+        {
+          "index": 35,
+          "color": "#ff4400"
+        },
+        {
+          "index": 36,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 37,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 38,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 39,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 40,
+          "color": "#ffab03"
+        },
+        {
+          "index": 41,
+          "color": "#ffad03"
+        },
+        {
+          "index": 42,
+          "color": "#ffab03"
+        },
+        {
+          "index": 43,
+          "color": "#ffb203"
+        },
+        {
+          "index": 44,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 45,
+          "color": "#ffc911"
+        },
+        {
+          "index": 46,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 47,
+          "color": "#ffffc2"
+        },
+        {
+          "index": 48,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 49,
+          "color": "#ffffff"
+        },
+        {
+          "index": 50,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 51,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 52,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 53,
+          "color": "#ffab03"
+        },
+        {
+          "index": 54,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 55,
+          "color": "#ff9401"
+        },
+        {
+          "index": 56,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 57,
+          "color": "#ff5300"
+        },
+        {
+          "index": 58,
+          "color": "#ff5500"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 31,
+          "color": "#020000"
+        },
+        {
+          "index": 32,
+          "color": "#0d0400"
+        },
+        {
+          "index": 33,
+          "color": "#ff4600"
+        },
+        {
+          "index": 34,
+          "color": "#ff5400"
+        },
+        {
+          "index": 35,
+          "color": "#ff4300"
+        },
+        {
+          "index": 36,
+          "color": "#ff4900"
+        },
+        {
+          "index": 37,
+          "color": "#ff6500"
+        },
+        {
+          "index": 38,
+          "color": "#ff8500"
+        },
+        {
+          "index": 39,
+          "color": "#ff9901"
+        },
+        {
+          "index": 40,
+          "color": "#ffa402"
+        },
+        {
+          "index": 41,
+          "color": "#ffa903"
+        },
+        {
+          "index": 42,
+          "color": "#ffa402"
+        },
+        {
+          "index": 43,
+          "color": "#ff9901"
+        },
+        {
+          "index": 44,
+          "color": "#ffab03"
+        },
+        {
+          "index": 45,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 46,
+          "color": "#ffc30d"
+        },
+        {
+          "index": 47,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 48,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 49,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 50,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 51,
+          "color": "#ffc50e"
+        },
+        {
+          "index": 52,
+          "color": "#ffb604"
+        },
+        {
+          "index": 53,
+          "color": "#ffa402"
+        },
+        {
+          "index": 54,
+          "color": "#ff8800"
+        },
+        {
+          "index": 55,
+          "color": "#ff5000"
+        },
+        {
+          "index": 56,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 57,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5500"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 32,
+          "color": "#020000"
+        },
+        {
+          "index": 33,
+          "color": "#0d0400"
+        },
+        {
+          "index": 34,
+          "color": "#ff4700"
+        },
+        {
+          "index": 35,
+          "color": "#ff5500"
+        },
+        {
+          "index": 36,
+          "color": "#ff4400"
+        },
+        {
+          "index": 37,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 38,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 39,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 40,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 41,
+          "color": "#ffab03"
+        },
+        {
+          "index": 42,
+          "color": "#ffad03"
+        },
+        {
+          "index": 43,
+          "color": "#ffab03"
+        },
+        {
+          "index": 44,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 45,
+          "color": "#ffb203"
+        },
+        {
+          "index": 46,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 47,
+          "color": "#ffc911"
+        },
+        {
+          "index": 48,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 49,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 50,
+          "color": "#ffffff"
+        },
+        {
+          "index": 51,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 52,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 53,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 54,
+          "color": "#ffab03"
+        },
+        {
+          "index": 55,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 56,
+          "color": "#ff8800"
+        },
+        {
+          "index": 57,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5500"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 33,
+          "color": "#020000"
+        },
+        {
+          "index": 34,
+          "color": "#080200"
+        },
+        {
+          "index": 35,
+          "color": "#150600"
+        },
+        {
+          "index": 36,
+          "color": "#ff4900"
+        },
+        {
+          "index": 37,
+          "color": "#ff5400"
+        },
+        {
+          "index": 38,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 39,
+          "color": "#ff4700"
+        },
+        {
+          "index": 40,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 41,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 42,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 43,
+          "color": "#ff4700"
+        },
+        {
+          "index": 44,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 45,
+          "color": "#ff5000"
+        },
+        {
+          "index": 46,
+          "color": "#ff6100"
+        },
+        {
+          "index": 47,
+          "color": "#ff7300"
+        },
+        {
+          "index": 48,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 49,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 50,
+          "color": "#ff8800"
+        },
+        {
+          "index": 51,
+          "color": "#ff8800"
+        },
+        {
+          "index": 52,
+          "color": "#ff8800"
+        },
+        {
+          "index": 53,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 54,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 55,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 56,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 57,
+          "color": "#ff5b00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4900"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 33,
+          "color": "#020000"
+        },
+        {
+          "index": 34,
+          "color": "#0d0400"
+        },
+        {
+          "index": 35,
+          "color": "#ff4700"
+        },
+        {
+          "index": 36,
+          "color": "#ff5500"
+        },
+        {
+          "index": 37,
+          "color": "#ff4400"
+        },
+        {
+          "index": 38,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 39,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 40,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 41,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 42,
+          "color": "#ffab03"
+        },
+        {
+          "index": 43,
+          "color": "#ffad03"
+        },
+        {
+          "index": 44,
+          "color": "#ffab03"
+        },
+        {
+          "index": 45,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 46,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 47,
+          "color": "#ffb203"
+        },
+        {
+          "index": 48,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 49,
+          "color": "#ffc911"
+        },
+        {
+          "index": 50,
+          "color": "#ffffa4"
+        },
+        {
+          "index": 51,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 52,
+          "color": "#ffffff"
+        },
+        {
+          "index": 53,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 54,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 55,
+          "color": "#ffbd08"
+        },
+        {
+          "index": 56,
+          "color": "#ffab03"
+        },
+        {
+          "index": 57,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5200"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 34,
+          "color": "#020000"
+        },
+        {
+          "index": 35,
+          "color": "#0a0300"
+        },
+        {
+          "index": 36,
+          "color": "#180700"
+        },
+        {
+          "index": 37,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 38,
+          "color": "#ff5500"
+        },
+        {
+          "index": 39,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 40,
+          "color": "#ff4900"
+        },
+        {
+          "index": 41,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 42,
+          "color": "#ff5a00"
+        },
+        {
+          "index": 43,
+          "color": "#ff6500"
+        },
+        {
+          "index": 44,
+          "color": "#ff6800"
+        },
+        {
+          "index": 45,
+          "color": "#ff6500"
+        },
+        {
+          "index": 46,
+          "color": "#ff4c00"
+        },
+        {
+          "index": 47,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 48,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 49,
+          "color": "#ff8800"
+        },
+        {
+          "index": 50,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 51,
+          "color": "#ff9100"
+        },
+        {
+          "index": 52,
+          "color": "#ff9401"
+        },
+        {
+          "index": 53,
+          "color": "#ff9100"
+        },
+        {
+          "index": 54,
+          "color": "#ff8800"
+        },
+        {
+          "index": 55,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 56,
+          "color": "#ff6500"
+        },
+        {
+          "index": 57,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4600"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 35,
+          "color": "#020000"
+        },
+        {
+          "index": 36,
+          "color": "#0d0400"
+        },
+        {
+          "index": 37,
+          "color": "#150600"
+        },
+        {
+          "index": 38,
+          "color": "#ff4f00"
+        },
+        {
+          "index": 39,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 40,
+          "color": "#ff4800"
+        },
+        {
+          "index": 41,
+          "color": "#ff5000"
+        },
+        {
+          "index": 42,
+          "color": "#ff6800"
+        },
+        {
+          "index": 43,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 44,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 45,
+          "color": "#ff9100"
+        },
+        {
+          "index": 46,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 47,
+          "color": "#ff7e00"
+        },
+        {
+          "index": 48,
+          "color": "#ff9401"
+        },
+        {
+          "index": 49,
+          "color": "#ffa402"
+        },
+        {
+          "index": 50,
+          "color": "#ffad03"
+        },
+        {
+          "index": 51,
+          "color": "#ffb203"
+        },
+        {
+          "index": 52,
+          "color": "#ffb404"
+        },
+        {
+          "index": 53,
+          "color": "#ffb804"
+        },
+        {
+          "index": 54,
+          "color": "#ffb404"
+        },
+        {
+          "index": 55,
+          "color": "#ffad03"
+        },
+        {
+          "index": 56,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 57,
+          "color": "#ff4d00"
+        },
+        {
+          "index": 58,
+          "color": "#ff4f00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 36,
+          "color": "#020000"
+        },
+        {
+          "index": 37,
+          "color": "#050100"
+        },
+        {
+          "index": 38,
+          "color": "#150600"
+        },
+        {
+          "index": 39,
+          "color": "#ff4a00"
+        },
+        {
+          "index": 40,
+          "color": "#ff5500"
+        },
+        {
+          "index": 41,
+          "color": "#ff5f00"
+        },
+        {
+          "index": 42,
+          "color": "#ff4800"
+        },
+        {
+          "index": 43,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 44,
+          "color": "#ff5600"
+        },
+        {
+          "index": 45,
+          "color": "#ff6100"
+        },
+        {
+          "index": 46,
+          "color": "#ff6800"
+        },
+        {
+          "index": 47,
+          "color": "#ff6100"
+        },
+        {
+          "index": 48,
+          "color": "#ff5600"
+        },
+        {
+          "index": 49,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 50,
+          "color": "#ff7a00"
+        },
+        {
+          "index": 51,
+          "color": "#ff8800"
+        },
+        {
+          "index": 52,
+          "color": "#ff8e00"
+        },
+        {
+          "index": 53,
+          "color": "#ff9100"
+        },
+        {
+          "index": 54,
+          "color": "#ff4800"
+        },
+        {
+          "index": 55,
+          "color": "#ff9100"
+        },
+        {
+          "index": 56,
+          "color": "#ff8800"
+        },
+        {
+          "index": 57,
+          "color": "#ff4900"
+        },
+        {
+          "index": 58,
+          "color": "#ff4e00"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 36,
+          "color": "#020000"
+        },
+        {
+          "index": 37,
+          "color": "#0d0400"
+        },
+        {
+          "index": 38,
+          "color": "#ff4400"
+        },
+        {
+          "index": 39,
+          "color": "#ff5100"
+        },
+        {
+          "index": 40,
+          "color": "#ff5d00"
+        },
+        {
+          "index": 41,
+          "color": "#ff5200"
+        },
+        {
+          "index": 42,
+          "color": "#ff5600"
+        },
+        {
+          "index": 43,
+          "color": "#ff7300"
+        },
+        {
+          "index": 44,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 45,
+          "color": "#ff9701"
+        },
+        {
+          "index": 46,
+          "color": "#ff9901"
+        },
+        {
+          "index": 47,
+          "color": "#ff9701"
+        },
+        {
+          "index": 48,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 49,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 50,
+          "color": "#ff9c01"
+        },
+        {
+          "index": 51,
+          "color": "#ffab03"
+        },
+        {
+          "index": 52,
+          "color": "#ffb604"
+        },
+        {
+          "index": 53,
+          "color": "#ffbb06"
+        },
+        {
+          "index": 54,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 55,
+          "color": "#ffc10b"
+        },
+        {
+          "index": 56,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 57,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 58,
+          "color": "#ff5800"
+        }
+      ]
+    },
+    {
+      "leds": [
+        {
+          "index": 37,
+          "color": "#020000"
+        },
+        {
+          "index": 38,
+          "color": "#0d0400"
+        },
+        {
+          "index": 39,
+          "color": "#ff4700"
+        },
+        {
+          "index": 40,
+          "color": "#ff5500"
+        },
+        {
+          "index": 41,
+          "color": "#ff4400"
+        },
+        {
+          "index": 42,
+          "color": "#ff4e00"
+        },
+        {
+          "index": 43,
+          "color": "#ff6c00"
+        },
+        {
+          "index": 44,
+          "color": "#ff8b00"
+        },
+        {
+          "index": 45,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 46,
+          "color": "#ffab03"
+        },
+        {
+          "index": 47,
+          "color": "#ffad03"
+        },
+        {
+          "index": 48,
+          "color": "#ffab03"
+        },
+        {
+          "index": 49,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 50,
+          "color": "#ff9f02"
+        },
+        {
+          "index": 51,
+          "color": "#ffb203"
+        },
+        {
+          "index": 52,
+          "color": "#ffbf09"
+        },
+        {
+          "index": 53,
+          "color": "#ffcb13"
+        },
+        {
+          "index": 54,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 55,
+          "color": "#ffffff"
+        },
+        {
+          "index": 56,
+          "color": "#ffffe9"
+        },
+        {
+          "index": 57,
+          "color": "#ff8200"
+        },
+        {
+          "index": 58,
+          "color": "#ff5c00"
+        }
+      ]
+    }
+  ]
+}
