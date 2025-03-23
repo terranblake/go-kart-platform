@@ -1,0 +1,62 @@
+
+syntax = "proto3";
+
+package kart.common;
+
+// Message types (2 bits - allows 4 types)
+enum MessageType {
+  COMMAND = 0;
+  STATUS = 1;
+  ACK = 2;
+  ERROR = 3;
+}
+
+// Component types (3 bits - allows 8 types)
+enum ComponentType {
+  LIGHTS = 0;
+  MOTORS = 1;
+  SENSORS = 2;
+  BATTERY = 3;
+  CONTROLS = 4;
+  // Reserved space for 3 more types
+}
+
+// Value types (4 bits - allows 16 types)
+enum ValueType {
+  BOOLEAN = 0;
+  INT8 = 1;
+  UINT8 = 2;
+  INT16 = 3;
+  UINT16 = 4;
+  INT24 = 5;
+  UINT24 = 6;
+  FLOAT16 = 7;
+  // Reserved space for 8 more types
+}
+
+// Special value for addressing all components of a type
+// Will be defined as GROUP_ALL = 0xFF in generated code
+
+// Main message structure (8 bytes total)
+message KartMessage {
+  // Byte 0: [2 bits MessageType][3 bits ComponentType][3 bits reserved]
+  MessageType message_type = 1;      // 2 bits
+  ComponentType component_type = 2;  // 3 bits
+  // 3 bits reserved in byte 0
+
+  // Byte 1: Reserved for future use
+  // (Not represented in proto)
+
+  // Byte 2: Component ID
+  uint32 component_id = 3;           // 8 bits (0-255)
+
+  // Byte 3: Command/Value ID
+  uint32 command_id = 4;             // 8 bits (0-255)
+
+  // Byte 4: [4 bits ValueType][4 bits reserved]
+  ValueType value_type = 5;          // 4 bits
+  // 4 bits reserved in byte 4
+
+  // Bytes 5-7: Value
+  int32 value = 6;                  // 24 bits
+}

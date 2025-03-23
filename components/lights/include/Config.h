@@ -1,5 +1,4 @@
 #include <stdint.h>  // For uint8_t type
-#include <kart_protocol.h>
 
 // Pin definitions
 #define DATA_PIN 6 // LED data pin for lights
@@ -32,42 +31,46 @@ typedef struct
     uint8_t sweepPosition = 0; // For animations
 } LightState;
 
-// Define a command handler function type
-typedef void (*CommandHandler)(uint8_t componentId, uint8_t valueId, uint8_t *data);
-
-// Command handler registry
-struct CommandRegistry
-{
-    uint8_t componentType;
-    uint8_t commandId;
-    CommandHandler handler;
-};
-
 // Function prototypes for command handlers
-void handleLightMode(uint8_t componentId, uint8_t valueId, uint8_t *data);
-void handleLightSignal(uint8_t componentId, uint8_t valueId, uint8_t *data);
-void handleLightBrake(uint8_t componentId, uint8_t valueId, uint8_t *data);
-void handleLightTest(uint8_t componentId, uint8_t valueId, uint8_t *data);
-void handleLightLocation(uint8_t componentId, uint8_t valueId, uint8_t *data);
-
-// Register command handlers in a lookup table
-CommandRegistry commandHandlers[] = {
-    {KART_TYPE_LIGHTS, KART_CMD_LIGHT_MODE, handleLightMode},
-    {KART_TYPE_LIGHTS, KART_CMD_LIGHT_SIGNAL, handleLightSignal},
-    {KART_TYPE_LIGHTS, KART_CMD_LIGHT_BRAKE, handleLightBrake},
-    {KART_TYPE_LIGHTS, KART_CMD_LIGHT_TEST, handleLightTest},
-    {KART_TYPE_LIGHTS, 0x05, handleLightLocation} // Light location command
-};
-
-const int NUM_HANDLERS = sizeof(commandHandlers) / sizeof(CommandRegistry);
+void handleLightMode(kart_common_MessageType msg_type,
+                         kart_common_ComponentType comp_type,
+                         uint8_t component_id,
+                         uint8_t command_id,
+                         kart_common_ValueType value_type,
+                         int32_t value);
+void handleLightSignal(kart_common_MessageType msg_type,
+                         kart_common_ComponentType comp_type,
+                         uint8_t component_id,
+                         uint8_t command_id,
+                         kart_common_ValueType value_type,
+                         int32_t value);
+void handleLightBrake(kart_common_MessageType msg_type,
+                         kart_common_ComponentType comp_type,
+                         uint8_t component_id,
+                         uint8_t command_id,
+                         kart_common_ValueType value_type,
+                         int32_t value);
+void handleLightTest(kart_common_MessageType msg_type,
+                         kart_common_ComponentType comp_type,
+                         uint8_t component_id,
+                         uint8_t command_id,
+                         kart_common_ValueType value_type,
+                         int32_t value);
+void handleLightLocation(kart_common_MessageType msg_type,
+                         kart_common_ComponentType comp_type,
+                         uint8_t component_id,
+                         uint8_t command_id,
+                         kart_common_ValueType value_type,
+                         int32_t value);
 
 // Forward declarations for functions
 void clearLights(CRGB *leds, int numLeds);
 void updateTurnSignals(CRGB *leds, int numLeds, LightState &state);
 void updateLights(CRGB *leds, int numLeds, LightState &state);
 void updateStartupShutdownAnimation(CRGB *leds, int numLeds, LightState &state);
-void processCAN();
+
+#if DEBUG_MODE
 void runTestSequence();
 void processSerialCommands();
 void executeSerialCommand(const char *command);
-void processCANMessage(uint32_t id, uint8_t *data, uint8_t length);
+#endif

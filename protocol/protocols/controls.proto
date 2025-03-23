@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package kart.controls;
+
+// Control component IDs
+enum ControlComponentId {
+  THROTTLE = 0;
+  BRAKE = 1;
+  STEERING = 2;
+  TRANSMISSION = 3;
+  SUSPENSION = 4;
+  COOLING = 5;
+  USER_INTERFACE = 6;
+  SECURITY = 7;
+  DIAGNOSTIC = 8;
+  AUTONOMOUS = 9;
+  ALL = 10;
+}
+
+// Control command IDs
+enum ControlCommandId {
+  ENABLE = 0;
+  DISABLE = 1;
+  RESET = 2;
+  MODE = 3;
+  PARAMETER = 4;
+  LIMIT = 5;
+  CALIBRATE = 6;
+  EMERGENCY = 7;
+}
+
+// Control mode values
+enum ControlModeValue {
+  MANUAL = 0;
+  ASSISTED = 1;
+  AUTOMATIC = 2;
+  SPORT = 3;
+  ECO = 4;
+  SAFETY = 5;
+  TEST = 6;  // Test mode for testing
+}
+
+// Control calibrate values
+enum ControlCalibrateValue {
+  CAL_START = 0;
+  CAL_STOP = 1;
+  CAL_RESET = 2;
+}
+
+// Control emergency values
+enum ControlEmergencyValue {
+  NORMAL = 0;
+  STOP = 1;
+  LIMP_HOME = 2;
+}

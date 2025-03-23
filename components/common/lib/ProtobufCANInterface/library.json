@@ -1,5 +1,5 @@
 {
-  "name": "CanInterface",
+  "name": "ProtobufCanInterface",
   "version": "1.0.0",
   "description": "CanInterface for go-kart components",
   "authors": [
