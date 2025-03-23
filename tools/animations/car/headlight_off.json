@@ -1,0 +1,192 @@
+{
+  "name": "Headlight: off",
+  "type": "custom",
+  "speed": 30,
+  "direction": "forward",
+  "dimensions": {
+    "length": 60,
+    "height": 1
+  },
+  "frames": [
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    },
+    {
+      "leds": []
+    }
+  ]
+}
