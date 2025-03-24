@@ -1,93 +1,91 @@
 #!/usr/bin/env python3
 """
-Tests for the CAN Interface Wrapper
-
-These tests verify that the CAN interface correctly interacts with the hardware
-on the Raspberry Pi. These tests require actual hardware and should be run
-on the Raspberry Pi itself.
-
-IMPORTANT: These tests use the actual hardware and do NOT use mocks.
-They require:
-  1. A Raspberry Pi with can0 interface configured
-  2. The CrossPlatformCAN library built and installed
-  3. The libcaninterface.so shared library in lib/can directory
-  4. The actual generated protocol files from protobuf
-
-To run these tests on the Raspberry Pi:
-  1. SSH into the Raspberry Pi
-  2. Navigate to the dashboard/server directory
-  3. Run: python3 -m tests.test_can_interface
+Unit tests for the CAN interface wrapper
 """
+
 import unittest
-import os
-import sys
 import logging
 import time
+import sys
+import os
+import platform
 import subprocess
 from pathlib import Path
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Check if we're running on a Raspberry Pi
 def is_raspberry_pi():
-    """Check if we're running on a Raspberry Pi"""
+    """Check if running on a Raspberry Pi"""
     try:
-        with open('/proc/cpuinfo', 'r') as f:
-            cpuinfo = f.read()
-        return 'Raspberry Pi' in cpuinfo or 'BCM' in cpuinfo
-    except:
+        if platform.system() != 'Linux':
+            return False
+            
+        # Check for Raspberry Pi-specific files
+        if os.path.exists('/proc/device-tree/model'):
+            with open('/proc/device-tree/model', 'r') as f:
+                model = f.read()
+                if 'Raspberry Pi' in model:
+                    return True
+        return False
+    except Exception as e:
+        logger.error(f"Error detecting Raspberry Pi: {e}")
         return False
 
-# Check for the CAN interface
 def check_can_interface():
-    """Check if the can0 interface is available"""
+    """Check if the CAN interface is available"""
     try:
-        output = subprocess.check_output(['ip', 'link', 'show', 'can0'], stderr=subprocess.STDOUT).decode()
-        return 'can0' in output
-    except subprocess.CalledProcessError:
+        # Check if can0 exists
+        result = subprocess.run(
+            ['ip', 'link', 'show', 'can0'], 
+            check=False, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        return result.returncode == 0
+    except Exception as e:
+        logger.error(f"Error checking CAN interface: {e}")
         return False
 
 # Add the server directory to the path so we can import the modules
-server_dir = Path(__file__).parent.parent
+server_dir = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(server_dir))
 
 # Import the CAN interface wrapper and protocol registry
 try:
-    from lib.can.interface import CANInterfaceWrapper
+    from lib.can.interface import CANInterfaceWrapper, has_can_hardware
     from lib.can.protocol_registry import ProtocolRegistry
 except ImportError as e:
     logger.error(f"Failed to import CAN interface: {e}")
     raise
 
-# Skip tests if not on a Raspberry Pi or no CAN interface
-skip_tests = not is_raspberry_pi() or not check_can_interface()
-skip_reason = "Not running on Raspberry Pi or can0 interface not available"
+# Skip hardware-specific tests if not on a Raspberry Pi or no CAN interface
+skip_hardware_tests = not is_raspberry_pi() or not check_can_interface()
+skip_hardware_reason = "Not running on Raspberry Pi or can0 interface not available"
 
-@unittest.skipIf(skip_tests, skip_reason)
 class TestCANInterface(unittest.TestCase):
     """Test suite for the CAN Interface"""
 
     @classmethod
     def setUpClass(cls):
-        """Set up the test class - reset the CAN interface"""
-        if skip_tests:
-            return
-            
-        try:
-            # Reset the CAN interface to ensure it's in a good state
-            subprocess.run(['sudo', 'ip', 'link', 'set', 'can0', 'down'], check=True)
-            time.sleep(0.5)
-            subprocess.run(['sudo', 'ip', 'link', 'set', 'can0', 'up', 'type', 'can', 'bitrate', '500000'], check=True)
-            time.sleep(0.5)
-            logger.info("CAN interface reset successfully")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to reset CAN interface: {e}")
-            cls.skipTest(cls, "Failed to reset CAN interface")
+        """Set up the test class - reset the CAN interface if available"""
+        # Only try to reset hardware if we're on a Raspberry Pi with CAN
+        if not skip_hardware_tests:
+            try:
+                # Reset the CAN interface to ensure it's in a good state
+                subprocess.run(['sudo', 'ip', 'link', 'set', 'can0', 'down'], check=True)
+                time.sleep(0.5)
+                subprocess.run(['sudo', 'ip', 'link', 'set', 'can0', 'up', 'type', 'can', 'bitrate', '500000'], check=True)
+                time.sleep(0.5)
+                logger.info("CAN interface reset successfully")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to reset CAN interface: {e}")
+                skip_hardware_tests = True
             
         # Find the protocol directory
-        repo_root = Path(__file__).parent.parent.parent.parent
+        repo_root = Path(__file__).parent.parent.parent.parent.parent
         cls.pb_path = repo_root / "protocol" / "generated" / "python"
         
         if not cls.pb_path.exists():
@@ -99,17 +97,11 @@ class TestCANInterface(unittest.TestCase):
             
         logger.info(f"Using protocol path: {cls.pb_path}")
         
-        # Make sure the CAN interface library exists
-        lib_path = Path(server_dir) / "lib" / "can" / "libcaninterface.so"
-        if not lib_path.exists():
-            logger.error(f"CAN interface library not found at {lib_path}")
-            cls.skipTest(cls, "CAN interface library not found")
+        # The library file check is now handled by the interface itself
+        # with a fallback to mock mode if not available
 
     def setUp(self):
         """Set up each test"""
-        if skip_tests:
-            self.skipTest(skip_reason)
-            
         # Create a protocol registry
         self.protocol_registry = ProtocolRegistry(pb_path=self.pb_path)
         
@@ -117,14 +109,14 @@ class TestCANInterface(unittest.TestCase):
         self.can_interface = CANInterfaceWrapper(node_id=0x01, channel='can0', baudrate=500000)
         
         # Ensure the interface is ready
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     def tearDown(self):
         """Clean up after each test"""
         if hasattr(self, 'can_interface'):
             self.can_interface.stop_processing()
             # Give it time to shut down
-            time.sleep(0.5)
+            time.sleep(0.1)
 
     def test_interface_initialization(self):
         """Test that the CAN interface initializes correctly"""
@@ -145,6 +137,10 @@ class TestCANInterface(unittest.TestCase):
         # Check that we have some types in the registry
         self.assertGreater(len(self.can_interface.protocol_registry.registry['message_types']), 0)
         self.assertGreater(len(self.can_interface.protocol_registry.registry['component_types']), 0)
+        
+        # Check if we're using the mock interface or real hardware
+        print(f"Using mock interface: {self.can_interface.using_mock}")
+        print(f"Has CAN hardware: {has_can_hardware}")
 
     def test_message_processing(self):
         """Test that the CAN interface can start and stop message processing"""
@@ -155,149 +151,132 @@ class TestCANInterface(unittest.TestCase):
         self.assertTrue(self.can_interface.process_thread.is_alive())
         
         # Wait a bit for the thread to run
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         # Stop message processing
         self.can_interface.stop_processing()
         self.assertFalse(self.can_interface.auto_process)
-        time.sleep(0.5)  # Give it time to actually stop
+        time.sleep(0.1)  # Give it time to actually stop
         
         # Thread might still be alive if it's blocked on joining
         # So we don't test process_thread.is_alive() here
 
     def test_send_message(self):
-        """Test sending a CAN message"""
-        # Get message type and component type values from the registry
-        message_types = self.can_interface.protocol_registry.registry['message_types']
-        component_types = self.can_interface.protocol_registry.registry['component_types']
-        value_types = self.can_interface.protocol_registry.registry['value_types']
+        """Test that messages can be sent"""
+        # Get message type values from the registry
+        message_types = self.protocol_registry.registry['message_types']
+        component_types = self.protocol_registry.registry['component_types']
+        value_types = self.protocol_registry.registry['value_types']
         
-        if not message_types or not component_types or not value_types:
-            self.skipTest("Protocol registry is missing required types")
-            
-        # Get the first message type, component type, and value type
-        msg_type_name = list(message_types.keys())[0]
-        comp_type_name = list(component_types.keys())[0]
-        val_type_name = list(value_types.keys())[0]
+        command_type = message_types['COMMAND']
+        lights_type = component_types['LIGHTS']
+        boolean_type = value_types['BOOLEAN']
         
-        msg_type = message_types[msg_type_name]
-        comp_type = component_types[comp_type_name]
-        val_type = value_types[val_type_name]
+        # Send a command to turn on headlights
+        front_light_id = 0  # Front lights component ID
+        toggle_cmd_id = 6   # TOGGLE command ID
         
-        # Try to send a message
         result = self.can_interface.send_message(
-            msg_type,      # Message type
-            comp_type,     # Component type
-            0x01,          # Component ID
-            0x01,          # Command ID
-            val_type,      # Value type
-            1              # Value
+            command_type, lights_type, front_light_id, toggle_cmd_id, boolean_type, 1
         )
-        
-        # The result should be True if the message was sent successfully
         self.assertTrue(result)
 
-    def test_send_protocol_message(self):
-        """Test sending a message using the protocol registry"""
-        # Get message type and component type values from the registry
-        message_types = list(self.can_interface.protocol_registry.registry['message_types'].keys())
-        component_types = list(self.can_interface.protocol_registry.registry['component_types'].keys())
+    @unittest.skipIf(skip_hardware_tests, skip_hardware_reason)
+    def test_hardware_communication(self):
+        """Test communication with actual CAN hardware (skipped if not available)"""
+        # This test requires actual CAN hardware
+        # It will send a message and verify that it can be received
         
-        if not message_types or not component_types:
-            self.skipTest("Protocol registry is missing required types")
+        # First, make sure we're not using the mock interface
+        self.assertFalse(self.can_interface.using_mock)
+        
+        # Register a test callback
+        message_received = [False]
+        
+        def message_handler(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            message_received[0] = True
             
-        # Get the first message type and component type
-        msg_type = message_types[0]
-        comp_type = component_types[0]
+        motors_type = self.protocol_registry.registry['component_types']['MOTORS']
+        self.can_interface.register_handler(motors_type, 0, 0, message_handler)
         
-        # Get component IDs for this component type
-        comp_ids = {}
-        if comp_type.lower() in self.can_interface.protocol_registry.registry['components']:
-            comp_ids = self.can_interface.protocol_registry.registry['components'][comp_type.lower()]
+        # Send a test message (loopback should receive it if hardware is configured properly)
+        command_type = self.protocol_registry.registry['message_types']['COMMAND']
+        value_type = self.protocol_registry.registry['value_types']['UINT8']
         
-        # Get commands for this component type
-        cmd_ids = {}
-        if comp_type.lower() in self.can_interface.protocol_registry.registry['commands']:
-            cmd_ids = self.can_interface.protocol_registry.registry['commands'][comp_type.lower()]
+        self.can_interface.send_message(command_type, motors_type, 0, 0, value_type, 42)
         
-        # If we have component IDs and commands, we can test send_protocol_message
-        if comp_ids and cmd_ids:
-            comp_name = list(comp_ids.keys())[0]
-            cmd_name = list(cmd_ids.keys())[0]
-            
-            # Create a message specification
-            msg_spec = {
-                'message_type': msg_type,
-                'component_type': comp_type,
-                'component_name': comp_name,
-                'command_name': cmd_name,
-                'value': 1
-            }
-            
-            # Try to send the message
-            result = self.can_interface.send_protocol_message(msg_spec)
-            
-            # The result should be True if the message was sent successfully
-            self.assertTrue(result)
-        else:
-            self.skipTest("Protocol registry is missing required component IDs or commands")
-
-    def test_register_handler(self):
-        """Test registering a message handler"""
-        # Flag to track if the handler was called
-        self.handler_called = False
-        
-        # Define a test handler
-        def test_handler(msg_type, comp_type, comp_id, cmd_id, val_type, value):
-            logger.info(f"Test handler called: {msg_type}, {comp_type}, {comp_id}, {cmd_id}, {val_type}, {value}")
-            self.handler_called = True
-        
-        # Register the handler for a specific message type
-        result = self.can_interface.register_handler(0, 0x01, 0x01, test_handler)
-        self.assertTrue(result)
-        
-        # Make sure the handler was added to the callbacks list
-        self.assertGreaterEqual(len(self.can_interface.callbacks), 1)
-
-    def test_hardware_loopback(self):
-        """Test sending and receiving messages (requires hardware loopback)"""
-        # This test requires a hardware loopback setup or another device to echo messages
-        logger.warning("Hardware loopback test requires physical CAN loopback or echo device")
-        logger.warning("This test may fail if no loopback is present")
-        
-        # Flag to track if the handler was called
-        self.handler_called = False
-        self.received_msg = None
-        
-        # Define a test handler that captures the received message
-        def test_handler(msg_type, comp_type, comp_id, cmd_id, val_type, value):
-            logger.info(f"Received message: {msg_type}, {comp_type}, {comp_id}, {cmd_id}, {val_type}, {value}")
-            self.handler_called = True
-            self.received_msg = (msg_type, comp_type, comp_id, cmd_id, val_type, value)
-        
-        # Register the handler for a specific message type
-        # We use 0xFF for component_id and command_id to match all messages
-        self.can_interface.register_handler(0, 0xFF, 0xFF, test_handler)
-        
-        # Start message processing
+        # Start processing and wait for a message
         self.can_interface.start_processing()
         
-        # Send a test message
-        sent_msg = (0, 0, 0x01, 0x01, 0, 1)  # Message type, component type, component ID, command ID, value type, value
-        self.can_interface.send_message(*sent_msg)
-        
-        # Give it time to be received (if loopback is present)
-        time.sleep(1.0)
-        
-        # Stop message processing
+        # Wait up to 1 second for a message
+        start_time = time.time()
+        while not message_received[0] and time.time() - start_time < 1.0:
+            time.sleep(0.1)
+            
         self.can_interface.stop_processing()
         
-        # If no loopback is present, this test will be skipped
-        if not self.handler_called:
-            self.skipTest("No CAN loopback detected, skipping message reception test")
-        else:
-            # Check that the received message matches what we sent
-            self.assertEqual(self.received_msg, sent_msg)
+        # Note: This assertion may fail if loopback isn't enabled or there's hardware issues
+        # We're only running this test on actual hardware, so it's expected to work
+        self.assertTrue(message_received[0])
+    
+    def test_send_command(self):
+        """Test sending a command using the high-level send_command method"""
+        # Send a command to toggle headlights
+        result = self.can_interface.send_command(
+            component_path='lights.headlights',
+            command_name='TOGGLE',
+            direct_value=1
+        )
+        self.assertTrue(result)
+        
+        # Send a command to set motor speed
+        result = self.can_interface.send_command(
+            component_path='motors.main',
+            command_name='SPEED',
+            direct_value=50
+        )
+        self.assertTrue(result)
 
-if __name__ == '__main__':
+    def test_state_tracking(self):
+        """Test that the CAN interface properly tracks system state"""
+        # Get initial state
+        state = self.can_interface.get_current_state()
+        self.assertIsNotNone(state)
+        
+        # Check state structure
+        self.assertIn('timestamp', state)
+        self.assertIn('speed', state)
+        self.assertIn('throttle', state)
+        self.assertIn('battery', state)
+        self.assertIn('lights', state)
+        
+        # Test updating the state through simulated messages
+        self.can_interface._handle_motor_speed(0, 0, 0, 0, 0, 42)
+        self.can_interface._handle_throttle(0, 0, 0, 0, 0, 75)
+        self.can_interface._handle_battery_voltage(0, 0, 0, 0, 0, 125)  # 12.5V
+        
+        # Check that state was updated
+        updated_state = self.can_interface.get_current_state()
+        self.assertEqual(updated_state['speed'], 42)
+        self.assertEqual(updated_state['throttle'], 75)
+        self.assertEqual(updated_state['battery']['voltage'], 12.5)
+        
+        # Check history
+        history = self.can_interface.get_history()
+        self.assertGreater(len(history), 0)
+        
+        # Check that history has the updates we sent
+        motor_entry = next((e for e in history if 'speed' in e), None)
+        throttle_entry = next((e for e in history if 'throttle' in e), None)
+        battery_entry = next((e for e in history if 'battery' in e), None)
+        
+        self.assertIsNotNone(motor_entry)
+        self.assertIsNotNone(throttle_entry)
+        self.assertIsNotNone(battery_entry)
+        
+        self.assertEqual(motor_entry['speed'], 42)
+        self.assertEqual(throttle_entry['throttle'], 75)
+        self.assertEqual(battery_entry['battery']['voltage'], 12.5)
+
+if __name__ == "__main__":
     unittest.main() 

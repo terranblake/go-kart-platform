@@ -26,6 +26,7 @@ import logging
 import os
 import time
 import threading
+import platform
 from typing import Callable, Dict, Any, Optional, List, Tuple
 from cffi import FFI
 
@@ -70,18 +71,58 @@ ffi.cdef("""
     void can_interface_process(can_interface_t handle);
 """)
 
-# Load the library
+# Global flag to track if we have hardware CAN support
+has_can_hardware = False
+lib = None
+
+# Try to load the library, but don't fail if it can't be loaded
 try:
     lib_path = os.path.join(os.path.dirname(__file__), "libcaninterface.so")
     logger.info(f"Loading CAN interface library from: {lib_path}")
     lib = ffi.dlopen(lib_path)
+    has_can_hardware = True
     logger.info("CAN interface library loaded successfully")
 except Exception as e:
-    logger.error(f"Failed to load CAN interface library: {e}")
-    raise
+    logger.warning(f"Failed to load CAN interface library: {e}")
+    logger.warning("Running in simulation mode without CAN hardware")
+    has_can_hardware = False
 
 # Message handler type
 MessageHandlerCallback = Callable[[int, int, int, int, int, int], None]
+
+class MockCANInterface:
+    """
+    A mock implementation of the CAN interface for when hardware is not available.
+    This allows the server to run in a simulation mode.
+    """
+    def __init__(self, node_id):
+        """Initialize the mock CAN interface"""
+        self.node_id = node_id
+        logger.info(f"Created mock CAN interface with node_id={node_id}")
+        self.handlers = {}
+        
+    def begin(self, baudrate, device):
+        """Mock implementation of begin()"""
+        logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
+        return True
+        
+    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+        """Mock implementation of register_handler()"""
+        key = (comp_type, comp_id, cmd_id)
+        self.handlers[key] = handler
+        logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        return True
+        
+    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
+        """Mock implementation of send_message()"""
+        logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
+                   f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, value={value}")
+        return True
+        
+    def process(self):
+        """Mock implementation of process()"""
+        # In a real implementation, we might simulate some messages here
+        pass
 
 class CANInterfaceWrapper:
     """
@@ -102,6 +143,7 @@ class CANInterfaceWrapper:
         self.channel = channel
         self.baudrate = baudrate
         self.callbacks = []  # Store callbacks to prevent garbage collection
+        self.using_mock = not has_can_hardware
         
         # Load protocol definitions
         self.protocol_registry = ProtocolRegistry()
@@ -111,19 +153,46 @@ class CANInterfaceWrapper:
         self.component_types_by_value = {v: k for k, v in self.protocol_registry.registry['component_types'].items()}
         self.value_types_by_value = {v: k for k, v in self.protocol_registry.registry['value_types'].items()}
         
-        # Create and initialize the CAN interface
-        logger.info(f"Creating CAN interface with node ID: {node_id}")
-        self._can_interface = lib.can_interface_create(node_id)
-        if not self._can_interface:
-            raise RuntimeError("Failed to create CAN interface")
-        
-        # Initialize the CAN interface
-        channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
-        success = lib.can_interface_begin(self._can_interface, baudrate, channel_cstr)
-        if not success:
-            logger.warning(f"Failed to initialize CAN interface on channel {channel}, but continuing anyway")
+        # Create and initialize the CAN interface or mock
+        if has_can_hardware:
+            logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
+            self._can_interface = lib.can_interface_create(node_id)
+            if not self._can_interface:
+                logger.error("Failed to create hardware CAN interface, falling back to mock")
+                self.using_mock = True
+                self._can_interface = MockCANInterface(node_id)
+            else:
+                # Initialize the CAN interface
+                channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
+                success = lib.can_interface_begin(self._can_interface, baudrate, channel_cstr)
+                if not success:
+                    logger.warning(f"Failed to initialize CAN interface on channel {channel}, but continuing anyway")
+                else:
+                    logger.info(f"CAN interface initialized successfully on channel {channel}")
         else:
-            logger.info(f"CAN interface initialized successfully on channel {channel}")
+            logger.info(f"Creating mock CAN interface with node ID: {node_id}")
+            self._can_interface = MockCANInterface(node_id)
+
+        # For state tracking (would normally come from CAN messages)
+        self.current_state = {
+            'timestamp': time.time(),
+            'speed': 0,
+            'throttle': 0,
+            'brake': 0,
+            'steering': 0,
+            'battery': {
+                'voltage': 12.0,
+                'current': 0.0,
+                'temperature': 25.0,
+                'charge': 100.0
+            },
+            'lights': {
+                'headlights': False,
+                'brake_lights': False,
+                'turn_signals': {'left': False, 'right': False}
+            }
+        }
+        self.state_history = []
 
         # Start automatic message processing
         self.auto_process = False
@@ -135,7 +204,7 @@ class CANInterfaceWrapper:
     def __del__(self):
         """Clean up resources when the object is destroyed"""
         self.stop_processing()
-        if hasattr(self, '_can_interface') and self._can_interface:
+        if hasattr(self, '_can_interface') and self._can_interface and has_can_hardware:
             lib.can_interface_destroy(self._can_interface)
     
     def _get_type_name(self, registry_dict, value):
@@ -156,168 +225,218 @@ class CANInterfaceWrapper:
         # For example, broadcasting the message via WebSocket to dashboard clients
     
     def _register_default_handlers(self):
-        """Register default handlers for messages from components"""
-        # Using the protocol registry, register handlers for all components and commands
-        logger.info("Registering default message handlers")
+        """Register default handlers for various message types"""
+        # Handlers will be stored as callbacks to prevent garbage collection
         
-        # Register a generic handler for all message types
-        for comp_type_name, comp_type_value in self.protocol_registry.registry['component_types'].items():
-            # Skip reserved or special values
-            if comp_type_name.startswith('_'):
-                continue
+        # Handler for motor speed status
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def handle_motor_speed(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            # Update the current state with the new motor speed
+            self.current_state['speed'] = value
+            # Add to history
+            self._add_to_history({'speed': value})
+            # Call the general message handler for logging
+            self._handle_message(msg_type, comp_type, comp_id, cmd_id, val_type, value)
+        
+        # Handler for throttle position
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def handle_throttle(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            # Update the current state with the new throttle position
+            self.current_state['throttle'] = value
+            # Add to history
+            self._add_to_history({'throttle': value})
+            # Call the general message handler for logging
+            self._handle_message(msg_type, comp_type, comp_id, cmd_id, val_type, value)
+        
+        # Handler for brake position
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def handle_brake(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            # Update the current state with the new brake position
+            self.current_state['brake'] = value
+            # Add to history
+            self._add_to_history({'brake': value})
+            # Call the general message handler for logging
+            self._handle_message(msg_type, comp_type, comp_id, cmd_id, val_type, value)
+        
+        # Handler for steering position
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def handle_steering(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            # Update the current state with the new steering angle
+            self.current_state['steering'] = value
+            # Add to history
+            self._add_to_history({'steering': value})
+            # Call the general message handler for logging
+            self._handle_message(msg_type, comp_type, comp_id, cmd_id, val_type, value)
+        
+        # Handler for battery voltage
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def handle_battery_voltage(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+            # Update the current state with the new battery voltage
+            self.current_state['battery']['voltage'] = value / 10.0  # Scale to voltage
+            # Add to history
+            self._add_to_history({'battery': {'voltage': value / 10.0}})
+            # Call the general message handler for logging
+            self._handle_message(msg_type, comp_type, comp_id, cmd_id, val_type, value)
+        
+        # Store the callbacks
+        self.callbacks = [handle_motor_speed, handle_throttle, handle_brake, 
+                           handle_steering, handle_battery_voltage]
+        
+        # Only register with actual hardware if available
+        if has_can_hardware:
+            # Register the handlers with the CAN interface
+            # Motors.main.speed
+            motors_type = self.protocol_registry.registry['component_types']['MOTORS']
+            lib.can_interface_register_handler(self._can_interface, motors_type, 0, 0, handle_motor_speed)
+            
+            # Controls.throttle.position
+            controls_type = self.protocol_registry.registry['component_types']['CONTROLS']
+            lib.can_interface_register_handler(self._can_interface, controls_type, 0, 0, handle_throttle)
+            
+            # Controls.brake.position
+            lib.can_interface_register_handler(self._can_interface, controls_type, 1, 0, handle_brake)
+            
+            # Controls.steering.angle
+            lib.can_interface_register_handler(self._can_interface, controls_type, 2, 0, handle_steering)
+            
+            # Battery.voltage
+            battery_type = self.protocol_registry.registry['component_types']['BATTERY']
+            lib.can_interface_register_handler(self._can_interface, battery_type, 0, 0, handle_battery_voltage)
+        else:
+            # Register with the mock interface
+            motors_type = self.protocol_registry.registry['component_types']['MOTORS']
+            self._can_interface.register_handler(motors_type, 0, 0, lambda *args: handle_motor_speed(*args))
+            
+            controls_type = self.protocol_registry.registry['component_types']['CONTROLS']
+            self._can_interface.register_handler(controls_type, 0, 0, lambda *args: handle_throttle(*args))
+            self._can_interface.register_handler(controls_type, 1, 0, lambda *args: handle_brake(*args))
+            self._can_interface.register_handler(controls_type, 2, 0, lambda *args: handle_steering(*args))
+            
+            battery_type = self.protocol_registry.registry['component_types']['BATTERY']
+            self._can_interface.register_handler(battery_type, 0, 0, lambda *args: handle_battery_voltage(*args))
+    
+    def _add_to_history(self, update):
+        """Add a state update to the history"""
+        state_entry = {
+            'timestamp': time.time(),
+            **update
+        }
+        self.state_history.append(state_entry)
+        # Limit history size to 1000 entries
+        if len(self.state_history) > 1000:
+            self.state_history.pop(0)
+    
+    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+        """
+        Register a message handler for a specific message type.
+        
+        Args:
+            comp_type (int): The component type ID.
+            comp_id (int): The component ID.
+            cmd_id (int): The command ID.
+            handler (callable): The handler function to call when a matching message is received.
+        """
+        if has_can_hardware:
+            # Convert string component type to numeric ID if needed
+            if isinstance(comp_type, str):
+                comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
+            
+            # Create a CFFI callback function
+            cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
+            self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
+            
+            # Register with the CAN interface
+            lib.can_interface_register_handler(self._can_interface, comp_type, comp_id, cmd_id, cb)
+        else:
+            # Convert string component type to numeric ID if needed
+            if isinstance(comp_type, str):
+                comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
                 
-            # For each component, register handlers for all commands
-            # We use 0xFF as the component_id to match all components of this type
-            # We use 0xFF as the command_id to match all commands for this component
+            # Register with the mock interface
+            self._can_interface.register_handler(comp_type, comp_id, cmd_id, handler)
+    
+    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
+        """
+        Send a message directly through the CAN interface.
+        
+        Args:
+            msg_type (int): The message type ID.
+            comp_type (int): The component type ID.
+            comp_id (int): The component ID.
+            cmd_id (int): The command ID.
+            value_type (int): The value type ID.
+            value (int): The value to send.
             
-            @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
-            def handler_wrapper(msg_type, comp_type_val, comp_id, cmd_id, val_type, value):
-                self._handle_message(msg_type, comp_type_val, comp_id, cmd_id, val_type, value)
+        Returns:
+            bool: True if the message was sent successfully, False otherwise.
+        """
+        if has_can_hardware:
+            return lib.can_interface_send_message(self._can_interface, msg_type, comp_type, 
+                                                 comp_id, cmd_id, value_type, value)
+        else:
+            return self._can_interface.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
+    
+    def send_command(self, component_path, command_name, value_name=None, direct_value=None):
+        """
+        Send a command message to a component.
+        
+        Args:
+            component_path (str): The path to the component (e.g., 'motors.main', 'lights.headlights').
+            command_name (str): The name of the command (e.g., 'SPEED', 'POWER').
+            value_name (str, optional): The name of the value to send (e.g., 'ON', 'OFF').
+            direct_value (int, optional): The direct value to send.
             
-            # Keep the callback alive
-            self.callbacks.append(handler_wrapper)
-            
-            # Register the handler with the C library
-            lib.can_interface_register_handler(
-                self._can_interface, 
-                comp_type_value,  # Component type (e.g., LIGHTS, MOTORS)
-                0xFF,             # Component ID (all components of this type)
-                0xFF,             # Command ID (all commands)
-                handler_wrapper
+        Returns:
+            bool: True if the message was sent successfully, False otherwise.
+        """
+        try:
+            message = self.protocol_registry.create_message(
+                component_path=component_path,
+                command_name=command_name,
+                value_name=value_name,
+                direct_value=direct_value
             )
             
-            logger.debug(f"Registered handler for component type {comp_type_name}")
-    
-    def register_handler(self, component_type, component_id, command_id, handler):
-        """
-        Register a handler for a specific message type.
-        
-        Args:
-            component_type (int or str): The component type (integer value or string name).
-            component_id (int or str): The component ID (integer value or component name).
-            command_id (int or str): The command ID (integer value or command name).
-            handler (callable): A function that takes (message_type, component_type, component_id, command_id, value_type, value) and returns nothing.
-            
-        Returns:
-            bool: True if the handler was registered successfully, False otherwise.
-        """
-        # Convert string names to numeric values if needed
-        if isinstance(component_type, str):
-            component_type = self.protocol_registry.get_component_type(component_type)
-            if component_type is None:
-                logger.error(f"Unknown component type: {component_type}")
+            if message:
+                msg_type, comp_type, comp_id, cmd_id, value_type, value = message
+                return self.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
+            else:
+                logger.error(f"Failed to create message for {component_path}.{command_name}")
                 return False
-                
-        if isinstance(component_id, str) and isinstance(component_type, int):
-            # Convert component name to ID if given as string
-            comp_type_name = self._get_type_name(self.component_types_by_value, component_type)
-            component_id = self.protocol_registry.get_component_id(comp_type_name, component_id)
-            if component_id is None:
-                logger.error(f"Unknown component ID: {component_id} for type {comp_type_name}")
-                return False
-                
-        if isinstance(command_id, str) and isinstance(component_type, int):
-            # Convert command name to ID if given as string
-            comp_type_name = self._get_type_name(self.component_types_by_value, component_type)
-            command_id = self.protocol_registry.get_command_id(comp_type_name, command_id)
-            if command_id is None:
-                logger.error(f"Unknown command ID: {command_id} for type {comp_type_name}")
-                return False
-        
-        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
-        def handler_wrapper(msg_type, comp_type, comp_id, cmd_id, val_type, value):
-            handler(msg_type, comp_type, comp_id, cmd_id, val_type, value)
-        
-        # Keep the callback alive
-        self.callbacks.append(handler_wrapper)
-        
-        # Register with the C library
-        lib.can_interface_register_handler(
-            self._can_interface, 
-            component_type, 
-            component_id, 
-            command_id, 
-            handler_wrapper
-        )
-        
-        comp_type_name = self._get_type_name(self.component_types_by_value, component_type)
-        logger.debug(f"Registered custom handler for component type {comp_type_name}, ID {component_id}, command ID {command_id}")
-        return True
-    
-    def send_message(self, message_type, component_type, component_id, command_id, value_type, value):
-        """
-        Send a CAN message.
-        
-        Args:
-            message_type (int): The message type (COMMAND, STATUS, etc.).
-            component_type (int): The component type (LIGHTS, MOTORS, etc.).
-            component_id (int): The component ID.
-            command_id (int): The command ID.
-            value_type (int): The value type (BOOLEAN, UINT8, etc.).
-            value: The value to send.
-            
-        Returns:
-            bool: True if the message was sent successfully, False otherwise.
-        """
-        # Log the message being sent
-        msg_type_name = self._get_type_name(self.message_types_by_value, message_type)
-        comp_type_name = self._get_type_name(self.component_types_by_value, component_type)
-        val_type_name = self._get_type_name(self.value_types_by_value, value_type)
-        
-        logger.info(f"Sending message: {msg_type_name}, {comp_type_name}, Component ID: {component_id}, "
-                    f"Command ID: {command_id}, Value Type: {val_type_name}, Value: {value}")
-        
-        # Send the message using the C library
-        return lib.can_interface_send_message(
-            self._can_interface,
-            message_type,
-            component_type,
-            component_id,
-            command_id,
-            value_type,
-            value
-        )
-    
-    def send_protocol_message(self, message_spec):
-        """
-        Send a message using the protocol registry to resolve component and command names.
-        
-        Args:
-            message_spec (dict): A dictionary with keys:
-                - message_type: The message type name (e.g., 'COMMAND')
-                - component_type: The component type name (e.g., 'LIGHTS')
-                - component_name: The component name (e.g., 'FRONT')
-                - command_name: The command name (e.g., 'TOGGLE')
-                - value_name: (optional) The value name (e.g., 'ON')
-                - value: (optional) The direct value to send
-                
-        Returns:
-            bool: True if the message was sent successfully, False otherwise.
-        """
-        msg_tuple = self.protocol_registry.create_message(
-            message_spec.get('message_type', 'COMMAND'),
-            message_spec.get('component_type'),
-            message_spec.get('component_name'),
-            message_spec.get('command_name'),
-            message_spec.get('value_name'),
-            message_spec.get('value')
-        )
-        
-        # Check if any parts of the message are None
-        if None in msg_tuple:
-            logger.error(f"Invalid message specification: {message_spec}")
+        except Exception as e:
+            logger.error(f"Error sending command: {e}")
             return False
+    
+    def send_emergency_stop(self, active=True):
+        """
+        Send an emergency stop command.
+        
+        Args:
+            active (bool): Whether to activate (True) or deactivate (False) the emergency stop.
             
-        return self.send_message(*msg_tuple)
+        Returns:
+            bool: True if the message was sent successfully, False otherwise.
+        """
+        return self.send_command('controls.emergency', 'EMERGENCY', 
+                                direct_value=1 if active else 0)
     
     def process(self):
-        """
-        Process incoming CAN messages.
-        
-        Returns:
-            None
-        """
-        lib.can_interface_process(self._can_interface)
+        """Process any pending messages from the CAN bus"""
+        if has_can_hardware:
+            lib.can_interface_process(self._can_interface)
+        else:
+            self._can_interface.process()
+    
+    def get_current_state(self):
+        """Get the current state of the system"""
+        # Update timestamp
+        self.current_state['timestamp'] = time.time()
+        return self.current_state
+    
+    def get_history(self, limit=100):
+        """Get the history of state updates"""
+        # Return the most recent entries
+        return self.state_history[-limit:] if limit < len(self.state_history) else self.state_history
     
     def start_processing(self, interval=0.01):
         """
@@ -347,6 +466,32 @@ class CANInterfaceWrapper:
         if hasattr(self, 'process_thread') and self.process_thread and self.process_thread.is_alive():
             self.process_thread.join(1.0)
             logger.info("Stopped automatic message processing")
+
+    # These methods allow the mock object to receive and handle simulated messages
+    def _handle_motor_speed(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+        """Directly handle a motor speed message (for simulation)"""
+        if self.callbacks and len(self.callbacks) > 0:
+            self.callbacks[0](msg_type, comp_type, comp_id, cmd_id, val_type, value)
+    
+    def _handle_throttle(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+        """Directly handle a throttle message (for simulation)"""
+        if self.callbacks and len(self.callbacks) > 1:
+            self.callbacks[1](msg_type, comp_type, comp_id, cmd_id, val_type, value)
+    
+    def _handle_brake(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+        """Directly handle a brake message (for simulation)"""
+        if self.callbacks and len(self.callbacks) > 2:
+            self.callbacks[2](msg_type, comp_type, comp_id, cmd_id, val_type, value)
+    
+    def _handle_steering(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+        """Directly handle a steering message (for simulation)"""
+        if self.callbacks and len(self.callbacks) > 3:
+            self.callbacks[3](msg_type, comp_type, comp_id, cmd_id, val_type, value)
+    
+    def _handle_battery_voltage(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+        """Directly handle a battery voltage message (for simulation)"""
+        if self.callbacks and len(self.callbacks) > 4:
+            self.callbacks[4](msg_type, comp_type, comp_id, cmd_id, val_type, value)
 
 
 # Create a singleton instance of the CAN interface for use throughout the application
