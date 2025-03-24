@@ -8,9 +8,11 @@ from flask import Flask, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-from lib.can_interface import CANCommandGenerator
+# Import our new CAN module instead of the old one
+from lib.can import CANCommandGenerator
 from api.telemetry import register_telemetry_routes
 from api.commands import register_command_routes
+from api.protocol import register_protocol_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,6 +29,7 @@ command_generator = CANCommandGenerator(channel='can0', bitrate=500000)
 # Register API endpoints
 register_telemetry_routes(app, command_generator)
 register_command_routes(app, command_generator)
+register_protocol_routes(app)  # Register our new protocol routes
 
 # Serve the React frontend
 @app.route('/')
@@ -53,9 +56,7 @@ def send_updates():
 def handle_connect():
     logger.info('Client connected')
 
-# Start telemetry thread
-telemetry_thread = threading.Thread(target=command_generator.listen_telemetry, daemon=True)
-telemetry_thread.start()
+# Start telemetry thread - handled automatically by our new CANCommandGenerator
 
 if __name__ == "__main__":
     # Start update threads for SocketIO
