@@ -10,7 +10,7 @@ server_dir = Path(__file__).parent.parent
 if str(server_dir) not in sys.path:
     sys.path.insert(0, str(server_dir))
 
-from app import app, CANCommandGenerator
+import app
 
 @pytest.fixture
 def client():
@@ -83,5 +83,5 @@ def can_generator(mock_can_bus, mock_protocol):
     """CAN command generator with mocked dependencies"""
     with patch('os.system'), \
          patch('builtins.open', mock_open(read_data=json.dumps(mock_protocol))):
-        generator = CANCommandGenerator(channel='vcan0', bitrate=500000)
+        generator = app.CANCommandGenerator(channel='vcan0', bitrate=500000)
         yield generator 

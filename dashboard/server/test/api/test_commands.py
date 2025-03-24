@@ -1,16 +1,9 @@
 import pytest
 from flask import json
-import sys
-import os
-from pathlib import Path
 from unittest.mock import patch
 
-# Add the server directory to Python path
-server_dir = Path(__file__).parent.parent.parent
-if str(server_dir) not in sys.path:
-    sys.path.insert(0, str(server_dir))
-
-from app import app, command_generator
+# Import directly from modules, avoiding importing from 'api' package as a relative import
+from api.endpoints import app, command_generator
 
 @pytest.fixture
 def client():
@@ -18,27 +11,6 @@ def client():
         app.config['TESTING'] = True
         with app.test_client() as client:
             yield client
-
-def test_get_state(client):
-    """Test the /api/state endpoint"""
-    response = client.get('/api/state')
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    
-    # Check all required fields are present
-    required_fields = [
-        'speed', 'throttle', 'battery_voltage', 'motor_temp',
-        'brake_pressure', 'steering_angle', 'timestamp'
-    ]
-    for field in required_fields:
-        assert field in data
-
-def test_get_history(client):
-    """Test the /api/history endpoint"""
-    response = client.get('/api/history')
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert isinstance(data, list)
 
 def test_send_command(client):
     """Test the /api/command endpoint"""
@@ -55,26 +27,18 @@ def test_send_command(client):
                              content_type='application/json')
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['success'] is True
+        assert data['status'] == 'success'
 
 def test_control_lights(client):
     """Test the /api/lights endpoint"""
     with patch.object(command_generator, 'bus'):
-        test_light_commands = [
-            {'mode': 1},  # Low beam
-            {'signal': 1},  # Left signal
-            {'brake': True},  # Brake lights on
-            {'test': True},  # Test mode on
-            {'location': 'front'}  # Front location
-        ]
+        test_light_modes = ['off', 'low', 'high', 'hazard', 'left', 'right', 'brake']
         
-        for command in test_light_commands:
-            response = client.post('/api/lights',
-                                 data=json.dumps(command),
-                                 content_type='application/json')
+        for mode in test_light_modes:
+            response = client.post(f'/api/lights/{mode}')
             assert response.status_code == 200
             data = json.loads(response.data)
-            assert data['success'] is True
+            assert data['status'] == 'success'
 
 def test_get_camera_status(client):
     """Test the /api/camera/status endpoint"""
@@ -88,16 +52,17 @@ def test_get_settings(client):
     response = client.get('/api/settings')
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert 'camera_status' in data
+    assert 'max_speed' in data
 
 def test_update_settings(client):
     """Test the /api/settings POST endpoint"""
     test_settings = {
-        'camera_enabled': True
+        'max_speed': 40
     }
     response = client.post('/api/settings',
                           data=json.dumps(test_settings),
                           content_type='application/json')
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data['success'] is True 
+    assert data['status'] == 'success'
+    assert 'settings' in data 

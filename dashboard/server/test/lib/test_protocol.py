@@ -10,7 +10,8 @@ server_dir = Path(__file__).parent.parent.parent
 if str(server_dir) not in sys.path:
     sys.path.insert(0, str(server_dir))
 
-from app import CANCommandGenerator
+from lib.can_interface import CANCommandGenerator
+from lib.protocol import load_protocol_definitions, get_command_value, get_command_values
 
 @pytest.fixture
 def mock_protocol():
@@ -58,9 +59,11 @@ def can_generator(mock_protocol):
         generator = CANCommandGenerator(channel='vcan0', bitrate=500000)
         yield generator
 
-def test_load_protocol_definitions(can_generator, mock_protocol):
+def test_load_protocol_definitions(mock_protocol):
     """Test loading protocol definitions from file"""
-    assert can_generator.protocol == mock_protocol
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_protocol))):
+        protocol = load_protocol_definitions('protocol.json')
+        assert protocol == mock_protocol
 
 def test_get_component_type_id(can_generator):
     """Test getting component type IDs"""

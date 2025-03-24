@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-Kart Control Dashboard</title>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <h1>Go-Kart Control Dashboard</h1>
+    
+    <div class="panel camera-panel" id="camera-panel">
+        <h2>Live Camera Feed</h2>
+        <div class="camera-container">
+            <img id="camera-feed" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="Camera Feed">
+            <div class="camera-overlay" id="camera-status">Connecting...</div>
+        </div>
+        <div class="camera-controls">
+            <button id="camera-toggle">Pause Feed</button>
+            <button id="camera-snapshot">Take Snapshot</button>
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        <div class="panel">
+            <h2>Current Metrics</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="speed-value">0.0</div>
+                    <div class="metric-label">Speed (km/h)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="throttle-value">0</div>
+                    <div class="metric-label">Throttle (%)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="battery-value">0.0</div>
+                    <div class="metric-label">Battery (V)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="temp-value">0.0</div>
+                    <div class="metric-label">Motor Temp (°C)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="brake-value">0.0</div>
+                    <div class="metric-label">Brake (%)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="steering-value">0.0</div>
+                    <div class="metric-label">Steering (°)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Controls</h2>
+            <div class="controls">
+                <button id="emergency-stop" class="stop">EMERGENCY STOP</button>
+                
+                <div class="control-group">
+                    <label for="speed-control">Speed (km/h): <span id="speed-display">0</span></label>
+                    <input type="range" id="speed-control" min="0" max="60" value="0">
+                </div>
+                
+                <div class="control-group">
+                    <label for="steering-control">Steering (°): <span id="steering-display">0</span></label>
+                    <input type="range" id="steering-control" min="-45" max="45" value="0">
+                </div>
+                
+                <div class="control-group">
+                    <label for="brake-control">Brake (%): <span id="brake-display">0</span></label>
+                    <input type="range" id="brake-control" min="0" max="100" value="0">
+                </div>
+                
+                <button id="send-commands">Send Commands</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Lighting Controls</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Light Mode:</label>
+                    <div class="button-group">
+                        <button id="light-off" class="light-mode-btn active">Off</button>
+                        <button id="light-low" class="light-mode-btn">Low</button>
+                        <button id="light-high" class="light-mode-btn">High</button>
+                        <button id="light-hazard" class="light-mode-btn">Hazard</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Turn Signals:</label>
+                    <div class="button-group">
+                        <button id="signal-off" class="signal-btn active">Off</button>
+                        <button id="signal-left" class="signal-btn">Left</button>
+                        <button id="signal-right" class="signal-btn">Right</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Brake Lights:</label>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="brake-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span id="brake-status">Off</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Test Mode:</label>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="test-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span id="test-status">Off</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Controller Location:</label>
+                    <div class="button-group">
+                        <button id="location-front" class="location-btn active">Front</button>
+                        <button id="location-rear" class="location-btn">Rear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        <div class="panel">
+            <h2>Settings</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="simulation-toggle">Simulation Mode:</label>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="simulation-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                        <span id="simulation-status">Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Historical Data</h2>
+            <div class="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html> 
