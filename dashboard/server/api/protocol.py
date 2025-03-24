@@ -2,10 +2,11 @@
 API routes for viewing and exploring the protocol structure
 """
 
-from flask import jsonify, Blueprint
+from flask import jsonify, Blueprint, request
 import logging
 
-from lib.can.protocol import load_protocol_definitions, view_protocol_structure
+# Fix the import to use the correct path
+from lib.can.protocol_registry import ProtocolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -13,85 +14,92 @@ logger = logging.getLogger(__name__)
 protocol_bp = Blueprint('protocol', __name__)
 
 @protocol_bp.route('/api/protocol', methods=['GET'])
-def get_protocol_structure():
+def get_protocol_structure_api():
     """Get the complete protocol structure"""
     try:
-        # Load and return the protocol structure
-        protocol = load_protocol_definitions()
-        structure = view_protocol_structure(protocol)
-        return jsonify(structure)
+        # Create a protocol registry instance
+        protocol_registry = ProtocolRegistry()
+        protocol = protocol_registry.registry
+        
+        logger.info(f"Protocol structure loaded: {list(protocol.keys())}")
+        if 'components' in protocol:
+            logger.info(f"Components: {list(protocol['components'].keys())}")
+        return jsonify(protocol)
     except Exception as e:
         logger.error(f"Error retrieving protocol structure: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@protocol_bp.route('/api/protocol/<component_type>', methods=['GET'])
-def get_component_type(component_type):
-    """Get protocol information for a specific component type"""
-    try:
-        protocol = load_protocol_definitions()
-        
-        # Get components for this type
-        components = protocol.get('components', {}).get(component_type, {})
-        if not components:
-            return jsonify({'status': 'error', 'message': f"Component type '{component_type}' not found"}), 404
-            
-        # Get commands for this type
-        commands = protocol.get('commands', {}).get(component_type, {})
-        
-        return jsonify({
-            'components': components,
-            'commands': commands
-        })
-    except Exception as e:
-        logger.error(f"Error retrieving component type '{component_type}': {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@protocol_bp.route('/api/protocol/<component_type>/<component_name>', methods=['GET'])
-def get_component(component_type, component_name):
+@protocol_bp.route('/api/protocol/components/<component_name>', methods=['GET'])
+def get_component_api(component_name):
     """Get protocol information for a specific component"""
     try:
-        protocol = load_protocol_definitions()
+        # Create a protocol registry instance
+        protocol_registry = ProtocolRegistry()
+        protocol = protocol_registry.registry
         
-        # Get component ID
-        component_id = protocol.get('components', {}).get(component_type, {}).get(component_name)
-        if component_id is None:
-            return jsonify({'status': 'error', 'message': f"Component '{component_type}.{component_name}' not found"}), 404
-            
-        # Get all commands that can apply to this component
-        commands = protocol.get('commands', {}).get(component_type, {})
-        
-        return jsonify({
-            'component_id': component_id,
-            'commands': commands
-        })
+        if 'components' in protocol and component_name.lower() in protocol['components']:
+            return jsonify(protocol['components'][component_name.lower()])
+        return jsonify({'status': 'error', 'message': f"Component '{component_name}' not found"}), 404
     except Exception as e:
-        logger.error(f"Error retrieving component '{component_type}.{component_name}': {e}")
+        logger.error(f"Error retrieving component '{component_name}': {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@protocol_bp.route('/api/protocol/<component_type>/<component_name>/<command_name>', methods=['GET'])
-def get_command(component_type, component_name, command_name):
+@protocol_bp.route('/api/protocol/components/<component_name>/commands/<command_name>', methods=['GET'])
+def get_command_api(component_name, command_name):
     """Get protocol information for a specific command"""
     try:
-        protocol = load_protocol_definitions()
+        # Create a protocol registry instance
+        protocol_registry = ProtocolRegistry()
+        protocol = protocol_registry.registry
         
-        # Get component ID
-        component_id = protocol.get('components', {}).get(component_type, {}).get(component_name)
-        if component_id is None:
-            return jsonify({'status': 'error', 'message': f"Component '{component_type}.{component_name}' not found"}), 404
-            
-        # Get command
-        command = protocol.get('commands', {}).get(component_type, {}).get(command_name)
-        if command is None:
-            return jsonify({'status': 'error', 'message': f"Command '{component_type}.{command_name}' not found"}), 404
-            
-        return jsonify({
-            'component_id': component_id,
-            'command_id': command.get('id'),
-            'values': command.get('values', {})
-        })
+        if ('commands' in protocol and 
+            component_name.lower() in protocol['commands'] and 
+            command_name.upper() in protocol['commands'][component_name.lower()]):
+            command_id = protocol['commands'][component_name.lower()][command_name.upper()]
+            return jsonify({
+                'id': command_id,
+                'name': command_name.upper()
+            })
+        return jsonify({'status': 'error', 'message': f"Command '{command_name}' not found for component '{component_name}'"}), 404
     except Exception as e:
-        logger.error(f"Error retrieving command '{component_type}.{component_name}.{command_name}': {e}")
+        logger.error(f"Error retrieving command '{component_name}.{command_name}': {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@protocol_bp.route('/api/send_command', methods=['POST'])
+def send_can_command():
+    """Send a command to the CAN bus"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+        
+        data = request.json
+        component = data.get('component')
+        command = data.get('command')
+        value = data.get('value')
+        component_type = data.get('component_type')  # Optional, for backward compatibility
+        
+        logger.info(f"Received command request: component={component}, command={command}, value={value}, component_type={component_type}")
+        
+        if not all([component, command, value is not None]):
+            return jsonify({"error": "Missing required parameters: component, command, value"}), 400
+        
+        # Get CAN interface and send the command
+        try:
+            from lib.can.interface import can_interface
+            logger.info(f"Sending command to CAN interface: component={component}, command={command}, value={value}")
+            
+            # Send the command using the interface
+            result = can_interface.send_command(component, command, value)
+            logger.info(f"Command sent successfully: {result}")
+            
+            return jsonify({"message": "Command sent successfully", "result": result})
+        except ImportError as e:
+            logger.error(f"Error importing CAN interface: {e}")
+            return jsonify({"error": f"CAN interface not available: {str(e)}"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error sending command: {e}")
+        return jsonify({"error": str(e)}), 500
 
 def register_protocol_routes(app):
     """Register protocol routes with the Flask app"""
