@@ -1,20 +1,65 @@
 /*
  * ProtobufCANInterface.h - Generic interface for Protocol Buffer messaging over CAN
  * For Kart Control System
+ * 
+ * Compilation note:
+ * When compiling for non-Arduino environments, ensure that the following directories
+ * are in your include path:
+ * - protocol/nanopb (for pb.h)
+ * - protocol/generated/nanopb (for protocol buffer headers)
+ * 
+ * This can be done by:
+ * 1. Setting appropriate include paths in your build system
+ * 2. Using a pre-build script to copy necessary files to a location in the include path
+ * 3. Setting up symbolic links if your system supports them
  */
 
-#include <Arduino.h>
-#include <CAN.h>       // Arduino CAN library
-#include <pb_encode.h> // Protocol Buffers encode functions
-#include <pb_decode.h> // Protocol Buffers decode functions
+#ifndef PROTOBUF_CAN_INTERFACE_H
+#define PROTOBUF_CAN_INTERFACE_H
 
-// component-based proto-definition imports
-// depends-on: build flags being set my pio
-#include "common.pb.h"
-#include "controls.pb.h"
+#include <stdint.h>
 
-#if COMPONENT_TYPE == COMPONENT_LIGHTS
-#include "lights.pb.h"
+// Platform detection
+#if defined(ARDUINO) || defined(ESP32) || defined(ESP8266)
+  #define IS_ARDUINO_ENV 1
+#else
+  #define IS_ARDUINO_ENV 0
+#endif
+
+// Platform-specific includes
+#if IS_ARDUINO_ENV
+  #include <Arduino.h>
+  #include <CAN.h>       // Arduino CAN library
+  #define DEBUG_PRINT(msg) Serial.print(msg)
+  #define DEBUG_PRINTLN(msg) Serial.println(msg)
+#else
+  #include <iostream>
+  #include <string>
+  #include <vector>
+  #define DEBUG_PRINT(msg) std::cout << msg
+  #define DEBUG_PRINTLN(msg) std::cout << msg << std::endl
+#endif
+
+// Protocol buffer includes - try to handle both environments
+#if IS_ARDUINO_ENV
+  #include <pb_encode.h> // Protocol Buffers encode functions
+  #include <pb_decode.h> // Protocol Buffers decode functions
+  
+  // component-based proto-definition imports
+  // depends-on: build flags being set my pio
+  #include "common.pb.h"
+  #include "controls.pb.h"
+
+  #if COMPONENT_TYPE == COMPONENT_LIGHTS
+  #include "lights.pb.h"
+  #endif
+#else
+  // For non-Arduino environment, include the nanopb header and protocol buffer headers
+  // Expect these to be in the include path during compilation
+  #include "pb.h"
+  #include "common.pb.h"
+  #include "controls.pb.h"
+  #include "lights.pb.h"
 #endif
 
 class ProtobufCANInterface
@@ -53,10 +98,12 @@ public:
   static uint32_t packValue(kart_common_ValueType type, int32_t value);
   static int32_t unpackValue(kart_common_ValueType type, uint32_t packed_value);
 
-#if DEBUG_MODE
+#if defined(DEBUG_MODE) && DEBUG_MODE
   void logMessage(const char *prefix, kart_common_MessageType message_type,
                   kart_common_ComponentType component_type,
                   uint8_t component_id, uint8_t command_id,
                   kart_common_ValueType value_type, int32_t value);
 #endif
 };
+
+#endif // PROTOBUF_CAN_INTERFACE_H

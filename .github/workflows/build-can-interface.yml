@@ -1,0 +1,42 @@
+name: Build ProtobufCANInterface
+
+on:
+  push:
+    paths:
+      - 'components/common/lib/ProtobufCANInterface/**'
+      - 'protocol/nanopb/**'
+      - 'protocol/*.proto'
+  pull_request:
+    paths:
+      - 'components/common/lib/ProtobufCANInterface/**'
+      - 'protocol/nanopb/**'
+      - 'protocol/*.proto'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ gcc
+        
+    - name: Prepare include files
+      run: |
+        chmod +x components/common/lib/ProtobufCANInterface/prepare_includes.sh
+        ./components/common/lib/ProtobufCANInterface/prepare_includes.sh
+        
+    - name: Build ProtobufCANInterface
+      run: |
+        cd components/common/lib/ProtobufCANInterface
+        g++ -std=c++11 -I./include -I./src test/test_can_interface.cpp src/ProtobufCANInterface.cpp -o test_can_interface
+        
+    - name: Run test program
+      run: |
+        cd components/common/lib/ProtobufCANInterface
+        ./test_can_interface 
