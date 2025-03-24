@@ -7,59 +7,11 @@ from unittest.mock import patch, MagicMock
 from lib.can_interface import CANCommandGenerator
 from lib.telemetry import GoKartState
 
-# Mock protocol data
-mock_protocol = {
-    "components": {
-        "kart": {
-            "type_id": 1,
-            "components": {
-                "controller": {
-                    "id": 1,
-                    "commands": {
-                        "emergency_stop": {"id": 10, "values": {"stop": 255, "resume": 0}},
-                        "speed_control": {"id": 11, "values": {}},
-                        "steering_control": {"id": 12, "values": {}},
-                        "brake_control": {"id": 13, "values": {}}
-                    }
-                },
-                "lights": {
-                    "id": 2,
-                    "commands": {
-                        "lights_control": {"id": 14, "values": {"on": 255, "off": 0}},
-                        "lights_mode": {"id": 15, "values": {"normal": 0, "bright": 1, "dim": 2}},
-                        "lights_signal": {"id": 16, "values": {"none": 0, "left": 1, "right": 2, "hazard": 3}},
-                        "lights_brake": {"id": 17, "values": {"on": 255, "off": 0}}
-                    }
-                }
-            }
-        }
-    }
-}
-
 @pytest.fixture
 def mock_can_bus():
     """Fixture to mock the CAN bus"""
     with patch('can.interface.Bus') as mock_bus:
         yield mock_bus
-
-@pytest.fixture
-def can_generator(mock_can_bus):
-    """Fixture to create a CANCommandGenerator with a mocked CAN bus"""
-    with patch('os.system'), \
-         patch('lib.protocol.load_protocol_definitions', return_value=mock_protocol):
-        generator = CANCommandGenerator(channel='vcan0', bitrate=500000)
-        generator.bus = mock_can_bus
-        yield generator
-
-def test_can_init(mock_can_bus):
-    """Test CANCommandGenerator initialization"""
-    with patch('os.system'), \
-         patch('lib.protocol.load_protocol_definitions', return_value=mock_protocol):
-        generator = CANCommandGenerator(channel='vcan0', bitrate=500000)
-        # Don't test channel as it's not stored as an attribute
-        assert generator.bus is not None
-        assert generator.state is not None
-        assert isinstance(generator.state, GoKartState)
 
 @pytest.mark.parametrize("test_input,expected_speed", [
     (

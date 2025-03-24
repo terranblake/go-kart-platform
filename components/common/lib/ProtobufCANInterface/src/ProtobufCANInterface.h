@@ -1,69 +1,21 @@
 /*
  * ProtobufCANInterface.h - Generic interface for Protocol Buffer messaging over CAN
- * For Kart Control System
- * 
- * Compilation note:
- * When compiling for non-Arduino environments, ensure that the following directories
- * are in your include path:
- * - protocol/nanopb (for pb.h)
- * - protocol/generated/nanopb (for protocol buffer headers)
- * 
- * This can be done by:
- * 1. Setting appropriate include paths in your build system
- * 2. Using a pre-build script to copy necessary files to a location in the include path
- * 3. Setting up symbolic links if your system supports them
  */
 
 #ifndef PROTOBUF_CAN_INTERFACE_H
 #define PROTOBUF_CAN_INTERFACE_H
 
 #include <stdint.h>
+#include <iostream>
+#include <string>
+#include "common.pb.h"
 
-// Platform detection
-#if defined(ARDUINO) || defined(ESP32) || defined(ESP8266)
-  #define IS_ARDUINO_ENV 1
-#else
-  #define IS_ARDUINO_ENV 0
-#endif
-
-// Platform-specific includes
-#if IS_ARDUINO_ENV
-  #include <Arduino.h>
-  #include <CAN.h>       // Arduino CAN library
-  #define DEBUG_PRINT(msg) Serial.print(msg)
-  #define DEBUG_PRINTLN(msg) Serial.println(msg)
-#else
-  #include <iostream>
-  #include <string>
-  #include <vector>
-  #define DEBUG_PRINT(msg) std::cout << msg
-  #define DEBUG_PRINTLN(msg) std::cout << msg << std::endl
-#endif
-
-// Protocol buffer includes - try to handle both environments
-#if IS_ARDUINO_ENV
-  #include <pb_encode.h> // Protocol Buffers encode functions
-  #include <pb_decode.h> // Protocol Buffers decode functions
-  
-  // component-based proto-definition imports
-  // depends-on: build flags being set my pio
-  #include "common.pb.h"
-  #include "controls.pb.h"
-
-  #if COMPONENT_TYPE == COMPONENT_LIGHTS
-  #include "lights.pb.h"
-  #endif
-#else
-  // For non-Arduino environment, include the nanopb header and protocol buffer headers
-  // Expect these to be in the include path during compilation
-  #include "pb.h"
-  #include "common.pb.h"
-  #include "controls.pb.h"
-  #include "lights.pb.h"
-#endif
+// Maintain C++ class definition for Arduino
+#ifdef __cplusplus
 
 class ProtobufCANInterface
 {
+public:
   typedef void (*MessageHandler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t);
 
 private:
@@ -105,5 +57,45 @@ public:
                   kart_common_ValueType value_type, int32_t value);
 #endif
 };
+
+#endif // __cplusplus
+
+// C API for Python CFFI
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Define opaque pointer type for C
+typedef struct ProtobufCANInterface ProtobufCANInterface;
+
+// Constants accessible from C
+#define MAX_HANDLERS 64
+#define CAN_BAUD_RATE 500000
+
+// Constructor/destructor
+ProtobufCANInterface* create_can_interface(uint32_t nodeId);
+void destroy_can_interface(ProtobufCANInterface* instance);
+
+// Member function wrappers
+bool can_interface_begin(ProtobufCANInterface* instance, long baudrate);
+void can_interface_register_handler(ProtobufCANInterface* instance, 
+                                   int component_type, uint8_t component_id, 
+                                   uint8_t command_id, 
+                                   void (*handler)(int, int, uint8_t, uint8_t, int, int32_t));
+bool can_interface_send_message(ProtobufCANInterface* instance, 
+                               int message_type, int component_type, 
+                               uint8_t component_id, uint8_t command_id, 
+                               int value_type, int32_t value);
+void can_interface_process(ProtobufCANInterface* instance);
+
+// Static function wrappers
+uint8_t can_interface_pack_header(int type, int component);
+void can_interface_unpack_header(uint8_t header, int* type, int* component);
+uint32_t can_interface_pack_value(int type, int32_t value);
+int32_t can_interface_unpack_value(int type, uint32_t packed_value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PROTOBUF_CAN_INTERFACE_H

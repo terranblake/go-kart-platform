@@ -1,28 +1,22 @@
 #include "ProtobufCANInterface.h"
-
-#if IS_ARDUINO_ENV
 #include "CAN.h"
 #include "common.pb.h"
-#endif
+#include <string.h>
+
+// todo: conditionally include component_type specific pb files based on defined component type, 
+//       then use all of the loaded pb files to validate the incoming/outgoing messages
 
 // Constructor
 ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
-    : nodeId(nodeId) 
+    : nodeId(nodeId), num_handlers(0)
 {
-#if IS_ARDUINO_ENV
-    // Arduino-specific initialization
-#else
-    DEBUG_PRINTLN("ProtobufCANInterface initialized with node ID: " + std::to_string(nodeId));
-#endif
+    // Constructor implementation
 }
 
 // Initialize CAN interface
 bool ProtobufCANInterface::begin(long baudrate)
 {
-#if IS_ARDUINO_ENV
-    if (!CAN.begin(baudrate))
-    {
-        Serial.println("CAN initialization failure.");
+    if (!CAN.begin(baudrate)) {
         return false;
     }
 
@@ -30,96 +24,71 @@ bool ProtobufCANInterface::begin(long baudrate)
     CAN.loopback();
 #endif
 
-    Serial.println("CAN initialization success.");
     return true;
-#else
-    // Non-Arduino implementation
-    DEBUG_PRINTLN("CAN initialization with baudrate: " + std::to_string(baudrate));
-    return true;
-#endif
 }
 
-void ProtobufCANInterface::registerHandler(kart_common_ComponentType type, uint8_t component_id, uint8_t command_id, MessageHandler handler)
+void ProtobufCANInterface::registerHandler(kart_common_ComponentType type, 
+                                          uint8_t component_id, 
+                                          uint8_t command_id, 
+                                          MessageHandler handler)
 {
-    if (num_handlers < MAX_HANDLERS)
-    {
-        handlers[num_handlers] = {type, component_id, command_id, handler};
+    if (num_handlers < MAX_HANDLERS) {
+        handlers[num_handlers].type = type;
+        handlers[num_handlers].component_id = component_id;
+        handlers[num_handlers].command_id = command_id;
+        handlers[num_handlers].handler = handler;
         num_handlers++;
         
 #if defined(DEBUG_MODE) && DEBUG_MODE
-        logMessage("REGD", kart_common_MessageType_COMMAND, type, component_id, command_id, kart_common_ValueType_BOOLEAN, false);
-#endif
-    }
-    else
-    {
-#if IS_ARDUINO_ENV
-        Serial.println(F("ERROR: Cannot register handler, MAX_HANDLERS reached"));
-#else
-        DEBUG_PRINTLN("ERROR: Cannot register handler, MAX_HANDLERS reached");
+        logMessage("REGD", kart_common_MessageType_COMMAND, type, component_id, 
+                  command_id, kart_common_ValueType_BOOLEAN, false);
 #endif
     }
 }
 
-bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type, kart_common_ComponentType component_type,
-                                       uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type, int32_t value)
+bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type, 
+                                      kart_common_ComponentType component_type,
+                                      uint8_t component_id, 
+                                      uint8_t command_id, 
+                                      kart_common_ValueType value_type, 
+                                      int32_t value)
 {
 #if defined(DEBUG_MODE) && DEBUG_MODE
     logMessage("SEND", message_type, component_type, component_id, command_id, value_type, value);
 #endif
 
-    // Pack first two bytes (kart_common_MessageType and kart_common_ComponentType)
+    // Pack first byte (message type and component type)
     uint8_t header = packHeader(message_type, component_type);
 
     // Pack the value based on its type
     uint32_t packed_value = packValue(value_type, value);
 
-#if IS_ARDUINO_ENV
     // Prepare CAN message (8 bytes)
     uint8_t data[8];
     data[0] = header;
     data[1] = 0; // Reserved
     data[2] = component_id;
     data[3] = command_id;
-    data[4] = static_cast<uint8_t>(value_type) << 4; // kart_common_ValueType in high nibble
+    data[4] = static_cast<uint8_t>(value_type) << 4; // Value type in high nibble
     data[5] = (packed_value >> 16) & 0xFF;           // Value byte 2 (MSB)
     data[6] = (packed_value >> 8) & 0xFF;            // Value byte 1
     data[7] = packed_value & 0xFF;                   // Value byte 0 (LSB)
 
-    // Send the CAN message
+    // Send the CAN message using CAN library
     CAN.beginPacket(0); // Use ID 0 for simplicity
     CAN.write(data, 8);
-    bool result = CAN.endPacket();
-    
-    if (!result) {
-        Serial.println(F("ERROR: Failed to send CAN message"));
-    }
-    
-    return result;
-#else
-    // Non-Arduino implementation - just log the message
-    DEBUG_PRINTLN("CAN message: header=" + std::to_string(header) + 
-                 ", component_id=" + std::to_string(component_id) + 
-                 ", command_id=" + std::to_string(command_id) + 
-                 ", value_type=" + std::to_string(static_cast<int>(value_type)) + 
-                 ", value=" + std::to_string(value) +
-                 ", packed_value=" + std::to_string(packed_value));
-    return true;
-#endif
+    return CAN.endPacket();
 }
 
 void ProtobufCANInterface::process()
 {
-#if IS_ARDUINO_ENV
-    if (!CAN.parsePacket())
-    {
-        // No packets available
-        return;
+    if (!CAN.parsePacket()) {
+        return; // No packets available
     }
 
     // Read incoming message
     uint8_t data[8];
-    for (int i = 0; i < 8 && CAN.available(); i++)
-    {
+    for (int i = 0; i < 8 && CAN.available(); i++) {
         data[i] = CAN.read();
     }
 
@@ -139,6 +108,7 @@ void ProtobufCANInterface::process()
                             data[7];
     int32_t value = unpackValue(value_type, packed_value);
 
+    // Ignore status messages to prevent loops
     if (msg_type == kart_common_MessageType_STATUS) {
         return;
     }
@@ -149,28 +119,19 @@ void ProtobufCANInterface::process()
 
     // Find and execute matching handlers
     bool handlerFound = false;
-    for (int i = 0; i < num_handlers; i++)
-    {
+    for (int i = 0; i < num_handlers; i++) {
         if ((handlers[i].type == comp_type) &&
             (handlers[i].component_id == component_id || handlers[i].component_id == 0xFF) &&
-            (handlers[i].command_id == command_id))
-        {
-            Serial.println(F("Executing handler"));
+            (handlers[i].command_id == command_id)) {
+            
             handlerFound = true;
             handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
         }
     }
 
-    if (!handlerFound)
-        Serial.println(F("No matching handler found"));
-
     // Echo status if this was a command
     if (msg_type == kart_common_MessageType_COMMAND)
         sendMessage(kart_common_MessageType_STATUS, comp_type, component_id, command_id, value_type, value);
-#else
-    // Non-Arduino implementation - just a stub
-    // In a real implementation, we would check for messages from a CAN interface
-#endif
 }
 
 uint8_t ProtobufCANInterface::packHeader(kart_common_MessageType type, kart_common_ComponentType component)
@@ -187,8 +148,7 @@ void ProtobufCANInterface::unpackHeader(uint8_t header, kart_common_MessageType 
 uint32_t ProtobufCANInterface::packValue(kart_common_ValueType type, int32_t value)
 {
     // Truncate and mask based on kart_common_ValueType
-    switch (type)
-    {
+    switch (type) {
     case kart_common_ValueType_BOOLEAN:
         return value ? 1 : 0;
     case kart_common_ValueType_INT8:
@@ -209,8 +169,7 @@ uint32_t ProtobufCANInterface::packValue(kart_common_ValueType type, int32_t val
 int32_t ProtobufCANInterface::unpackValue(kart_common_ValueType type, uint32_t packed_value)
 {
     // Sign extend and interpret based on kart_common_ValueType
-    switch (type)
-    {
+    switch (type) {
     case kart_common_ValueType_BOOLEAN:
         return packed_value & 0x01;
     case kart_common_ValueType_INT8:
@@ -235,68 +194,84 @@ void ProtobufCANInterface::logMessage(const char* prefix, kart_common_MessageTyp
                                      uint8_t component_id, uint8_t command_id, 
                                      kart_common_ValueType value_type, int32_t value)
 {
-#if IS_ARDUINO_ENV
-    // Log message type name
-    Serial.print(prefix);
-    Serial.print(F(" - Type: "));
-    switch(message_type) {
-        case kart_common_MessageType_COMMAND: Serial.print(F("COMMAND")); break;
-        case kart_common_MessageType_STATUS: Serial.print(F("STATUS")); break;
-        case kart_common_MessageType_ACK: Serial.print(F("ACK")); break;
-        case kart_common_MessageType_ERROR: Serial.print(F("ERROR")); break;
-        default: Serial.print(static_cast<int>(message_type)); break;
-    }
-    
-    // Log component type name
-    Serial.print(F(", CompType: "));
-    switch(component_type) {
-        case kart_common_ComponentType_LIGHTS: Serial.print(F("LIGHTS")); break;
-        case kart_common_ComponentType_MOTORS: Serial.print(F("MOTORS")); break;
-        case kart_common_ComponentType_SENSORS: Serial.print(F("SENSORS")); break;
-        case kart_common_ComponentType_BATTERY: Serial.print(F("BATTERY")); break;
-        case kart_common_ComponentType_CONTROLS: Serial.print(F("CONTROLS")); break;
-        default: Serial.print(static_cast<int>(component_type)); break;
-    }
-    
-    // Log component ID and rest of the data
-    Serial.print(F(", CompID: "));
-    Serial.print(component_id);
-    Serial.print(F(", CmdID: "));
-    Serial.print(command_id);
-    Serial.print(F(", ValueType: "));
-    Serial.print(static_cast<int>(value_type));
-    Serial.print(F(", Value: "));
-    Serial.println(value);
-#else
-    // Non-Arduino implementation
-    std::string msg_type_str;
-    switch(message_type) {
-        case kart_common_MessageType_COMMAND: msg_type_str = "COMMAND"; break;
-        case kart_common_MessageType_STATUS: msg_type_str = "STATUS"; break;
-        case kart_common_MessageType_ACK: msg_type_str = "ACK"; break;
-        case kart_common_MessageType_ERROR: msg_type_str = "ERROR"; break;
-        default: msg_type_str = std::to_string(static_cast<int>(message_type)); break;
-    }
-    
-    std::string comp_type_str;
-    switch(component_type) {
-        case kart_common_ComponentType_LIGHTS: comp_type_str = "LIGHTS"; break;
-        case kart_common_ComponentType_MOTORS: comp_type_str = "MOTORS"; break;
-        case kart_common_ComponentType_SENSORS: comp_type_str = "SENSORS"; break;
-        case kart_common_ComponentType_BATTERY: comp_type_str = "BATTERY"; break;
-        case kart_common_ComponentType_CONTROLS: comp_type_str = "CONTROLS"; break;
-        default: comp_type_str = std::to_string(static_cast<int>(component_type)); break;
-    }
-    
-    std::string log_message = std::string(prefix) + 
-                             " - Type: " + msg_type_str +
-                             ", CompType: " + comp_type_str +
-                             ", CompID: " + std::to_string(component_id) +
-                             ", CmdID: " + std::to_string(command_id) +
-                             ", ValueType: " + std::to_string(static_cast<int>(value_type)) +
-                             ", Value: " + std::to_string(value);
-                             
-    DEBUG_PRINTLN(log_message);
-#endif
+    // Implement logging for debug mode
 }
 #endif
+
+// C API implementations for CFFI
+extern "C" {
+
+ProtobufCANInterface* create_can_interface(uint32_t nodeId) {
+    return new ProtobufCANInterface(nodeId);
+}
+
+void destroy_can_interface(ProtobufCANInterface* instance) {
+    delete instance;
+}
+
+bool can_interface_begin(ProtobufCANInterface* instance, long baudrate) {
+    return instance->begin(baudrate);
+}
+
+void can_interface_register_handler(ProtobufCANInterface* instance, 
+                                   int component_type, uint8_t component_id, 
+                                   uint8_t command_id, 
+                                   void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)) {
+    instance->registerHandler(
+        static_cast<kart_common_ComponentType>(component_type),
+        component_id,
+        command_id,
+        reinterpret_cast<ProtobufCANInterface::MessageHandler>(handler)
+    );
+}
+
+bool can_interface_send_message(ProtobufCANInterface* instance, 
+                               int message_type, int component_type, 
+                               uint8_t component_id, uint8_t command_id, 
+                               int value_type, int32_t value) {
+    return instance->sendMessage(
+        static_cast<kart_common_MessageType>(message_type),
+        static_cast<kart_common_ComponentType>(component_type),
+        component_id,
+        command_id,
+        static_cast<kart_common_ValueType>(value_type),
+        value
+    );
+}
+
+void can_interface_process(ProtobufCANInterface* instance) {
+    instance->process();
+}
+
+uint8_t can_interface_pack_header(int type, int component) {
+    return ProtobufCANInterface::packHeader(
+        static_cast<kart_common_MessageType>(type),
+        static_cast<kart_common_ComponentType>(component)
+    );
+}
+
+void can_interface_unpack_header(uint8_t header, int* type, int* component) {
+    kart_common_MessageType msg_type;
+    kart_common_ComponentType comp_type;
+    
+    ProtobufCANInterface::unpackHeader(header, msg_type, comp_type);
+    
+    *type = static_cast<int>(msg_type);
+    *component = static_cast<int>(comp_type);
+}
+
+uint32_t can_interface_pack_value(int type, int32_t value) {
+    return ProtobufCANInterface::packValue(
+        static_cast<kart_common_ValueType>(type),
+        value
+    );
+}
+
+int32_t can_interface_unpack_value(int type, uint32_t packed_value) {
+    return ProtobufCANInterface::unpackValue(
+        static_cast<kart_common_ValueType>(type),
+        packed_value
+    );
+}
+
+} // extern "C"

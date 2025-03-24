@@ -4,6 +4,8 @@
 #include "ProtobufCANInterface.h"
 #include "../include/Config.h"
 #include "common.pb.h"
+#include "lights.pb.h"
+#include "controls.pb.h"
 
 // Global state variables
 LightState lightState{};

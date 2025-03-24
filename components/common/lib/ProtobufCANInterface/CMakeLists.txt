@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include directories
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/nanopb
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/CAN
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/arduino
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
