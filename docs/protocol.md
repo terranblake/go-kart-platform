@@ -146,14 +146,99 @@ dashboard/server/lib/can/
 
 ### Build System
 
-The Python implementation uses Cython to generate bindings to the C++ implementation. To build:
+The Python implementation uses Cython to generate bindings to the C++ implementation. This approach provides several advantages:
+
+1. Code reuse between C++ and Python implementations
+2. Consistent behavior across platforms
+3. High performance through direct access to C++ code
+4. Type safety through Cython's static typing
+
+#### Initial Build
+
+To build the Cython extensions:
 
 ```bash
+# Install required dependencies
+pip install -r dashboard/server/requirements.txt
+
+# Build and install the extension in development mode
 cd dashboard/server
 pip install -e .
 ```
 
-This will compile the Cython extension and install the package in development mode.
+The build process performs these steps:
+1. Compiles the `.pyx` file to a C++ source file
+2. Compiles the C++ source along with the ProtobufCANInterface implementation
+3. Links against the required libraries
+4. Creates a Python-importable shared library
+
+#### Rebuilding After Changes
+
+When changes are made to the protocol or C++ implementation, the bindings need to be rebuilt:
+
+```bash
+# Force a rebuild of the Cython extension
+cd dashboard/server
+pip install -e . --force-reinstall
+```
+
+If you modify the `.pyx` file itself:
+
+```bash
+# Remove build artifacts and rebuild
+cd dashboard/server
+rm -rf build/
+pip install -e .
+```
+
+#### Troubleshooting Build Issues
+
+Common build issues and solutions:
+
+1. **Missing Header Files**: Ensure all required header files are in the include paths defined in `setup.py`.
+   ```python
+   # In setup.py, check include_dirs:
+   include_dirs=[
+       os.path.join(cpp_dir, "ProtobufCANInterface/src"),
+       os.path.join(proto_dir),
+       # Add any additional directories here
+   ]
+   ```
+
+2. **Protocol Buffer Version Mismatch**: Ensure the Protocol Buffer version used to generate the C++ and Python bindings is compatible.
+
+3. **Compiler Errors**: Check the C++ compiler version. The code requires C++11 support.
+   ```bash
+   # Check compiler version
+   g++ --version
+   ```
+
+4. **Library Path Issues**: If shared libraries can't be found at runtime, set the `LD_LIBRARY_PATH` environment variable:
+   ```bash
+   export LD_LIBRARY_PATH=/path/to/libraries:$LD_LIBRARY_PATH
+   ```
+
+#### Adding New Protocol Features
+
+When extending the protocol with new features:
+
+1. Update the `.proto` files in the `protocol/` directory
+2. Run the Protocol Buffer compiler to generate updated C++ and Python bindings:
+   ```bash
+   cd protocol
+   ./build.sh
+   ```
+3. If new enum values or message types are added, update the Cython wrapper in `_can_interface.pyx`
+4. Rebuild the Cython extension as described above
+
+#### Performance Considerations
+
+The Cython bindings are designed for optimal performance:
+
+- Direct calls to C++ functions with minimal overhead
+- Use of static typing to avoid Python type checks
+- Efficient memory management using C++ objects
+- Thread safety through GIL management
 
 ## API Endpoints
 
