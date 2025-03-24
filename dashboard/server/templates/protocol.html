@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-Kart Protocol Documentation</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/protocol.css">
+</head>
+<body>
+    <header>
+        <h1>Go-Kart CAN Protocol Documentation</h1>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/protocol" class="active">Protocol</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>Protocol Structure</h2>
+            <ul id="protocol-nav">
+                <li><a href="#message-types">Message Types</a></li>
+                <li><a href="#component-types">Component Types</a></li>
+                <li><a href="#value-types">Value Types</a></li>
+                <li class="nav-header">Components</li>
+                <li><a href="#lights">Lights</a></li>
+                <li><a href="#controls">Controls</a></li>
+                <li><a href="#motors">Motors</a></li>
+                <li><a href="#sensors">Sensors</a></li>
+                <li><a href="#battery">Battery</a></li>
+            </ul>
+        </div>
+
+        <div class="content">
+            <section class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading protocol definitions...</p>
+            </section>
+
+            <section id="protocol-overview" class="hidden">
+                <h2>Protocol Overview</h2>
+                <p>The Go-Kart uses a CAN bus for communication between components. Each message consists of:</p>
+                <ul>
+                    <li><strong>Message Type</strong>: Defines the purpose of the message (Command, Status, etc.)</li>
+                    <li><strong>Component Type</strong>: The category of component being addressed (Lights, Motors, etc.)</li>
+                    <li><strong>Component ID</strong>: The specific component instance (e.g., Front Light, Rear Light)</li>
+                    <li><strong>Command ID</strong>: The specific command or status being sent</li>
+                    <li><strong>Value Type</strong>: The data type of the payload value (INT8, UINT8, etc.)</li>
+                    <li><strong>Value</strong>: The actual payload data</li>
+                </ul>
+                
+                <div class="message-structure">
+                    <h3>Message Structure</h3>
+                    <div class="byte-diagram">
+                        <div class="byte">
+                            <div class="bit-group">
+                                <div class="bits bits-2">2 bits</div>
+                                <div class="label">Message Type</div>
+                            </div>
+                            <div class="bit-group">
+                                <div class="bits bits-6">6 bits</div>
+                                <div class="label">Component Type</div>
+                            </div>
+                        </div>
+                        <div class="byte">
+                            <div class="bit-group">
+                                <div class="bits bits-8">8 bits</div>
+                                <div class="label">Component ID</div>
+                            </div>
+                        </div>
+                        <div class="byte">
+                            <div class="bit-group">
+                                <div class="bits bits-8">8 bits</div>
+                                <div class="label">Command ID</div>
+                            </div>
+                        </div>
+                        <div class="byte">
+                            <div class="bit-group">
+                                <div class="bits bits-3">3 bits</div>
+                                <div class="label">Value Type</div>
+                            </div>
+                            <div class="bit-group">
+                                <div class="bits bits-5">5 bits</div>
+                                <div class="label">Reserved</div>
+                            </div>
+                        </div>
+                        <div class="byte multi-byte">
+                            <div class="bit-group">
+                                <div class="bits bits-32">Up to 32 bits</div>
+                                <div class="label">Value</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="message-types" class="hidden">
+                <h2>Message Types</h2>
+                <p>Message types define the purpose and direction of the message.</p>
+                <div class="enum-table-container">
+                    <table class="enum-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="message-types-table">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="component-types" class="hidden">
+                <h2>Component Types</h2>
+                <p>Component types categorize the different subsystems on the go-kart.</p>
+                <div class="enum-table-container">
+                    <table class="enum-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="component-types-table">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="value-types" class="hidden">
+                <h2>Value Types</h2>
+                <p>Value types define how the payload data should be interpreted.</p>
+                <div class="enum-table-container">
+                    <table class="enum-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="value-types-table">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="components-section" class="hidden">
+                <h2>Components and Commands</h2>
+                <p>This section documents all available components and their commands.</p>
+                
+                <div id="components-container">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </section>
+            
+            <section id="test-interface" class="hidden">
+                <h2>Test Interface</h2>
+                <p>Use this interface to send test commands to the go-kart.</p>
+                <div class="test-form">
+                    <div class="form-group">
+                        <label for="test-component-type">Component Type:</label>
+                        <select id="test-component-type">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-component-id">Component:</label>
+                        <select id="test-component-id">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-command-id">Command:</label>
+                        <select id="test-command-id">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-value">Value:</label>
+                        <select id="test-value-enum" class="hidden">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                        <input type="number" id="test-value-number" value="0">
+                    </div>
+                    <button id="test-send-command">Send Command</button>
+                    <div id="test-result" class="hidden"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="/static/js/protocol.js"></script>
+</body>
+</html> 

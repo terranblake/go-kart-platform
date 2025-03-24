@@ -1,0 +1,402 @@
+/* Protocol Page Styles */
+:root {
+  --primary-color: #4a90e2;
+  --secondary-color: #5cb85c;
+  --dark-color: #333;
+  --light-color: #f4f4f4;
+  --warning-color: #f0ad4e;
+  --danger-color: #d9534f;
+  --text-color: #333;
+  --border-color: #ddd;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  background-color: var(--light-color);
+}
+
+header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+nav {
+  margin-top: 0.5rem;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+nav a:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+nav a.active {
+  background-color: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
+}
+
+.container {
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: white;
+  padding: 1rem;
+  margin-right: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  margin-top: 0;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+#protocol-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#protocol-nav li {
+  margin-bottom: 0.5rem;
+}
+
+#protocol-nav li.nav-header {
+  font-weight: bold;
+  margin-top: 1rem;
+  color: var(--primary-color);
+}
+
+#protocol-nav a {
+  color: var(--dark-color);
+  text-decoration: none;
+  display: block;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+#protocol-nav a:hover {
+  background-color: var(--light-color);
+}
+
+.content {
+  flex: 1;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+section {
+  margin-bottom: 2rem;
+}
+
+section h2 {
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+  user-select: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid var(--primary-color);
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Protocol Components */
+.enum-table-container {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.enum-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+}
+
+.enum-table th {
+  background-color: var(--primary-color);
+  color: white;
+  text-align: left;
+  padding: 0.75rem;
+}
+
+.enum-table td {
+  padding: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.enum-table tr:nth-child(even) {
+  background-color: var(--light-color);
+}
+
+.component-card {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.component-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.75rem 1rem;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.component-body {
+  padding: 1rem;
+}
+
+.component-description {
+  margin-bottom: 1rem;
+}
+
+.command-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.command-table th {
+  background-color: #eaeaea;
+  text-align: left;
+  padding: 0.5rem;
+}
+
+.command-table td {
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.command-table tr:hover {
+  background-color: var(--light-color);
+}
+
+/* Bit/Byte Diagram */
+.message-structure {
+  margin: 2rem 0;
+}
+
+.byte-diagram {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 1rem 0;
+}
+
+.byte {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  min-width: 80px;
+}
+
+.byte.multi-byte {
+  flex-grow: 1;
+  min-width: 160px;
+}
+
+.bit-group {
+  margin-bottom: 0.5rem;
+}
+
+.bits {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  border-radius: 2px;
+}
+
+.bits-2 {
+  background-color: var(--primary-color);
+}
+
+.bits-3 {
+  background-color: var(--warning-color);
+}
+
+.bits-5 {
+  background-color: #aaaaaa;
+}
+
+.bits-6 {
+  background-color: var(--secondary-color);
+}
+
+.bits-8 {
+  background-color: var(--danger-color);
+}
+
+.bits-32 {
+  background-color: #9c27b0;
+}
+
+.label {
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+/* Test Interface */
+.test-form {
+  background-color: var(--light-color);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover {
+  background-color: #3a80d2;
+}
+
+#test-result {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+#test-result.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+#test-result.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 1rem;
+    position: static;
+    max-height: none;
+  }
+}
+
+/* Updated styles for collapsible sections */
+.section-content {
+    display: block;
+}
+
+/* Clean styling for protocol overview */
+#protocol-overview h2 {
+    cursor: default;
+}
+
+/* Remove old collapsible styles */
+.collapsed-content,
+.section-header,
+.section-header.collapsed:after,
+section h2.section-header,
+section h2.section-header::after {
+    /* Reset all properties to default values */
+    all: unset;
+}
+
+/* Ensure tables and containers display properly when visible */
+.enum-table-container, 
+.command-table-container,
+.component-type-section {
+    display: block;
+}
+
+/* Display for component cards within a section */
+.component-card {
+    display: block;
+} 
