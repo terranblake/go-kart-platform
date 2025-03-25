@@ -274,7 +274,7 @@ class CANInterfaceWrapper:
         else:
             return self._can_interface.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
     
-    def send_command(self, component_path, command_name, command_data=None, value_name=None, direct_value=None):
+    def send_command(self, message_type_name, component_type_name, component_name, command_name, value_name=None, direct_value=None):
         """
         Send a command message to a component.
         
@@ -289,18 +289,10 @@ class CANInterfaceWrapper:
             bool: True if the message was sent successfully, False otherwise.
         """
         try:
-            # Parse component_path to extract component_type and component_name
-            parts = component_path.split('.') if component_path else []
-            if len(parts) != 2:
-                logger.error(f"Invalid component path: {component_path}. Expected format: 'type.name'")
-                return False
-                
-            component_type, component_name = parts
-            
             # Use message_type = 'COMMAND' for all commands
             message = self.protocol_registry.create_message(
-                message_type='COMMAND',
-                component_type=component_type,
+                message_type=message_type_name,
+                component_type=component_type_name,
                 component_name=component_name,
                 command_name=command_name,
                 value_name=value_name,
@@ -308,10 +300,18 @@ class CANInterfaceWrapper:
             )
             
             if message:
-                logger.info(f"Sending command: {component_type}.{component_name}.{command_name} = {value_name} ({message[5]})")
-                return self.send_message(*message)
+                logger.info(f"Sending command: {component_type_name}.{component_name}.{command_name} = {value_name} ({message[5]})")
+                logger.info(f"message: {message}")
+                return self.send_message(
+                    msg_type=message[0],
+                    comp_type=message[1],
+                    comp_id=message[2],
+                    cmd_id=message[3],
+                    value_type=message[4],
+                    value=message[5]
+                )
             else:
-                logger.error(f"Failed to create message for {component_path}.{command_name}")
+                logger.error(f"Failed to create message for {component_type_name}.{component_name}.{command_name}")
                 return False
         except Exception as e:
             logger.error(f"Error sending command: {e}")

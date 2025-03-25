@@ -48,10 +48,14 @@ def register_command_routes(app, can_interface: CANInterfaceWrapper):
                         "message": "direct_value must be an integer",
                         "details": {"direct_value": direct_value}
                     }), 400
+                
+            logger.info(f"component_type: {component_type}, component_name: {component_name}, command_name: {command_name}, value_name: {value_name}, direct_value: {direct_value}")
+
             result = can_interface.send_command(
-                component_path=component_path,
+                message_type_name='COMMAND',
+                component_type_name=component_type,
+                component_name=component_name,
                 command_name=command_name,
-                command_data=cmd_data,
                 value_name=value_name,
                 direct_value=direct_value
             )

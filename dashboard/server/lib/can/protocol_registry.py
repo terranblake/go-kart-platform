@@ -335,25 +335,18 @@ class ProtocolRegistry:
         """Get component ID by type and name"""
         component_type = component_type.lower()
         if component_type in self.registry['components']:
-            return self.registry['components'][component_type].get(component_name)
+            return self.registry['components'][component_type].get(component_name).get('id')
         return None
     
-    def get_command_id(self, component_type: str, command_name: str) -> Optional[int]:
+    def get_command_id(self, component_type: str, component_name: str, command_name: str) -> Optional[int]:
         """Get command ID by component type and command name"""
         component_type = component_type.lower()
-        if (component_type in self.registry['commands'] and 
-            command_name in self.registry['commands'][component_type]):
-            return self.registry['commands'][component_type][command_name]['id']
-        return None
+        return self.registry['components'][component_type][component_name]['commands'][command_name].get('id')
     
-    def get_command_value(self, component_type: str, command_name: str, value_name: str) -> Optional[int]:
+    def get_command_value(self, component_type: str, component_name: str, command_name: str, value_name: str) -> Optional[int]:
         """Get command value by component type, command name, and value name"""
         component_type = component_type.lower()
-        if (component_type in self.registry['commands'] and 
-            command_name in self.registry['commands'][component_type] and 
-            'values' in self.registry['commands'][component_type][command_name]):
-            return self.registry['commands'][component_type][command_name]['values'].get(value_name)
-        return None
+        return self.registry['components'][component_type][component_name]['commands'][command_name]['values'][value_name]
     
     def get_component_types(self) -> List[str]:
         """Get all registered component types"""
@@ -383,19 +376,14 @@ class ProtocolRegistry:
         msg_type = self.get_message_type(message_type)
         comp_type = self.get_component_type(component_type)
         comp_id = self.get_component_id(component_type, component_name)
-        cmd_id = self.get_command_id(component_type, command_name)
+        cmd_id = self.get_command_id(component_type, component_name, command_name)
         
         # Handle value - either named value or direct integer
-        val_type = self.get_value_type("INT32")  # Default
+        val_type = self.get_value_type("INT8")  # Default
         val = 0
         
         if value_name:
-            val = self.get_command_value(component_type, command_name, value_name)
-            # Try to determine value type from context
-            for type_name, type_id in self.registry['value_types'].items():
-                if type_name.startswith(("UINT", "INT", "BOOL")):
-                    val_type = type_id
-                    break
+            val = self.get_command_value(component_type, component_name, command_name, value_name)
         elif value is not None:
             val = value
         
