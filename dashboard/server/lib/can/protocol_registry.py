@@ -26,7 +26,7 @@ class ProtocolRegistry:
     """Dynamic registry for Protocol Buffer definitions that adapts to new component types"""
     
     def __init__(self, pb_path: str = None):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
         self.pb_path = self._resolve_protocol_path(pb_path)
         self.modules = {}
         self.registry = {}

@@ -30,12 +30,38 @@ def test_send_command(client):
         assert data['status'] == 'success'
 
 def test_control_lights(client):
-    """Test the /api/lights endpoint"""
+    """Test light control using the /api/command endpoint"""
     with patch.object(command_generator, 'bus'):
-        test_light_modes = ['off', 'low', 'high', 'hazard', 'left', 'right', 'brake']
+        # Define the different light modes to test
+        test_modes = [
+            {'name': 'off', 'value': 0},
+            {'name': 'on', 'value': 1},
+            {'name': 'hazard', 'value': 8}
+        ]
         
-        for mode in test_light_modes:
-            response = client.post(f'/api/lights/{mode}')
+        for mode in test_modes:
+            # Test light mode command
+            response = client.post('/api/command',
+                                data=json.dumps({
+                                    'component_type': 'LIGHTS',
+                                    'component_name': 'ALL',
+                                    'command_name': 'MODE',
+                                    'direct_value': mode['value']
+                                }),
+                                content_type='application/json')
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['status'] == 'success'
+            
+            # Test brake command
+            response = client.post('/api/command',
+                                data=json.dumps({
+                                    'component_type': 'LIGHTS',
+                                    'component_name': 'ALL',
+                                    'command_name': 'BRAKE',
+                                    'direct_value': 1
+                                }),
+                                content_type='application/json')
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data['status'] == 'success'

@@ -157,7 +157,7 @@ const chart = new Chart(ctx, {
 });
 
 // Fetch historical data on load
-fetch('/api/history')
+fetch('/api/telemetry/history')
     .then(response => response.json())
     .then(data => {
         if (data.length === 0) return;
@@ -286,13 +286,16 @@ lightModeButtons.forEach((button, index) => {
         lightModeButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         
-        fetch('/api/lights', {
+        fetch('/api/command', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                mode: index
+                component_type: 'LIGHTS',
+                component_name: 'ALL',
+                command_name: 'MODE',
+                direct_value: index
             }),
         });
     });
@@ -304,13 +307,16 @@ signalButtons.forEach((button, index) => {
         signalButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         
-        fetch('/api/lights', {
+        fetch('/api/command', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                signal: index
+                component_type: 'LIGHTS',
+                component_name: 'ALL',
+                command_name: 'SIGNAL',
+                direct_value: index
             }),
         });
     });
@@ -321,15 +327,18 @@ brakeToggle.addEventListener('change', () => {
     const isOn = brakeToggle.checked;
     brakeStatus.textContent = isOn ? 'On' : 'Off';
     
-    fetch('/api/lights', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            brake: isOn
-        }),
-    });
+    fetch('/api/command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                component_type: 'LIGHTS',
+                component_name: 'ALL',
+                command_name: 'BRAKE',
+                direct_value: isOn ? 1 : 0
+            }),
+        });
 });
 
 // Test mode control
@@ -337,15 +346,18 @@ testToggle.addEventListener('change', () => {
     const isOn = testToggle.checked;
     testStatus.textContent = isOn ? 'On' : 'Off';
     
-    fetch('/api/lights', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            test: isOn
-        }),
-    });
+    fetch('/api/command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                component_type: 'CONTROLS',
+                component_name: 'DIAGNOSTIC',
+                command_name: 'MODE',
+                direct_value: isOn ? 1 : 0
+            }),
+        });
 });
 
 // Location control
@@ -354,13 +366,16 @@ locationButtons.forEach((button, index) => {
         locationButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         
-        fetch('/api/lights', {
+        fetch('/api/command', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                location: index === 0 ? 'front' : 'rear'
+                component_type: 'LIGHTS',
+                component_name: 'ALL',
+                command_name: 'LOCATION',
+                direct_value: index === 0 ? 0 : 1 // 0 for FRONT, 1 for REAR
             }),
         });
     });

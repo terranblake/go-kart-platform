@@ -70,9 +70,9 @@ The server will start on port 5000 by default.
 ### Command Endpoints
 
 - `POST /api/command` - Send a command to the Go-Kart
-- `GET /api/camera/status` - Get camera status
-- `GET /api/settings` - Get Go-Kart settings
-- `POST /api/settings` - Update Go-Kart settings
+
+<!-- deprecated the camera route for now since its too resource intensive for a single rpi to handle -->
+<!-- - `GET /api/camera/status` - Get camera status -->
 
 ### Protocol Endpoints
 

@@ -1,11 +1,14 @@
-from flask import jsonify, request
+from flask import jsonify, request, Blueprint
 import logging
 from lib.can.interface import CANInterfaceWrapper
 
 logger = logging.getLogger(__name__)
 
 def register_direct_command_routes(app, can_interface):
-    @app.route("/api/direct_command", methods=["POST"])
+    # Create a blueprint for direct command routes
+    direct_command_bp = Blueprint('direct_command', __name__, url_prefix='/api/direct_command')
+    
+    @direct_command_bp.route("", methods=["POST"])
     def send_direct_command():
         try:
             command_data = request.json
@@ -48,4 +51,5 @@ def register_direct_command_routes(app, can_interface):
                 "message": f"Error sending direct command: {str(e)}"
             }), 400
     
-    return send_direct_command
+    # Register the blueprint with the app
+    app.register_blueprint(direct_command_bp)

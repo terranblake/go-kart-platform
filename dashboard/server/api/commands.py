@@ -2,7 +2,7 @@
 API routes for sending commands to the go-kart
 """
 
-from flask import jsonify, request
+from flask import jsonify, request, Blueprint
 import logging
 from lib.can.interface import CANInterfaceWrapper
 
@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 def register_command_routes(app, can_interface: CANInterfaceWrapper):
     """Register API routes for commanding the go-kart"""
     
-    @app.route('/api/command', methods=['POST'])
+    # Create a blueprint for command routes
+    command_bp = Blueprint('command', __name__, url_prefix='/api/command')
+    
+    @command_bp.route('', methods=['POST'])
     def send_command():
         """Send a command to the go-kart"""
         try:
@@ -73,3 +76,6 @@ def register_command_routes(app, can_interface: CANInterfaceWrapper):
         except Exception as e:
             logger.error(f"Error sending command: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+    # Register the blueprint with the app
+    app.register_blueprint(command_bp)

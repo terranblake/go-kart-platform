@@ -55,18 +55,18 @@ state_history = []
 @app.route('/')
 def index():
     """Render the dashboard."""
-    print("Index route accessed!")
+    logger.debug("Index route accessed!")
     try:
         return render_template('index.html')
     except Exception as e:
-        print(f"Error rendering template: {e}")
+        logger.debug(f"Error rendering template: {e}")
         return f"Error: {e}", 500
 
 # Register blueprint
 app.register_blueprint(api)
 
 # Register routes from the other modules
-register_telemetry_routes(app, telemetry_store)
+register_telemetry_routes(app, telemetry_store, can_interface)
 register_command_routes(app, can_interface)
 register_direct_command_routes(app, can_interface)
 register_protocol_routes(app, protocol_registry)

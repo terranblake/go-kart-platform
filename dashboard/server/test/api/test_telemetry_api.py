@@ -14,8 +14,8 @@ def client():
             yield client
 
 def test_get_state(client):
-    """Test the /api/state endpoint"""
-    response = client.get('/api/state')
+    """Test the /api/telemetry/state endpoint"""
+    response = client.get('/api/telemetry/state')
     assert response.status_code == 200
     data = json.loads(response.data)
     
@@ -28,8 +28,8 @@ def test_get_state(client):
         assert field in data
 
 def test_get_history(client):
-    """Test the /api/history endpoint"""
-    response = client.get('/api/history')
+    """Test the /api/telemetry/history endpoint"""
+    response = client.get('/api/telemetry/history')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert isinstance(data, list) 

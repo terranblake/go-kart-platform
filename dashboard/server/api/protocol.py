@@ -2,15 +2,18 @@
 API routes for viewing and exploring the protocol structure
 """
 
-from flask import jsonify, render_template
+from flask import jsonify, render_template, Blueprint
 import logging
 from lib.can.protocol_registry import ProtocolRegistry
 
 logger = logging.getLogger(__name__)
 
 def register_protocol_routes(app, protocol_registry: ProtocolRegistry):
+    # Create blueprints for protocol routes
+    protocol_view_bp = Blueprint('protocol_view', __name__, url_prefix='/protocol')
+    protocol_api_bp = Blueprint('protocol_api', __name__, url_prefix='/api/protocol')
 
-    @app.route('/protocol')
+    @protocol_view_bp.route('', methods=['GET'])
     def protocol():
         """Render the protocol documentation page"""
         try:
@@ -19,7 +22,7 @@ def register_protocol_routes(app, protocol_registry: ProtocolRegistry):
             logger.error(f"Error retrieving protocol structure: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
-    @app.route('/api/protocol', methods=['GET'])
+    @protocol_api_bp.route('', methods=['GET'])
     def get_protocol_structure_api():
         """Get the complete protocol structure"""
         try:
@@ -28,7 +31,7 @@ def register_protocol_routes(app, protocol_registry: ProtocolRegistry):
             logger.error(f"Error retrieving protocol structure: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
-    @app.route('/api/protocol/components/<component_name>', methods=['GET'])
+    @protocol_api_bp.route('/components/<component_name>', methods=['GET'])
     def get_component_api(component_name):
         """Get protocol information for a specific component"""
         try:
@@ -40,7 +43,7 @@ def register_protocol_routes(app, protocol_registry: ProtocolRegistry):
             logger.error(f"Error retrieving component '{component_name}': {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
-    @app.route('/api/protocol/components/<component_name>/commands/<command_name>', methods=['GET'])
+    @protocol_api_bp.route('/components/<component_name>/commands/<command_name>', methods=['GET'])
     def get_command_api(component_name, command_name):
         """Get protocol information for a specific command"""
         try:
@@ -51,3 +54,7 @@ def register_protocol_routes(app, protocol_registry: ProtocolRegistry):
         except Exception as e:
             logger.error(f"Error retrieving command '{component_name}.{command_name}': {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+    # Register the blueprints with the app
+    app.register_blueprint(protocol_view_bp)
+    app.register_blueprint(protocol_api_bp)

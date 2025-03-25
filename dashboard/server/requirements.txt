@@ -13,4 +13,4 @@ numpy==1.21.2
 pytest==6.2.5
 pytest-flask==1.2.0
 gevent==21.8.0
-gevent-websocket==0.10.1 
+gevent-websocket==0.10.1

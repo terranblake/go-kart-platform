@@ -2,19 +2,22 @@
 API routes for getting telemetry data from the go-kart
 """
 
-from flask import jsonify
+from flask import jsonify, Blueprint
 import logging
 import time
 from datetime import datetime
 from lib.telemetry.store import TelemetryStore
-
+from lib.can.interface import CANInterfaceWrapper
 logger = logging.getLogger(__name__)
 
-def register_telemetry_routes(app, telemetry_store: TelemetryStore):
+def register_telemetry_routes(app, telemetry_store: TelemetryStore, can_interface: CANInterfaceWrapper):
     """Register API routes for telemetry data"""
     
-    @app.route('/api/state', methods=['GET'])
-    def get_state():
+    # Create a blueprint for telemetry routes
+    telemetry_bp = Blueprint('telemetry', __name__, url_prefix='/api/telemetry')
+    
+    @telemetry_bp.route('/state', methods=['GET'])
+    def get_telemetry_state():
         """Get the current state of the go-kart"""
         try:
             state = telemetry_store.get_current_state()
@@ -23,8 +26,8 @@ def register_telemetry_routes(app, telemetry_store: TelemetryStore):
             logger.error(f"Error getting state: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
-    @app.route('/api/history', methods=['GET'])
-    def get_history():
+    @telemetry_bp.route('/history', methods=['GET'])
+    def get_telemetry_history():
         """Get telemetry history"""
         try:
             history = telemetry_store.get_history()
@@ -33,7 +36,7 @@ def register_telemetry_routes(app, telemetry_store: TelemetryStore):
             logger.error(f"Error getting history: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
             
-    @app.route('/api/telemetry/status', methods=['GET'])
+    @telemetry_bp.route('/status', methods=['GET'])
     def get_telemetry_status():
         """Get telemetry connection status"""
         try:
@@ -47,10 +50,13 @@ def register_telemetry_routes(app, telemetry_store: TelemetryStore):
                 'last_update': last_update,
                 'last_update_formatted': datetime.fromtimestamp(last_update).strftime('%Y-%m-%d %H:%M:%S') if last_update else 'Never',
                 'uptime': current_time - last_update if last_update > 0 else 0,
-                'interface_type': 'CAN' if telemetry_store.can_interface else 'Mock'
+                'interface_type': 'CAN' if can_interface.has_can_hardware else 'SIM'
             }
             
             return jsonify(status)
         except Exception as e:
             logger.error(f"Error getting telemetry status: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    # Register the blueprint with the app
+    app.register_blueprint(telemetry_bp)

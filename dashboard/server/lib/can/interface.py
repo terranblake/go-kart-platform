@@ -28,7 +28,7 @@ import os
 import time
 import threading
 import platform
-from typing import Callable, Dict, Any, Optional, List, Tuple
+from typing import Callable
 from cffi import FFI
 
 from lib.can.protocol_registry import ProtocolRegistry
@@ -99,24 +99,25 @@ class MockCANInterface:
     def __init__(self, node_id):
         """Initialize the mock CAN interface"""
         self.node_id = node_id
-        logger.info(f"Created mock CAN interface with node_id={node_id}")
+        self.logger = logging.getLogger(__name__)
+        self.logger.info(f"Created mock CAN interface with node_id={node_id}")
         self.handlers = {}
         
     def begin(self, baudrate, device):
         """Mock implementation of begin()"""
-        logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
+        self.logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
         return True
         
     def register_handler(self, comp_type, comp_id, cmd_id, handler):
         """Mock implementation of register_handler()"""
         key = (comp_type, comp_id, cmd_id)
         self.handlers[key] = handler
-        logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        self.logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
         
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """Mock implementation of send_message()"""
-        logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
+        self.logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
                    f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, value={value}")
         return True
         
@@ -142,6 +143,7 @@ class CANInterfaceWrapper:
             telemetry_store (TelemetryStore, optional): Store for telemetry data.
             protocol_registry (ProtocolRegistry, optional): Protocol registry to use.
         """
+        self.logger = logging.getLogger(__name__)
         self.node_id = node_id
         self.channel = channel
         self.baudrate = baudrate
@@ -225,6 +227,7 @@ class CANInterfaceWrapper:
     
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
+        self.logger.info("Registering default handlers")
         for component_type in self.protocol_registry.get_component_types():
             for command in self.protocol_registry.get_commands(component_type):
                 for value in self.protocol_registry.get_command_values(component_type, command):
@@ -243,11 +246,13 @@ class CANInterfaceWrapper:
         if isinstance(comp_type, str):
             comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
 
+        self.logger.info(f"Registering handler for {comp_type}, {comp_id}, {cmd_id}")
+
         if self.has_can_hardware:
             # Create a CFFI callback function
             cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
-            
+
             # Register with the CAN interface
             lib.can_interface_register_handler(self._can_interface, comp_type, comp_id, cmd_id, cb)
         else:
