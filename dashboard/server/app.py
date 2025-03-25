@@ -21,7 +21,7 @@ if __name__ == "__main__":
     try:
         # Start the web server
         logger.info("Starting web server on port 5000")
-        socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=5000)
     except KeyboardInterrupt:
         logger.info("Server shutdown requested by user")
     except Exception as e:

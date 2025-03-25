@@ -14,8 +14,8 @@ from api.protocol import register_protocol_routes
 from lib.can.protocol_registry import ProtocolRegistry
 from lib.telemetry.store import TelemetryStore
 
-# Use the verified absolute path to the protocol files
-protocol_path = "/Users/terranblake/Documents/go-kart-platform/protocol/generated/python"
+# Let ProtocolRegistry autodetect the path
+protocol_path = None
 
 # Create telemetry store and protocol registry
 telemetry_store = TelemetryStore()
