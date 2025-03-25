@@ -38,7 +38,7 @@ class ProtocolRegistry:
         
         # If a path is provided and exists, use it
         if pb_path and os.path.exists(pb_path):
-            self.logger.info(f"Using provided protocol path: {pb_path}")
+            self.logger.debug(f"Using provided protocol path: {pb_path}")
             return pb_path
             
         # Try common locations based on project structure
@@ -64,7 +64,7 @@ class ProtocolRegistry:
         # Try each path
         for path in possible_paths:
             if os.path.exists(path):
-                self.logger.info(f"Found protocol directory at: {path}")
+                self.logger.debug(f"Found protocol directory at: {path}")
                 return path
                 
         # If we get here, just return the provided path or default
@@ -75,7 +75,7 @@ class ProtocolRegistry:
     def _load_modules(self) -> None:
         """Discover and load all Protocol Buffer modules"""
         
-        self.logger.info(f"Adding protocol path to sys.path: {self.pb_path}")
+        self.logger.debug(f"Adding protocol path to sys.path: {self.pb_path}")
         sys.path.append(self.pb_path)
         
         # Check if the directory exists
@@ -85,21 +85,21 @@ class ProtocolRegistry:
             
         # List modules in the directory
         modules_in_dir = [name for _, name, _ in pkgutil.iter_modules([self.pb_path])]
-        self.logger.info(f"Found modules in {self.pb_path}: {modules_in_dir}")
+        self.logger.debug(f"Found modules in {self.pb_path}: {modules_in_dir}")
         
         for _, name, _ in pkgutil.iter_modules([self.pb_path]):
             if name.endswith('_pb2'):
                 try:
                     self.modules[name] = importlib.import_module(name)
-                    self.logger.info(f"Loaded protocol module: {name}")
+                    self.logger.debug(f"Loaded protocol module: {name}")
                 except ImportError as e:
                     self.logger.error(f"Failed to load {name}: {e}")
                     # Try with absolute import
                     try:
                         full_name = f"{os.path.basename(self.pb_path)}.{name}"
-                        self.logger.info(f"Trying absolute import: {full_name}")
+                        self.logger.debug(f"Trying absolute import: {full_name}")
                         self.modules[name] = importlib.import_module(full_name)
-                        self.logger.info(f"Loaded protocol module with absolute import: {name}")
+                        self.logger.debug(f"Loaded protocol module with absolute import: {name}")
                     except ImportError as e2:
                         self.logger.error(f"Absolute import also failed for {name}: {e2}")
     
@@ -125,9 +125,9 @@ class ProtocolRegistry:
                 self._extract_component_enums(module)
         
         # Log the extracted registry for debugging
-        self.logger.info(f"Extracted message_types: {self.registry['message_types']}")
-        self.logger.info(f"Extracted component_types: {self.registry['component_types']}")
-        self.logger.info(f"Extracted value_types: {self.registry['value_types']}")
+        self.logger.debug(f"Extracted message_types: {self.registry['message_types']}")
+        self.logger.debug(f"Extracted component_types: {self.registry['component_types']}")
+        self.logger.debug(f"Extracted value_types: {self.registry['value_types']}")
     
     def _extract_common_enums(self, module: Any) -> None:
         """Extract common message, component, and value type enums"""
@@ -135,15 +135,15 @@ class ProtocolRegistry:
             # Direct extraction of well-known enums
             if hasattr(module, 'MessageType') and hasattr(module.MessageType, 'items'):
                 self.registry['message_types'] = dict(module.MessageType.items())
-                self.logger.info(f"Extracted MessageType enum: {self.registry['message_types']}")
+                self.logger.debug(f"Extracted MessageType enum: {self.registry['message_types']}")
                 
             if hasattr(module, 'ComponentType') and hasattr(module.ComponentType, 'items'):
                 self.registry['component_types'] = dict(module.ComponentType.items())
-                self.logger.info(f"Extracted ComponentType enum: {self.registry['component_types']}")
+                self.logger.debug(f"Extracted ComponentType enum: {self.registry['component_types']}")
                 
             if hasattr(module, 'ValueType') and hasattr(module.ValueType, 'items'):
                 self.registry['value_types'] = dict(module.ValueType.items())
-                self.logger.info(f"Extracted ValueType enum: {self.registry['value_types']}")
+                self.logger.debug(f"Extracted ValueType enum: {self.registry['value_types']}")
         except Exception as e:
             self.logger.error(f"Error extracting common enums: {e}")
     
@@ -180,24 +180,24 @@ class ProtocolRegistry:
                 # ComponentId enums
                 if attr_name.endswith('ComponentId'):
                     component_id_enum = attr
-                    self.logger.info(f"Found component ID enum: {attr_name}")
+                    self.logger.debug(f"Found component ID enum: {attr_name}")
                 
                 # CommandId enums
                 elif attr_name.endswith('CommandId'):
                     command_id_enum = attr
-                    self.logger.info(f"Found command ID enum: {attr_name}")
+                    self.logger.debug(f"Found command ID enum: {attr_name}")
                 
                 # Value enums
                 elif attr_name.endswith('Value'):
                     value_enums[attr_name] = attr
-                    self.logger.info(f"Found value enum: {attr_name} with values: {dict(attr.items())}")
+                    self.logger.debug(f"Found value enum: {attr_name} with values: {dict(attr.items())}")
             
-            self.logger.info(f"All enums in module {module.__name__}: {enums_in_module}")
+            self.logger.debug(f"All enums in module {module.__name__}: {enums_in_module}")
             
             # Process component ID enum
             if component_id_enum:
                 component_ids = dict(component_id_enum.items())
-                self.logger.info(f"Component IDs for {component_type}: {component_ids}")
+                self.logger.debug(f"Component IDs for {component_type}: {component_ids}")
                 
                 # For each component ID, create a component entry
                 for comp_name, comp_id in component_ids.items():
@@ -209,12 +209,12 @@ class ProtocolRegistry:
                         'id': comp_id,
                         'commands': {}
                     }
-                    self.logger.info(f"Added component {comp_name} (ID: {comp_id}) to {component_type}")
+                    self.logger.debug(f"Added component {comp_name} (ID: {comp_id}) to {component_type}")
             
             # Process command ID enum
             if command_id_enum:
                 command_ids = dict(command_id_enum.items())
-                self.logger.info(f"Command IDs for {component_type}: {command_ids}")
+                self.logger.debug(f"Command IDs for {component_type}: {command_ids}")
                 
                 # Map value enums to commands using naming patterns
                 # Expected patterns:
@@ -230,14 +230,14 @@ class ProtocolRegistry:
                     # Try direct match first
                     if expected_enum_name in value_enums:
                         command_to_value_map[cmd_name] = value_enums[expected_enum_name]
-                        self.logger.info(f"Direct pattern match: {cmd_name} -> {expected_enum_name}")
+                        self.logger.debug(f"Direct pattern match: {cmd_name} -> {expected_enum_name}")
                     else:
                         # Try case-insensitive match
                         for enum_name, enum_obj in value_enums.items():
                             # Try matching by command name in enum name
                             if cmd_name.lower() in enum_name.lower():
                                 command_to_value_map[cmd_name] = enum_obj
-                                self.logger.info(f"Partial match: {cmd_name} -> {enum_name}")
+                                self.logger.debug(f"Partial match: {cmd_name} -> {enum_name}")
                                 break
                 
                 # Add commands to each component
@@ -252,11 +252,11 @@ class ProtocolRegistry:
                         if cmd_name in command_to_value_map:
                             values_dict = dict(command_to_value_map[cmd_name].items())
                             self.registry['components'][component_type][comp_name]['commands'][cmd_name]['values'] = values_dict
-                            self.logger.info(f"Added {len(values_dict)} values for {cmd_name}: {list(values_dict.keys())}")
+                            self.logger.debug(f"Added {len(values_dict)} values for {cmd_name}: {list(values_dict.keys())}")
                         else:
-                            self.logger.info(f"No value enum found for command {cmd_name}")
+                            self.logger.debug(f"No value enum found for command {cmd_name}")
                 
-                self.logger.info(f"Added {len(command_ids)} commands to each component in {component_type}")
+                self.logger.debug(f"Added {len(command_ids)} commands to each component in {component_type}")
                 
         except Exception as e:
             self.logger.error(f"Error extracting component enums: {e}", exc_info=True)
@@ -272,13 +272,13 @@ class ProtocolRegistry:
         # Extract component type directly from module name by removing _pb2 suffix
         if module_name.endswith('_pb2'):
             component_type = module_name.replace('_pb2', '')
-            self.logger.info(f"Determined component type {component_type} from module name {module_name}")
+            self.logger.debug(f"Determined component type {component_type} from module name {module_name}")
             return component_type
             
         # Extract from module name by checking if it contains a component type name
         for comp_type_name in self.registry['component_types'].keys():
             if comp_type_name.lower() in module_name:
-                self.logger.info(f"Determined component type {comp_type_name.lower()} from module name {module_name}")
+                self.logger.debug(f"Determined component type {comp_type_name.lower()} from module name {module_name}")
                 return comp_type_name.lower()
         
         # If we couldn't determine from the name, check if there's a ComponentId enum
@@ -286,7 +286,7 @@ class ProtocolRegistry:
             if 'ComponentId' in attr_name and hasattr(module, attr_name) and hasattr(getattr(module, attr_name), 'items'):
                 # Extract component type from the ComponentId enum name
                 component_type = attr_name.replace('ComponentId', '').lower()
-                self.logger.info(f"Determined component type {component_type} from ComponentId enum {attr_name}")
+                self.logger.debug(f"Determined component type {component_type} from ComponentId enum {attr_name}")
                 return component_type
             
         # If we get here, we couldn't determine the component type
