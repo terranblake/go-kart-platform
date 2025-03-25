@@ -157,7 +157,7 @@ bool CANInterface::messageAvailable() {
 bool CANInterface::receiveMessage(CANMessage& msg) {
 #ifdef PLATFORM_ARDUINO
   // Check if there's a message available
-  if (!CAN.available()) {
+  if (!CAN.parsePacket()) {
     return false;
   }
   
