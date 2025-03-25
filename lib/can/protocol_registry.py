@@ -220,3 +220,37 @@ class ProtocolRegistry:
             if component_name in commands:
                 return commands[command_name]
         return None
+    
+    def create_message(self, component_type: str, command_name: str, value_name: str, value: int) -> Optional[bytes]:
+        """Create a message from a component type, command name, value name, and value"""
+        comp_type_id = self.get_component_type(component_type)
+        cmd_id = self.get_command_id(component_type, command_name)
+        value_type_id = self.get_value_type(value_name)
+        
+        if comp_type_id is None or cmd_id is None or value_type_id is None:
+            return None
+        
+        header = self.get_message_header(component_type, command_name)
+        if header is None:
+            return None
+        
+        # Create message payload
+        payload = struct.pack('>I', header)
+        payload += struct.pack('>I', value_type_id)
+        payload += struct.pack('>I', value)
+        
+        return payload
+    
+    # this needs to match the function at interface.py
+    def create_message(self, message_type: str, component_type: str, component_name: str, command_name: str, value_name: str, value: int) -> Optional[bytes]:
+        int_message_type = self.get_message_type(message_type)
+        int_comp_type = self.get_component_type(component_type)
+        int_comp_id = self.get_component_id(component_type, component_name)
+        int_cmd_id = self.get_command_id(component_type, command_name)
+        int_value_type = self.get_value_type(value_name)
+
+        message = [int_message_type, int_comp_type, int_comp_id, int_cmd_id, int_value_type, value]
+        return message
+        
+        
+        
