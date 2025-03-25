@@ -7,7 +7,7 @@
 #define PROTOBUF_CAN_INTERFACE_H
 
 #include "CANInterface.h"
-#include "common.pb.h"
+#include "include/common.pb.h"
 
 // Max number of message handlers
 #define MAX_HANDLERS 32
@@ -37,13 +37,14 @@ public:
   /**
    * Register a handler for specific message types
    * 
+   * @param message_type Message type to handle (COMMAND/STATUS/ACK/ERROR or MESSAGE_TYPE_ANY)
    * @param type Component type to handle
    * @param component_id Component ID to handle (or 0xFF for all)
    * @param command_id Command ID to handle
    * @param handler Function to call when matching message is received
    */
-  void registerHandler(kart_common_ComponentType type, uint8_t component_id, 
-                      uint8_t command_id, MessageHandler handler);
+  void registerHandler(kart_common_MessageType message_type, kart_common_ComponentType type, 
+                      uint8_t component_id, uint8_t command_id, MessageHandler handler);
   
   /**
    * Send a message over the CAN bus
@@ -90,6 +91,7 @@ public:
 
 private:
   struct HandlerEntry {
+    kart_common_MessageType message_type; // MESSAGE_ANY (-1) means match any message type
     kart_common_ComponentType type;
     uint8_t component_id;
     uint8_t command_id;
@@ -107,6 +109,9 @@ private:
                  uint8_t component_id, uint8_t command_id,
                  kart_common_ValueType value_type, int32_t value);
 };
+
+// Define a special message type value for matching any message type
+#define MESSAGE_TYPE_ANY static_cast<kart_common_MessageType>(-1)
 
 // C API for Python CFFI
 #ifdef __cplusplus
@@ -145,6 +150,7 @@ bool can_interface_begin(can_interface_t handle, long baudrate, const char* devi
  * Register a handler for specific message types
  * 
  * @param handle Handle to the interface
+ * @param msg_type Message type to handle (or -1 for all)
  * @param comp_type Component type to handle
  * @param component_id Component ID to handle (or 0xFF for all)
  * @param command_id Command ID to handle
@@ -152,6 +158,7 @@ bool can_interface_begin(can_interface_t handle, long baudrate, const char* devi
  */
 void can_interface_register_handler(
     can_interface_t handle,
+    int msg_type,
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,

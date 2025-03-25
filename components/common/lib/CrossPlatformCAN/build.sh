@@ -46,6 +46,19 @@ if [ $? -eq 0 ]; then
         echo "Raspberry Pi example built at: $(pwd)/rpi_example"
     fi
     
+    # Run tests if they exist
+    if [ -f test_protobuf_can ]; then
+        echo ""
+        echo "Running ProtobufCANInterface tests..."
+        ./test_protobuf_can
+    fi
+    
+    if [ -f test_message_type_handlers ]; then
+        echo ""
+        echo "Running message type handlers tests..."
+        ./test_message_type_handlers
+    fi
+    
     echo ""
     echo "To run the Raspberry Pi example, make sure your CAN interface is configured:"
     echo "  sudo ip link set can0 type can bitrate 500000"

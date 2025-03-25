@@ -73,6 +73,17 @@ if(PLATFORM_LINUX)
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/rpi_example/rpi_example.cpp
     )
     target_link_libraries(rpi_example CrossPlatformCAN)
+    
+    # Test executables
+    add_executable(test_protobuf_can
+        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_protobuf_can.cpp
+    )
+    target_link_libraries(test_protobuf_can CrossPlatformCAN)
+    
+    add_executable(test_message_type_handlers
+        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_message_type_handlers.cpp
+    )
+    target_link_libraries(test_message_type_handlers CrossPlatformCAN)
 endif()
 
 # Installation rules
