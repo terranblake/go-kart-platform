@@ -239,9 +239,9 @@ class CANInterfaceWrapper:
                     cmd_id = self.protocol_registry.get_command_id(component_type, command)
 
                     # listen for messages from all component ids of this type sending this command
-                    self.register_handler(comp_type, 255, cmd_id, self._handle_message)
+                    self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
     
-    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
         """
         Register a message handler for a specific message type.
         
@@ -266,7 +266,8 @@ class CANInterfaceWrapper:
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
-            lib.can_interface_register_handler(self._can_interface, comp_type, comp_id, cmd_id, cb)
+            message_type = self.protocol_registry.get_message_type(message_type)
+            lib.can_interface_register_handler(self._can_interface, message_type, comp_type, comp_id, cmd_id, cb)
         else:
             self._can_interface.register_handler(comp_type, comp_id, cmd_id, handler)
     
