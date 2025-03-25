@@ -148,6 +148,7 @@ class CANInterfaceWrapper:
         self.telemetry_store = telemetry_store
         self.callbacks = []  # Store callbacks to prevent garbage collection
         self._can_interface = None
+        self.has_can_hardware = has_can_hardware
         
         # Load protocol definitions
         self.protocol_registry = ProtocolRegistry()
@@ -158,13 +159,13 @@ class CANInterfaceWrapper:
         self.value_types_by_value = {v: k for k, v in self.protocol_registry.registry['value_types'].items()}
         
         # Create and initialize the CAN interface or mock
-        if has_can_hardware:
+        if self.has_can_hardware:
             logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
             # Create the CAN interface first
             self._can_interface = lib.can_interface_create(node_id)
             if not self._can_interface:
                 logger.error("Failed to create CAN interface, falling back to mock mode")
-                has_can_hardware = False
+                self.has_can_hardware = False
                 self._can_interface = MockCANInterface(node_id)
             else:
                 # Initialize the CAN interface
@@ -188,7 +189,7 @@ class CANInterfaceWrapper:
     def __del__(self):
         """Clean up resources when the object is destroyed"""
         self.stop_processing()
-        if self._can_interface and has_can_hardware:
+        if self._can_interface and self.has_can_hardware:
             lib.can_interface_destroy(self._can_interface)
     
     def _get_type_name(self, registry_dict, value):
@@ -242,7 +243,7 @@ class CANInterfaceWrapper:
         if isinstance(comp_type, str):
             comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
 
-        if has_can_hardware:
+        if self.has_can_hardware:
             # Create a CFFI callback function
             cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
@@ -267,7 +268,7 @@ class CANInterfaceWrapper:
         Returns:
             bool: True if the message was sent successfully, False otherwise.
         """
-        if has_can_hardware:
+        if self.has_can_hardware:
             return lib.can_interface_send_message(self._can_interface, msg_type, comp_type, 
                                                  comp_id, cmd_id, value_type, value)
         else:
@@ -318,7 +319,7 @@ class CANInterfaceWrapper:
     
     def process(self):
         """Process any pending messages from the CAN bus"""
-        if has_can_hardware:
+        if self.has_can_hardware:
             lib.can_interface_process(self._can_interface)
         else:
             self._can_interface.process()
