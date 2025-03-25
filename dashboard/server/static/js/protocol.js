@@ -335,8 +335,7 @@ function setupTestInterface(protocolData) {
     const componentTypeSelect = document.getElementById('test-component-type');
     const componentSelect = document.getElementById('test-component-id');
     const commandSelect = document.getElementById('test-command-id');
-    const valueNumberInput = document.getElementById('test-value-number');
-    const valueEnumSelect = document.getElementById('test-value-enum');
+    const valueInput = document.getElementById('test-value-enum');
     const sendButton = document.getElementById('test-send-command');
     const resultDiv = document.getElementById('test-result');
     
@@ -396,7 +395,7 @@ function setupTestInterface(protocolData) {
         sendTestCommand(
             componentSelect.value,
             commandSelect.value,
-            getSelectedValue(valueNumberInput, valueEnumSelect),
+            getSelectedValue(valueInput),
             resultDiv
         );
     });
@@ -505,25 +504,23 @@ function updateCommandOptions(componentName, protocolData) {
 
 // Update value input based on selected command
 function updateValueInput(componentName, commandName, protocolData) {
-    console.log(`Updating value input for component: ${componentName}, command: ${commandName}`);
+    console.log(`Updating value options for component: ${componentName}, command: ${commandName}`);
     
-    const valueNumberInput = document.getElementById('test-value-number');
-    const valueEnumSelect = document.getElementById('test-value-enum');
+    const valueSelect = document.getElementById('test-value-enum');
     const componentTypeSelect = document.getElementById('test-component-type');
     const componentType = componentTypeSelect.value.toLowerCase();
     
-    if (!valueNumberInput || !valueEnumSelect) {
-        console.error('Value input elements not found');
+    if (!valueSelect) {
+        console.error('Value select element not found');
         return;
     }
     
-    // Hide both inputs initially
-    valueNumberInput.classList.add('hidden');
-    valueEnumSelect.classList.add('hidden');
+    // Clear existing options
+    valueSelect.innerHTML = '';
     
-    console.log(`Looking for command in component type: ${componentType}, component: ${componentName}, command: ${commandName}`);
+    console.log(`Looking for values in component type: ${componentType}, component: ${componentName}, command: ${commandName}`);
     
-    // Get command details
+    // Get commands for the selected component
     const component = protocolData.components[componentType] && 
                      protocolData.components[componentType][componentName];
     
@@ -535,140 +532,84 @@ function updateValueInput(componentName, commandName, protocolData) {
     const command = component.commands && component.commands[commandName];
     if (!command) {
         console.error(`Command not found: ${componentType}.${componentName}.${commandName}`);
-        console.log('Available commands:', component.commands ? Object.keys(component.commands) : 'None');
         return;
     }
     
     console.log('Command data:', command);
-    console.log('Enum values:', command.enum_values ? Object.keys(command.enum_values) : 'None');
+    console.log('Values available:', command.values ? Object.keys(command.values) : 'None');
     
-    // Check if command has enum values
-    if (command.enum_values && Object.keys(command.enum_values).length > 0) {
-        console.log('Command has enum values, showing enum select');
-        // Show enum select, hide number input
-        valueEnumSelect.classList.remove('hidden');
-        
-        // Clear existing options
-        valueEnumSelect.innerHTML = '';
-        
-        // Add enum options
-        for (const enumValue in command.enum_values) {
-            console.log(`Adding enum option: ${enumValue} (${command.enum_values[enumValue]})`);
+    // If the command has predefined values, add them to the dropdown
+    if (command.values && Object.keys(command.values).length > 0) {
+        // Correctly iterate through the values object
+        for (const [name, value] of Object.entries(command.values)) {
+            console.log(`Adding value option: ${name} (${value})`);
             const option = document.createElement('option');
-            option.value = command.enum_values[enumValue];
-            option.textContent = `${enumValue} (${command.enum_values[enumValue]})`;
-            valueEnumSelect.appendChild(option);
+            option.value = value;
+            option.textContent = name;
+            valueSelect.appendChild(option);
         }
-        
-        console.log(`Added ${valueEnumSelect.options.length} enum options`);
-        console.log('Value enum select visibility:', !valueEnumSelect.classList.contains('hidden'));
     } else {
-        console.log('Command does not have enum values, showing number input');
-        // Show number input, hide enum select
-        valueNumberInput.classList.remove('hidden');
-        console.log('Value number input visibility:', !valueNumberInput.classList.contains('hidden'));
-        
-        // Set appropriate min/max values based on value type
-        console.log(`Setting value limits for type: ${command.value_type}`);
-        
-        switch (command.value_type) {
-            case 'BOOL':
-            case 'BOOLEAN':
-                valueNumberInput.min = 0;
-                valueNumberInput.max = 1;
-                valueNumberInput.step = 1;
-                break;
-            case 'UINT8':
-                valueNumberInput.min = 0;
-                valueNumberInput.max = 255;
-                valueNumberInput.step = 1;
-                break;
-            case 'INT8':
-                valueNumberInput.min = -128;
-                valueNumberInput.max = 127;
-                valueNumberInput.step = 1;
-                break;
-            case 'UINT16':
-                valueNumberInput.min = 0;
-                valueNumberInput.max = 65535;
-                valueNumberInput.step = 1;
-                break;
-            case 'INT16':
-                valueNumberInput.min = -32768;
-                valueNumberInput.max = 32767;
-                valueNumberInput.step = 1;
-                break;
-            case 'UINT32':
-                valueNumberInput.min = 0;
-                valueNumberInput.max = 4294967295;
-                valueNumberInput.step = 1;
-                break;
-            case 'INT32':
-                valueNumberInput.min = -2147483648;
-                valueNumberInput.max = 2147483647;
-                valueNumberInput.step = 1;
-                break;
-            case 'FLOAT':
-            case 'FLOAT16':
-                valueNumberInput.min = -999999;
-                valueNumberInput.max = 999999;
-                valueNumberInput.step = 0.01;
-                break;
-            default:
-                console.warn(`Unknown value type: ${command.value_type}, using defaults`);
-                valueNumberInput.min = 0;
-                valueNumberInput.max = 100;
-                valueNumberInput.step = 1;
+        // If no enum values, add generic numeric options (0-10)
+        console.log('No enum values, adding numeric options');
+        for (let i = 0; i <= 10; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i.toString();
+            valueSelect.appendChild(option);
         }
     }
+    
+    console.log(`Added ${valueSelect.options.length} value options`);
 }
 
-// Get the currently selected value (from either number input or enum select)
-function getSelectedValue(numberInput, enumSelect) {
-    if (numberInput.classList.contains('hidden')) {
-        // Use enum value
-        return parseInt(enumSelect.value, 10);
-    } else {
-        // Use number value
-        return numberInput.valueAsNumber;
-    }
+// Get selected value from the dropdown
+function getSelectedValue(valueInput) {
+    // Parse as integer to ensure we return a number, not a string
+    return parseInt(valueInput.value, 10);
 }
 
-// Send a test command to the API
-async function sendTestCommand(component, command, value, resultDiv) {
+// Send test command to the API
+async function sendTestCommand(componentName, commandName, value, resultDiv) {
+    const componentTypeSelect = document.getElementById('test-component-type');
+    const componentType = componentTypeSelect.value;
+    
+    console.log(`Sending test command: ${componentType}.${componentName}.${commandName} = ${value}`);
+    
     try {
-        const componentTypeSelect = document.getElementById('test-component-type');
-        const componentType = componentTypeSelect.value;
+        resultDiv.innerHTML = `<p>Sending command...</p>`;
         
-        resultDiv.classList.remove('hidden', 'success', 'error');
-        resultDiv.textContent = 'Sending command...';
-        
-        const response = await fetch('/api/send_command', {
+        const response = await fetch('/api/command', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 component_type: componentType,
-                component: component,
-                command: command,
+                component_name: componentName,
+                command_name: commandName,
                 value: value
             })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            resultDiv.textContent = `Command sent successfully: ${data.message || 'OK'}`;
-            resultDiv.classList.add('success');
-        } else {
-            resultDiv.textContent = `Error: ${data.error || 'Unknown error'}`;
-            resultDiv.classList.add('error');
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        
+        const result = await response.json();
+        console.log('Command result:', result);
+        
+        resultDiv.innerHTML = `
+            <h4>Command Sent</h4>
+            <p>${componentType}.${componentName}.${commandName} = ${value}</p>
+            <pre>${JSON.stringify(result, null, 2)}</pre>
+        `;
+        
     } catch (error) {
         console.error('Error sending command:', error);
-        resultDiv.textContent = `Error: ${error.message}`;
-        resultDiv.classList.add('error');
+        resultDiv.innerHTML = `
+            <h4>Error</h4>
+            <p>${error.message}</p>
+        `;
     }
 }
 

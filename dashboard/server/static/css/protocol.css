@@ -341,6 +341,19 @@ button:hover {
   margin-top: 1rem;
   padding: 1rem;
   border-radius: 4px;
+  background-color: var(--light-color);
+}
+
+#test-result h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+#test-result pre {
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow-x: auto;
 }
 
 #test-result.success {
@@ -399,4 +412,27 @@ section h2.section-header::after {
 /* Display for component cards within a section */
 .component-card {
     display: block;
+}
+
+/* Value input containers */
+#test-value-enum-container,
+#test-value-number-container {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+#test-value-enum-container select,
+#test-value-number-container input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+  display: block;
+}
+
+/* Optional: Style to make the dropdown stand out */
+#test-value-enum-container select {
+  background-color: #f0f8ff;
+  cursor: pointer;
 } 
