@@ -217,10 +217,6 @@ class ProtocolRegistry:
                 command_ids = dict(command_id_enum.items())
                 self.logger.debug(f"Command IDs for {component_type}: {command_ids}")
                 
-                # Map value enums to commands using naming patterns
-                # Expected patterns:
-                # - [ComponentType][CommandName]Value - e.g., LightModeValue for MODE command
-                
                 command_to_value_map = {}
                 component_prefix = component_type.title()  # e.g., "Light" for "lights"
                 
@@ -363,10 +359,8 @@ class ProtocolRegistry:
     
     def get_commands(self, component_type: str) -> List[str]:
         """Get all commands for a component type"""
-        component_type = component_type.upper()
-        if component_type in self.registry['commands']:
-            return list(self.registry['commands'][component_type].keys())
-        return []
+        component_type = component_type.lower()
+        return list(self.registry['commands'][component_type].keys())
     
     def get_command_values(self, component_type: str, command_name: str) -> Dict[str, int]:
         """Get all possible values for a command"""

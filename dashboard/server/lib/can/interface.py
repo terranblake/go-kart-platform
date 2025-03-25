@@ -26,13 +26,12 @@ It is not responsible for:
 import logging
 import os
 import time
-import threading
-import platform
 from typing import Callable
 from cffi import FFI
 
 from lib.can.protocol_registry import ProtocolRegistry
-
+from lib.telemetry.state import GoKartState
+from lib.telemetry.store import TelemetryStore
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -132,7 +131,7 @@ class CANInterfaceWrapper:
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store=None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: TelemetryStore = None):
         """
         Initialize the CAN interface.
         
@@ -208,30 +207,39 @@ class CANInterfaceWrapper:
         logger.info(f"Received message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
                     f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
-        # Update telemetry store if available
-        if self.telemetry_store:
-            state_data = {
-                'message_type': msg_type_name,
-                'component_type': comp_type_name,
-                'component_id': comp_id,
-                'command_id': cmd_id,
-                'value_type': val_type_name,
-                'value': value,
-                'last_update': time.time()
-            }
-            
-            # Get current state, update it, and store back
-            from lib.telemetry.state import GoKartState
-            new_state = GoKartState().from_dict(state_data)
-            self.telemetry_store.update_state(new_state)
+        if not self.telemetry_store:
+            logger.warning("Telemetry store is not set, skipping update")
+            return
+
+        state_data = {
+            'message_type': msg_type_name,
+            'component_type': comp_type_name,
+            'component_id': comp_id,
+            'command_id': cmd_id,
+            'value_type': val_type_name,
+            'value': value,
+            'last_update': time.time()
+        }
+        
+        state_data = GoKartState().from_dict(state_data)
+        self.telemetry_store.update_state(state_data)
     
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
         self.logger.info("Registering default handlers")
         for component_type in self.protocol_registry.get_component_types():
+            self.logger.info(f"Registering handlers for component type: {component_type}")
             for command in self.protocol_registry.get_commands(component_type):
+                self.logger.info(f"Registering handlers for command: {command}")
                 for value in self.protocol_registry.get_command_values(component_type, command):
-                    self.register_handler(component_type, command, value, self._handle_message)
+                    self.logger.info(f"Registering handlers for value id: {value}")
+
+                    # convert the type, command, and value to their numeric values
+                    comp_type = self.protocol_registry.get_component_type(component_type)
+                    cmd_id = self.protocol_registry.get_command_id(component_type, command)
+                    val_id = self.protocol_registry.get_command_value(component_type, command, value)
+
+                    self.register_handler(comp_type, cmd_id, val_id, self._handle_message)
     
     def register_handler(self, comp_type, comp_id, cmd_id, handler):
         """
