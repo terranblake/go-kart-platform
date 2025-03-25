@@ -143,7 +143,7 @@ void ProtobufCANInterface::process()
 
 uint8_t ProtobufCANInterface::packHeader(kart_common_MessageType type, kart_common_ComponentType component)
 {
-    return (static_cast<uint8_t>(type) << 6) | (static_cast<uint8_t>(component) & 3);
+    return (static_cast<uint8_t>(type) << 6) | ((static_cast<uint8_t>(component) & 0x07) << 3);
 }
 
 void ProtobufCANInterface::unpackHeader(uint8_t header, kart_common_MessageType &type, kart_common_ComponentType &component)
