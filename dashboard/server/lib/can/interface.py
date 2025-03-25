@@ -308,7 +308,7 @@ class CANInterfaceWrapper:
             )
             
             if message:
-                logger.info(f"Sending command: {component_type}.{component_name}.{command_name} = {value_name} ({direct_value})")
+                logger.info(f"Sending command: {component_type}.{component_name}.{command_name} = {value_name} ({message[5]})")
                 return self.send_message(*message)
             else:
                 logger.error(f"Failed to create message for {component_path}.{command_name}")

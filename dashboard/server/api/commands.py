@@ -37,6 +37,17 @@ def register_command_routes(app, can_interface: CANInterfaceWrapper):
             logger.info(f"Sending command: {component_path}.{command_name} = {value_name} ({direct_value})")
             
             # Call the CAN interface with all required parameters
+            # Ensure direct_value is an integer if provided
+            if direct_value is not None:
+                try:
+                    direct_value = int(direct_value)
+                except (ValueError, TypeError):
+                    logger.error(f"direct_value must be an integer, got {direct_value}")
+                    return jsonify({
+                        "status": "error",
+                        "message": "direct_value must be an integer",
+                        "details": {"direct_value": direct_value}
+                    }), 400
             result = can_interface.send_command(
                 component_path=component_path,
                 command_name=command_name,

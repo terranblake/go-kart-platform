@@ -389,7 +389,7 @@ class ProtocolRegistry:
         val_type = self.get_value_type("INT32")  # Default
         val = 0
         
-        if value_name and not value:
+        if value_name:
             val = self.get_command_value(component_type, command_name, value_name)
             # Try to determine value type from context
             for type_name, type_id in self.registry['value_types'].items():

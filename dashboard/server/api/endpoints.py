@@ -10,6 +10,7 @@ from flask_cors import CORS
 from lib.can.interface import CANInterfaceWrapper
 from api.telemetry import register_telemetry_routes
 from api.commands import register_command_routes
+from api.direct_commands import register_direct_command_routes
 from api.protocol import register_protocol_routes
 from lib.can.protocol_registry import ProtocolRegistry
 from lib.telemetry.store import TelemetryStore
@@ -67,6 +68,7 @@ app.register_blueprint(api)
 # Register routes from the other modules
 register_telemetry_routes(app, telemetry_store)
 register_command_routes(app, can_interface)
+register_direct_command_routes(app, can_interface)
 register_protocol_routes(app, protocol_registry)
 
 # Socket.IO handlers
