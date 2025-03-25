@@ -4,6 +4,38 @@
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
 
+// Store pointers to handler functions
+struct HandlerWrapper {
+    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
+};
+
+#define MAX_WRAPPERS 32
+static HandlerWrapper g_handlers[MAX_WRAPPERS];
+static int g_num_handlers = 0;
+
+// Global wrapper function for message handlers
+static void global_message_handler(kart_common_MessageType msg_type,
+                               kart_common_ComponentType comp_type,
+                               uint8_t comp_id,
+                               uint8_t cmd_id,
+                               kart_common_ValueType val_type,
+                               int32_t val) {
+    // Find and call the appropriate handler
+    for (int i = 0; i < g_num_handlers; i++) {
+        if (g_handlers[i].handler) {
+            g_handlers[i].handler(
+                static_cast<int>(msg_type),
+                static_cast<int>(comp_type),
+                comp_id,
+                cmd_id,
+                static_cast<int>(val_type),
+                val
+            );
+            break;
+        }
+    }
+}
+
 extern "C" {
 
 // Constructor and destructor wrappers
@@ -54,28 +86,22 @@ void can_interface_register_handler(
         return;
     }
     
-    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    // Store the handler in our global array
+    if (g_num_handlers < MAX_WRAPPERS) {
+        g_handlers[g_num_handlers].handler = handler;
+        g_num_handlers++;
+    } else {
+        printf("C API ERROR: Too many handlers registered\n");
+        return;
+    }
     
-    // Create a wrapper function that converts the C API callback to the MessageHandler type
-    auto wrapper = [handler](kart_common_MessageType msg_type,
-                           kart_common_ComponentType comp_type,
-                           uint8_t comp_id,
-                           uint8_t cmd_id,
-                           kart_common_ValueType val_type,
-                           int32_t val) {
-        handler(static_cast<int>(msg_type),
-               static_cast<int>(comp_type),
-               comp_id,
-               cmd_id,
-               static_cast<int>(val_type),
-               val);
-    };
+    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
     interface->registerHandler(
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        wrapper
+        global_message_handler
     );
     printf("C API: handler registered successfully\n");
 }
