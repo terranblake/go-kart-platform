@@ -50,6 +50,7 @@ ffi.cdef("""
     // Handler registration
     void can_interface_register_handler(
         can_interface_t handle,
+        int msg_type,
         int comp_type,
         uint8_t component_id,
         uint8_t command_id,
@@ -228,20 +229,18 @@ class CANInterfaceWrapper:
         """Register default handlers for status messages from components."""
         self.logger.info("Registering default handlers")
         for component_type in self.protocol_registry.get_component_types():
-            self.logger.info(f"Registering handlers for component type: {component_type}")
             for command in self.protocol_registry.get_commands(component_type):
-                self.logger.info(f"Registering handlers for command: {command}")
                 for value in self.protocol_registry.get_command_values(component_type, command):
-                    self.logger.info(f"Registering handlers for value id: {value}")
+                    self.logger.info(f"Registering handlers for component type: {component_type} command: {command} value: {value}")
 
                     # convert the type, command, and value to their numeric values
                     comp_type = self.protocol_registry.get_component_type(component_type)
                     cmd_id = self.protocol_registry.get_command_id(component_type, command)
 
                     # listen for messages from all component ids of this type sending this command
-                    self.register_handler(comp_type, 255, cmd_id, self._handle_message)
+                    self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
     
-    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
         """
         Register a message handler for a specific message type.
         
@@ -254,19 +253,20 @@ class CANInterfaceWrapper:
         if isinstance(comp_type, str):
             comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
 
-        if not comp_type or not cmd_id:
+        if comp_type is None or cmd_id is None:
             self.logger.info(f"Failed to get component type, component id, or value id for {comp_type}, {comp_id}, {cmd_id}")
             return
 
         self.logger.info(f"Registering handler for {comp_type}, {comp_id}, {cmd_id}")
 
+        message_type = self.protocol_registry.get_message_type(message_type)
         if self.has_can_hardware:
             # Create a CFFI callback function
             cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
-            lib.can_interface_register_handler(self._can_interface, comp_type, comp_id, cmd_id, cb)
+            lib.can_interface_register_handler(self._can_interface, message_type, comp_type, comp_id, cmd_id, cb)
         else:
             self._can_interface.register_handler(comp_type, comp_id, cmd_id, handler)
     

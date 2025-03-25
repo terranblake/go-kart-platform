@@ -322,11 +322,11 @@ class ProtocolRegistry:
     
     def get_component_type(self, type_name: str) -> Optional[int]:
         """Get component type value by name"""
-        return self.registry['component_types'].get(type_name)
+        return self.registry['component_types'].get(type_name.upper())
     
     def get_value_type(self, type_name: str) -> Optional[int]:
         """Get value type by name"""
-        return self.registry['value_types'].get(type_name)
+        return self.registry['value_types'].get(type_name.upper())
     
     def get_component_id(self, component_type: str, component_name: str) -> Optional[int]:
         """Get component ID by type and name"""
