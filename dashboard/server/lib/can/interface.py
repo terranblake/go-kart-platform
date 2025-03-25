@@ -131,7 +131,7 @@ class CANInterfaceWrapper:
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store=None, protocol_registry=None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store=None):
         """
         Initialize the CAN interface.
         
@@ -149,10 +149,7 @@ class CANInterfaceWrapper:
         self.callbacks = []  # Store callbacks to prevent garbage collection
         
         # Load protocol definitions
-        if protocol_registry:
-            self.protocol_registry = protocol_registry
-        else:
-            self.protocol_registry = ProtocolRegistry()
+        self.protocol_registry = ProtocolRegistry()
         
         # Initialize lookup dictionaries for reverse mapping (numeric value to name)
         self.message_types_by_value = {v: k for k, v in self.protocol_registry.registry['message_types'].items()}
@@ -268,13 +265,14 @@ class CANInterfaceWrapper:
         else:
             return self._can_interface.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
     
-    def send_command(self, component_path, command_name, value_name=None, direct_value=None):
+    def send_command(self, component_path, command_name, command_data=None, value_name=None, direct_value=None):
         """
         Send a command message to a component.
         
         Args:
             component_path (str): The path to the component (e.g., 'motors.main', 'lights.headlights').
             command_name (str): The name of the command (e.g., 'SPEED', 'POWER').
+            command_data (dict, optional): Additional command data.
             value_name (str, optional): The name of the value to send (e.g., 'ON', 'OFF').
             direct_value (int, optional): The direct value to send.
             
@@ -282,14 +280,26 @@ class CANInterfaceWrapper:
             bool: True if the message was sent successfully, False otherwise.
         """
         try:
+            # Parse component_path to extract component_type and component_name
+            parts = component_path.split('.') if component_path else []
+            if len(parts) != 2:
+                logger.error(f"Invalid component path: {component_path}. Expected format: 'type.name'")
+                return False
+                
+            component_type, component_name = parts
+            
+            # Use message_type = 'COMMAND' for all commands
             message = self.protocol_registry.create_message(
-                component_path=component_path,
+                message_type='COMMAND',
+                component_type=component_type,
+                component_name=component_name,
                 command_name=command_name,
                 value_name=value_name,
-                direct_value=direct_value
+                value=direct_value
             )
             
             if message:
+                logger.info(f"Sending command: {component_type}.{component_name}.{command_name} = {value_name} ({direct_value})")
                 return self.send_message(*message)
             else:
                 logger.error(f"Failed to create message for {component_path}.{command_name}")

@@ -572,8 +572,11 @@ function getSelectedValue(valueInput) {
 async function sendTestCommand(componentName, commandName, value, resultDiv) {
     const componentTypeSelect = document.getElementById('test-component-type');
     const componentType = componentTypeSelect.value;
+    const valueSelect = document.getElementById('test-value-enum');
+    const selectedOption = valueSelect.options[valueSelect.selectedIndex];
+    const valueName = selectedOption ? selectedOption.textContent : null;
     
-    console.log(`Sending test command: ${componentType}.${componentName}.${commandName} = ${value}`);
+    console.log(`Sending test command: ${componentType}.${componentName}.${commandName} = ${value} (${valueName})`);
     
     try {
         resultDiv.innerHTML = `<p>Sending command...</p>`;
@@ -587,7 +590,9 @@ async function sendTestCommand(componentName, commandName, value, resultDiv) {
                 component_type: componentType,
                 component_name: componentName,
                 command_name: commandName,
-                value: value
+                command_data: {}, // Empty object as default command data
+                value_name: valueName,
+                direct_value: value
             })
         });
         
@@ -600,7 +605,7 @@ async function sendTestCommand(componentName, commandName, value, resultDiv) {
         
         resultDiv.innerHTML = `
             <h4>Command Sent</h4>
-            <p>${componentType}.${componentName}.${commandName} = ${value}</p>
+            <p>${componentType}.${componentName}.${commandName} = ${valueName} (${value})</p>
             <pre>${JSON.stringify(result, null, 2)}</pre>
         `;
         

@@ -25,8 +25,7 @@ protocol_registry = ProtocolRegistry(pb_path=protocol_path)
 can_interface = CANInterfaceWrapper(
     node_id=0x01, 
     channel='can0', 
-    telemetry_store=telemetry_store,
-    protocol_registry=protocol_registry
+    telemetry_store=telemetry_store
 )
 
 # Configure logging
