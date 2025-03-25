@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Include common.pb.h to get the enum declarations
+#include "include/common.pb.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,11 +14,6 @@ extern "C" {
 // Forward declarations of C++ types for opaque pointer
 struct ProtobufCANInterface;
 typedef struct ProtobufCANInterface* can_interface_t;
-
-// enum declarations for common protocol types
-typedef enum kart_common_MessageType kart_common_MessageType;
-typedef enum kart_common_ComponentType kart_common_ComponentType;
-typedef enum kart_common_ValueType kart_common_ValueType;
 
 // Constructor and destructor
 can_interface_t can_interface_create(uint32_t node_id);
