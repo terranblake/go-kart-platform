@@ -8,8 +8,11 @@
 extern "C" {
 #endif
 
+// Forward declaration of ProtobufCANInterface
+struct ProtobufCANInterface;
+
 // Opaque handle type for CAN interface
-typedef void* can_interface_t;
+typedef struct ProtobufCANInterface* can_interface_t;
 
 // Constructor and destructor wrappers
 can_interface_t can_interface_create(uint32_t node_id);
