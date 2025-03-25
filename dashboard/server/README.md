@@ -1,97 +1,116 @@
 # Go-Kart Dashboard Server
 
-This server provides an interface for controlling and monitoring the Go-Kart platform via a CAN bus network.
+This is the backend server for the Go-Kart dashboard. It provides APIs for telemetry data, command sending, and protocol documentation.
 
 ## Features
 
-- CAN bus communication with the Go-Kart components
-- API for commanding the Go-Kart (steering, throttle, brakes, lights, etc.)
-- Real-time telemetry monitoring
-- Protocol exploration API
-- WebSocket for real-time updates to the dashboard UI
+- Real-time telemetry data via SocketIO
+- REST APIs for sending commands and retrieving state
+- Integration with the ProtobufCANInterface for CAN communication
+- Protocol documentation API
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.7 or higher
-- CAN interface (socketcan compatible)
-- Protocol Buffer compiler (protoc)
+- Python 3.6+
+- CAN interface (e.g., SocketCAN on Linux)
+- C++ compiler (for building the Cython extension)
 
-### Setting up the Environment
+### Setup
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/your-username/go-kart-platform.git
-   cd go-kart-platform
-   ```
+1. Clone the repository and navigate to the dashboard server directory:
 
-2. Install dependencies:
-   ```
-   cd dashboard/server
-   pip install -r requirements.txt
-   ```
-
-3. Build the Cython extension:
-   ```
-   pip install -e .
-   ```
-
-### Setting up the CAN Interface
-
-On Linux, you can set up a virtual CAN interface for testing:
-
-```
-sudo modprobe vcan
-sudo ip link add dev vcan0 type vcan
-sudo ip link set up vcan0
+```bash
+git clone https://github.com/yourusername/go-kart-platform.git
+cd go-kart-platform/dashboard/server
 ```
 
-For a real CAN interface:
+2. Create and activate a virtual environment:
 
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
-sudo ip link set can0 up type can bitrate 500000
+
+3. Install the package in development mode:
+
+```bash
+pip install -e .
 ```
+
+This will build the Cython extension for the CAN interface.
 
 ## Running the Server
 
-Start the server with:
+1. Make sure your CAN interface is set up. On Linux, you can set up a virtual CAN interface for testing:
 
+```bash
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set vcan0 up
 ```
+
+2. Start the server:
+
+```bash
 python app.py
 ```
 
-The server will be available at http://localhost:5000
+The server will start on port 5000 by default.
 
-## API Endpoints
-
-### Control Endpoints
-
-- `POST /api/command`: Send a control command (speed, steering, brake)
-- `POST /api/lights/<mode>`: Control the lights
+## API Documentation
 
 ### Telemetry Endpoints
 
-- `GET /api/telemetry`: Get current telemetry data
-- `GET /api/telemetry/history`: Get historical telemetry data
+- `GET /api/state` - Get the current state of the Go-Kart
+- `GET /api/history` - Get telemetry history
+- `GET /api/telemetry/status` - Get telemetry connection status
+
+### Command Endpoints
+
+- `POST /api/command` - Send a command to the Go-Kart
+- `GET /api/camera/status` - Get camera status
+- `GET /api/settings` - Get Go-Kart settings
+- `POST /api/settings` - Update Go-Kart settings
 
 ### Protocol Endpoints
 
-- `GET /api/protocol`: Get the complete protocol structure
-- `GET /api/protocol/<component_type>`: Get information about a specific component type
-- `GET /api/protocol/<component_type>/<component_name>`: Get information about a specific component
-- `GET /api/protocol/<component_type>/<component_name>/<command_name>`: Get information about a specific command
+- `GET /api/protocol` - Get the complete protocol structure
+- `GET /api/protocol/components/{component_name}` - Get information about a specific component
+- `GET /api/protocol/components/{component_name}/commands/{command_name}` - Get information about a specific command
+- `POST /api/send_command` - Send a command to the CAN bus
+  - Parameters: `component`, `command`, `value`
 
-## Protocol Structure
+## SocketIO Events
 
-The Go-Kart uses a custom CAN protocol implemented with Protocol Buffers. See `docs/protocol.md` for a detailed description of the protocol.
+- `state_update` - Emitted when the Go-Kart state changes
 
-## Testing
+## Development
 
-Run tests with:
+### Architecture
 
+- `app.py` - Main entry point and Flask application setup
+- `api/` - API endpoints
+- `lib/` - Backend libraries
+  - `can/` - CAN interface and protocol implementation
+  - `telemetry/` - Telemetry data processing
+
+### Building the Cython Extension
+
+If you modify the Cython code, you need to rebuild the extension:
+
+```bash
+pip install -e .
 ```
-pytest
+
+### Debugging
+
+To enable debug mode, set the `FLASK_ENV` environment variable to `development`:
+
+```bash
+export FLASK_ENV=development
+python app.py
 ```
 
 ## License

@@ -195,4 +195,41 @@ input:checked + .slider:before {
 }
 .signal-btn.active#signal-right {
     background-color: #ff9900;
+}
+/* Header and Navigation */
+header {
+  background-color: #4a90e2;
+  color: white;
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+nav {
+  margin-top: 0.5rem;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+nav a:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+nav a.active {
+  background-color: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
 } 

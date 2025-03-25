@@ -22,7 +22,6 @@ It is not responsible for:
 - starting the CANInterface
 - stopping the CANInterface
 """
-
 import logging
 import os
 import time
@@ -131,7 +130,7 @@ class CANInterfaceWrapper:
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store=None, protocol_registry=None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000):
         """
         Initialize the CAN interface.
         
@@ -139,20 +138,15 @@ class CANInterfaceWrapper:
             node_id (int): The CAN node ID for this device.
             channel (str): The CAN channel to use (can0, vcan0, etc.).
             baudrate (int): The CAN baudrate in bits/second.
-            telemetry_store (TelemetryStore, optional): Store for telemetry data.
-            protocol_registry (ProtocolRegistry, optional): Protocol registry to use.
         """
         self.node_id = node_id
         self.channel = channel
         self.baudrate = baudrate
-        self.telemetry_store = telemetry_store
         self.callbacks = []  # Store callbacks to prevent garbage collection
+        self.using_mock = not has_can_hardware
         
         # Load protocol definitions
-        if protocol_registry:
-            self.protocol_registry = protocol_registry
-        else:
-            self.protocol_registry = ProtocolRegistry()
+        self.protocol_registry = ProtocolRegistry()
         
         # Initialize lookup dictionaries for reverse mapping (numeric value to name)
         self.message_types_by_value = {v: k for k, v in self.protocol_registry.registry['message_types'].items()}
@@ -200,22 +194,8 @@ class CANInterfaceWrapper:
         logger.info(f"Received message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
                     f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
-        # Update telemetry store if available
-        if self.telemetry_store:
-            state_data = {
-                'message_type': msg_type_name,
-                'component_type': comp_type_name,
-                'component_id': comp_id,
-                'command_id': cmd_id,
-                'value_type': val_type_name,
-                'value': value,
-                'last_update': time.time()
-            }
-            
-            # Get current state, update it, and store back
-            from lib.telemetry.state import GoKartState
-            new_state = GoKartState().from_dict(state_data)
-            self.telemetry_store.update_state(new_state)
+        # Further processing can be added here
+        # For example, broadcasting the message via WebSocket to dashboard clients
     
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
@@ -298,6 +278,19 @@ class CANInterfaceWrapper:
             logger.error(f"Error sending command: {e}")
             return False
     
+    def send_emergency_stop(self, active=True):
+        """
+        Send an emergency stop command.
+        
+        Args:
+            active (bool): Whether to activate (True) or deactivate (False) the emergency stop.
+            
+        Returns:
+            bool: True if the message was sent successfully, False otherwise.
+        """
+        return self.send_command('controls.emergency', 'EMERGENCY', 
+                                direct_value=1 if active else 0)
+    
     def process(self):
         """Process any pending messages from the CAN bus"""
         if has_can_hardware:
@@ -333,3 +326,6 @@ class CANInterfaceWrapper:
         if hasattr(self, 'process_thread') and self.process_thread and self.process_thread.is_alive():
             self.process_thread.join(1.0)
             logger.info("Stopped automatic message processing")
+
+# Create a singleton instance of the CAN interface for use throughout the application
+can_interface = CANInterfaceWrapper(node_id=0x01, channel='can0') 

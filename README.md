@@ -27,9 +27,26 @@ The Go-Kart Platform creates a high-performance electric vehicle with a data-ric
   - **batteries/** - Battery management system
   - **inputs/** - User input processing (throttle, brake, steering)
   - **sensors/** - Various sensor implementations
+  - **common/lib/** - Common libraries
+    - **[ProtobufCANInterface/](components/common/lib/ProtobufCANInterface/README.md)** - Cross-platform Protocol Buffer CAN interface
 - **cluster/** - Kubernetes-based cloud infrastructure
 - **hardware/** - Hardware specifications and designs
 - **tools/** - Development and debugging tools
+
+## CAN Communication Interface
+
+The heart of the go-kart platform's communication system is the [ProtobufCANInterface](components/common/lib/ProtobufCANInterface/README.md), a cross-platform library that enables standardized messaging between all components using Protocol Buffers over CAN bus.
+
+### Key Features
+
+- Supports both Arduino (embedded) and non-Arduino (desktop) environments
+- Implements Protocol Buffer message encoding/decoding
+- Provides event-based message handling with callbacks
+- Offers comprehensive protocol for lights, motors, controls, and other systems
+- Includes detailed debugging support
+- Automatically tested via continuous integration
+
+To learn more about the available protocol commands and how to use them, see the [ProtobufCANInterface documentation](components/common/lib/ProtobufCANInterface/README.md).
 
 <details>
 ```
@@ -493,11 +510,3 @@ kubectl apply -f cluster/kubernetes/telemetry-api/
 # Set up Grafana dashboards
 kubectl apply -f cluster/grafana/
 ```
-
-## Contributing
-
-Contributions to the Go-Kart Platform are welcome! Please see our contributing guidelines for more information.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.

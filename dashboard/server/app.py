@@ -1,21 +1,30 @@
-import os
+"""
+Go-Kart Dashboard Server - Main entry point
+"""
+
 import threading
-from api.endpoints import app, socketio, command_generator, send_updates
+import logging
+from api.endpoints import app, socketio, send_updates
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
-    # Start update threads for SocketIO
-    update_thread = threading.Thread(target=send_updates, daemon=True)
-    update_thread.start()
+    logger.info("Starting Go-Kart Dashboard Server")
+    
+    # Start background thread for updates
+    thread = threading.Thread(target=send_updates, daemon=True)
+    thread.start()
+    logger.info("Started state update thread")
     
     try:
-        # Ensure network is up
-        try:
-            os.system('sudo ip link set can0 up type can bitrate 500000')
-        except:
-            print('CAN network check failed')
-            exit(1)
-            
-        # Start the server
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        # Start the web server
+        logger.info("Starting web server on port 5000")
+        socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        logger.info("Server shutdown requested by user")
+    except Exception as e:
+        logger.error(f"Error running server: {e}")
     finally:
-        print('socketio server shutdown')
+        logger.info("Server shutdown complete")

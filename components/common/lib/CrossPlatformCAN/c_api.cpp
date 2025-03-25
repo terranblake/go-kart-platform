@@ -115,4 +115,4 @@ void can_interface_process(can_interface_t handle) {
     
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     interface->process();
-} 
+}

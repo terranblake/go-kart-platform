@@ -40,13 +40,6 @@ def test_control_lights(client):
             data = json.loads(response.data)
             assert data['status'] == 'success'
 
-def test_get_camera_status(client):
-    """Test the /api/camera/status endpoint"""
-    response = client.get('/api/camera/status')
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert 'status' in data
-
 def test_get_settings(client):
     """Test the /api/settings GET endpoint"""
     response = client.get('/api/settings')

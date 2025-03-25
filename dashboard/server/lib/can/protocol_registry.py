@@ -20,29 +20,85 @@ import pkgutil
 import sys
 import logging
 from typing import Dict, Any, Optional, List, Tuple
+import os
 
 class ProtocolRegistry:
     """Dynamic registry for Protocol Buffer definitions that adapts to new component types"""
     
-    def __init__(self, pb_path: str = "./protocol/generated/python"):
+    def __init__(self, pb_path: str = None):
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.pb_path = pb_path
+        self.pb_path = self._resolve_protocol_path(pb_path)
         self.modules = {}
         self.registry = {}
         self._load_modules()
         self._build_registry()
         
+    def _resolve_protocol_path(self, pb_path: str = None) -> str:
+        """Intelligently find the protocol directory"""
+        
+        # If a path is provided and exists, use it
+        if pb_path and os.path.exists(pb_path):
+            self.logger.info(f"Using provided protocol path: {pb_path}")
+            return pb_path
+            
+        # Try common locations based on project structure
+        possible_paths = [
+            # Provided path or default
+            pb_path or "./protocol/generated/python",
+            
+            # Relative to current directory
+            os.path.join(os.getcwd(), "protocol", "generated", "python"),
+            
+            # Relative to server directory 
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+                         "protocol", "generated", "python"),
+            
+            # One level up from server directory (project root)
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 
+                         "protocol", "generated", "python"),
+        ]
+        
+        # Try each path
+        for path in possible_paths:
+            if os.path.exists(path):
+                self.logger.info(f"Found protocol directory at: {path}")
+                return path
+                
+        # If we get here, just return the provided path or default
+        # The _load_modules will handle the error case
+        self.logger.warning(f"Could not find protocol directory, using default: {pb_path or './protocol/generated/python'}")
+        return pb_path or "./protocol/generated/python"
+        
     def _load_modules(self) -> None:
         """Discover and load all Protocol Buffer modules"""
+        
+        self.logger.info(f"Adding protocol path to sys.path: {self.pb_path}")
         sys.path.append(self.pb_path)
+        
+        # Check if the directory exists
+        if not os.path.exists(self.pb_path):
+            self.logger.error(f"Protocol directory does not exist: {self.pb_path}")
+            return
+            
+        # List modules in the directory
+        modules_in_dir = [name for _, name, _ in pkgutil.iter_modules([self.pb_path])]
+        self.logger.info(f"Found modules in {self.pb_path}: {modules_in_dir}")
         
         for _, name, _ in pkgutil.iter_modules([self.pb_path]):
             if name.endswith('_pb2'):
                 try:
                     self.modules[name] = importlib.import_module(name)
-                    self.logger.debug(f"Loaded protocol module: {name}")
+                    self.logger.info(f"Loaded protocol module: {name}")
                 except ImportError as e:
                     self.logger.error(f"Failed to load {name}: {e}")
+                    # Try with absolute import
+                    try:
+                        full_name = f"{os.path.basename(self.pb_path)}.{name}"
+                        self.logger.info(f"Trying absolute import: {full_name}")
+                        self.modules[name] = importlib.import_module(full_name)
+                        self.logger.info(f"Loaded protocol module with absolute import: {name}")
+                    except ImportError as e2:
+                        self.logger.error(f"Absolute import also failed for {name}: {e2}")
     
     def _build_registry(self) -> None:
         """Build complete protocol registry from loaded modules"""
