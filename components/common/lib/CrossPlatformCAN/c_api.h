@@ -23,6 +23,7 @@ void can_interface_destroy(can_interface_t handle);
 bool can_interface_begin(can_interface_t handle, long baudrate, const char* device);
 void can_interface_register_handler(
     can_interface_t handle,
+    int msg_type,
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,

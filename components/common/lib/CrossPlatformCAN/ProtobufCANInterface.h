@@ -37,13 +37,17 @@ public:
   /**
    * Register a handler for specific message types
    * 
+   * @param msg_type Type of message to handle (command/status/etc)
    * @param type Component type to handle
    * @param component_id Component ID to handle (or 0xFF for all)
    * @param command_id Command ID to handle
    * @param handler Function to call when matching message is received
    */
-  void registerHandler(kart_common_ComponentType type, uint8_t component_id, 
-                      uint8_t command_id, MessageHandler handler);
+  void registerHandler(kart_common_MessageType msg_type,
+                      kart_common_ComponentType type, 
+                      uint8_t component_id, 
+                      uint8_t command_id, 
+                      MessageHandler handler);
   
   /**
    * Send a message over the CAN bus
@@ -90,6 +94,7 @@ public:
 
 private:
   struct HandlerEntry {
+    kart_common_MessageType msg_type;
     kart_common_ComponentType type;
     uint8_t component_id;
     uint8_t command_id;
@@ -145,6 +150,7 @@ bool can_interface_begin(can_interface_t handle, long baudrate, const char* devi
  * Register a handler for specific message types
  * 
  * @param handle Handle to the interface
+ * @param msg_type Type of message to handle (command/status/etc)
  * @param comp_type Component type to handle
  * @param component_id Component ID to handle (or 0xFF for all)
  * @param command_id Command ID to handle
@@ -152,6 +158,7 @@ bool can_interface_begin(can_interface_t handle, long baudrate, const char* devi
  */
 void can_interface_register_handler(
     can_interface_t handle,
+    int msg_type,
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,

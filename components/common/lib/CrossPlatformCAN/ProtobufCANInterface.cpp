@@ -22,22 +22,23 @@ bool ProtobufCANInterface::begin(long baudRate, const char* canDevice)
     return m_canInterface.begin(baudRate, canDevice);
 }
 
-void ProtobufCANInterface::registerHandler(kart_common_ComponentType type, 
+void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,
+                                          kart_common_ComponentType type, 
                                           uint8_t component_id, 
                                           uint8_t command_id, 
                                           MessageHandler handler)
 {
     if (m_numHandlers < MAX_HANDLERS) {
+        m_handlers[m_numHandlers].msg_type = msg_type;
         m_handlers[m_numHandlers].type = type;
         m_handlers[m_numHandlers].component_id = component_id;
         m_handlers[m_numHandlers].command_id = command_id;
         m_handlers[m_numHandlers].handler = handler;
         m_numHandlers++;
         
-#if DEBUG_MODE
-        logMessage("REGD", kart_common_MessageType_COMMAND, type, component_id, 
+        // Always log registrations, not just in debug mode
+        logMessage("REGD", msg_type, type, component_id, 
                   command_id, kart_common_ValueType_BOOLEAN, false);
-#endif
     }
 }
 
@@ -114,19 +115,20 @@ void ProtobufCANInterface::process()
                            msg.data[7];
     int32_t value = unpackValue(value_type, packed_value);
 
-    // Ignore status messages to prevent loops (optional)
-    if (msg_type == kart_common_MessageType_STATUS) {
-        return;
-    }
+    // Remove filtering of STATUS messages - we'll check message types in handler matching
+    // if (msg_type == kart_common_MessageType_STATUS) {
+    //     return;
+    // }
 
 #if DEBUG_MODE
     logMessage("RECV", msg_type, comp_type, component_id, command_id, value_type, value);
 #endif
 
-    // Find and execute matching handlers
+    // Find and execute matching handlers - now checking message type as well
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        if ((m_handlers[i].type == comp_type) &&
+        if ((m_handlers[i].msg_type == msg_type) &&
+            (m_handlers[i].type == comp_type) &&
             (m_handlers[i].component_id == component_id || m_handlers[i].component_id == 0xFF) &&
             (m_handlers[i].command_id == command_id)) {
             
