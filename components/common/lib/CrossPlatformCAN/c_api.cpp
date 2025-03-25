@@ -4,6 +4,9 @@
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
 
+// Define EXPORT macro for visibility
+#define EXPORT __attribute__((visibility("default")))
+
 // Store pointers to handler functions
 struct HandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
@@ -39,14 +42,14 @@ static void global_message_handler(kart_common_MessageType msg_type,
 extern "C" {
 
 // Constructor and destructor wrappers
-can_interface_t can_interface_create(uint32_t node_id) {
+EXPORT can_interface_t can_interface_create(uint32_t node_id) {
     printf("C API: can_interface_create called with node_id=0x%X\n", node_id);
     ProtobufCANInterface* interface = new ProtobufCANInterface(node_id);
     printf("C API: interface created at address %p\n", interface);
     return interface;
 }
 
-void can_interface_destroy(can_interface_t handle) {
+EXPORT void can_interface_destroy(can_interface_t handle) {
     printf("C API: can_interface_destroy called with handle=%p\n", handle);
     if (handle) {
         ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
@@ -58,7 +61,7 @@ void can_interface_destroy(can_interface_t handle) {
 }
 
 // Member function wrappers
-bool can_interface_begin(can_interface_t handle, long baudrate, const char* device) {
+EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const char* device) {
     printf("C API: can_interface_begin called with handle=%p, baudrate=%ld, device=%s\n", 
            handle, baudrate, device ? device : "null");
     if (!handle) {
@@ -72,7 +75,7 @@ bool can_interface_begin(can_interface_t handle, long baudrate, const char* devi
     return result;
 }
 
-void can_interface_register_handler(
+EXPORT void can_interface_register_handler(
     can_interface_t handle,
     int comp_type,
     uint8_t component_id,
@@ -106,7 +109,7 @@ void can_interface_register_handler(
     printf("C API: handler registered successfully\n");
 }
 
-bool can_interface_send_message(
+EXPORT bool can_interface_send_message(
     can_interface_t handle,
     int msg_type,
     int comp_type,
@@ -135,7 +138,7 @@ bool can_interface_send_message(
     return result;
 }
 
-void can_interface_process(can_interface_t handle) {
+EXPORT void can_interface_process(can_interface_t handle) {
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_process\n");
         return;
