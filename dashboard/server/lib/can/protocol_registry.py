@@ -115,46 +115,60 @@ class ProtocolRegistry:
         common_module = self.modules.get('common_pb2')
         if common_module:
             self._extract_common_enums(common_module)
-        
+            
         # Extract component-specific enums from other modules
         for name, module in self.modules.items():
             if name != 'common_pb2':
                 self._extract_component_enums(module)
+        
+        # Log the extracted registry for debugging
+        self.logger.info(f"Extracted message_types: {self.registry['message_types']}")
+        self.logger.info(f"Extracted component_types: {self.registry['component_types']}")
+        self.logger.info(f"Extracted value_types: {self.registry['value_types']}")
     
     def _extract_common_enums(self, module: Any) -> None:
         """Extract common message, component, and value type enums"""
-        common_enums = self._extract_all_enums(module)
-        
-        for path, enum_dict in common_enums.items():
-            if 'MessageType' in path:
-                self.registry['message_types'] = enum_dict
-            elif 'ComponentType' in path:
-                self.registry['component_types'] = enum_dict
-            elif 'ValueType' in path:
-                self.registry['value_types'] = enum_dict
+        try:
+            # Direct extraction of well-known enums
+            if hasattr(module, 'MessageType') and hasattr(module.MessageType, 'items'):
+                self.registry['message_types'] = dict(module.MessageType.items())
+                self.logger.info(f"Extracted MessageType enum: {self.registry['message_types']}")
+                
+            if hasattr(module, 'ComponentType') and hasattr(module.ComponentType, 'items'):
+                self.registry['component_types'] = dict(module.ComponentType.items())
+                self.logger.info(f"Extracted ComponentType enum: {self.registry['component_types']}")
+                
+            if hasattr(module, 'ValueType') and hasattr(module.ValueType, 'items'):
+                self.registry['value_types'] = dict(module.ValueType.items())
+                self.logger.info(f"Extracted ValueType enum: {self.registry['value_types']}")
+        except Exception as e:
+            self.logger.error(f"Error extracting common enums: {e}")
     
     def _extract_component_enums(self, module: Any) -> None:
         """Extract component-specific enums (component IDs, command IDs, values)"""
-        component_enums = self._extract_all_enums(module)
-        
-        # Determine component type from module name or content
-        component_type = self._determine_component_type(module)
-        if not component_type:
-            return
+        try:
+            # Determine component type from module name 
+            component_type = self._determine_component_type(module)
+            if not component_type:
+                return
+                
+            # Initialize component structures if needed
+            if component_type not in self.registry['components']:
+                self.registry['components'][component_type] = {}
+            if component_type not in self.registry['commands']:
+                self.registry['commands'][component_type] = {}
             
-        # Initialize component structures if needed
-        if component_type not in self.registry['components']:
-            self.registry['components'][component_type] = {}
-        if component_type not in self.registry['commands']:
-            self.registry['commands'][component_type] = {}
-        
-        # Process component-specific enums
-        for path, enum_dict in component_enums.items():
-            if 'ComponentId' in path:
-                self.registry['components'][component_type] = enum_dict
-            elif 'CommandId' in path:
-                # Extract command definitions and prepare command structure
-                for cmd_name, cmd_id in enum_dict.items():
+            # Extract ComponentId enum if it exists
+            if hasattr(module, 'ComponentId') and hasattr(module.ComponentId, 'items'):
+                self.registry['components'][component_type] = dict(module.ComponentId.items())
+                self.logger.info(f"Extracted {component_type} ComponentId enum: {self.registry['components'][component_type]}")
+                
+            # Extract CommandId enum if it exists
+            if hasattr(module, 'CommandId') and hasattr(module.CommandId, 'items'):
+                command_ids = dict(module.CommandId.items())
+                
+                # Create command entries
+                for cmd_name, cmd_id in command_ids.items():
                     if cmd_name not in self.registry['commands'][component_type]:
                         self.registry['commands'][component_type][cmd_name] = {
                             'id': cmd_id,
@@ -162,32 +176,53 @@ class ProtocolRegistry:
                         }
                     else:
                         self.registry['commands'][component_type][cmd_name]['id'] = cmd_id
-        
-        # Second pass to find command values
-        for path, enum_dict in component_enums.items():
-            if 'Value' in path and 'ValueType' not in path:
-                # Try to match value enum to a command
-                for cmd_name in self.registry['commands'][component_type]:
-                    if cmd_name in path:
-                        self.registry['commands'][component_type][cmd_name]['values'] = enum_dict
-                        break
+                        
+                self.logger.info(f"Extracted {component_type} CommandId enum with {len(command_ids)} commands")
+                
+            # Look for command-specific value enums
+            for attr_name in dir(module):
+                if attr_name.endswith('Value') and hasattr(module, attr_name) and hasattr(getattr(module, attr_name), 'items'):
+                    value_enum = getattr(module, attr_name)
+                    cmd_name = attr_name.replace('Value', '')
+                    
+                    # Find matching command
+                    for command in self.registry['commands'][component_type].keys():
+                        if command.upper() == cmd_name.upper():
+                            self.registry['commands'][component_type][command]['values'] = dict(value_enum.items())
+                            self.logger.info(f"Added values for command {command}: {self.registry['commands'][component_type][command]['values']}")
+                            break
+        except Exception as e:
+            self.logger.error(f"Error extracting component enums: {e}")
     
     def _determine_component_type(self, module: Any) -> Optional[str]:
         """Determine component type from module name or content"""
         module_name = module.__name__.lower()
         
+        # If common module, return None (it's not a component module)
+        if 'common' in module_name:
+            return None
+            
         # Extract from module name
-        for comp_type in self.registry['component_types']:
-            if comp_type.lower() in module_name:
-                return comp_type.lower()
+        for comp_type_name, comp_type_value in self.registry['component_types'].items():
+            if comp_type_name.lower() in module_name:
+                self.logger.info(f"Determined component type {comp_type_name} from module name {module_name}")
+                return comp_type_name.lower()
         
-        # Try to extract from enums inside module
-        enums = self._extract_all_enums(module)
-        for path in enums:
-            for comp_type in self.registry['component_types']:
-                if comp_type.lower() in path.lower():
-                    return comp_type.lower()
+        # If we couldn't determine from the name, check if there's a ComponentId enum
+        if hasattr(module, 'ComponentId'):
+            # Try to find a matching component type
+            for comp_type_name in self.registry['component_types'].keys():
+                if comp_type_name.lower() in module_name:
+                    self.logger.info(f"Determined component type {comp_type_name} from ComponentId in {module_name}")
+                    return comp_type_name.lower()
+            
+            # If we got here, use the module name without _pb2
+            comp_type = module_name.replace('_pb2', '').lower()
+            self.logger.info(f"Using module name as component type: {comp_type}")
+            return comp_type
         
+        # If we get here, we couldn't determine the component type
+        self.logger.warning(f"Could not determine component type for module {module_name}")
         return None
     
     def _extract_all_enums(self, obj: Any, path: str = "") -> Dict[str, Dict]:
