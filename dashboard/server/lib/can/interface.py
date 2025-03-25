@@ -147,6 +147,7 @@ class CANInterfaceWrapper:
         self.baudrate = baudrate
         self.telemetry_store = telemetry_store
         self.callbacks = []  # Store callbacks to prevent garbage collection
+        self._can_interface = None
         
         # Load protocol definitions
         self.protocol_registry = ProtocolRegistry()
@@ -159,13 +160,20 @@ class CANInterfaceWrapper:
         # Create and initialize the CAN interface or mock
         if has_can_hardware:
             logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
-            # Initialize the CAN interface
-            channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
-            success = lib.can_interface_begin(self._can_interface, baudrate, channel_cstr)
-            if not success:
-                logger.warning(f"Failed to initialize CAN interface on channel {channel}, but continuing anyway")
+            # Create the CAN interface first
+            self._can_interface = lib.can_interface_create(node_id)
+            if not self._can_interface:
+                logger.error("Failed to create CAN interface, falling back to mock mode")
+                has_can_hardware = False
+                self._can_interface = MockCANInterface(node_id)
             else:
-                logger.info(f"CAN interface initialized successfully on channel {channel}")
+                # Initialize the CAN interface
+                channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
+                success = lib.can_interface_begin(self._can_interface, baudrate, channel_cstr)
+                if not success:
+                    logger.warning(f"Failed to initialize CAN interface on channel {channel}, but continuing anyway")
+                else:
+                    logger.info(f"CAN interface initialized successfully on channel {channel}")
         else:
             logger.info(f"Creating mock CAN interface with node ID: {node_id}")
             self._can_interface = MockCANInterface(node_id)

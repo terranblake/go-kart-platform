@@ -56,6 +56,9 @@ class ProtocolRegistry:
             # One level up from server directory (project root)
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 
                          "protocol", "generated", "python"),
+                         
+            # Raspberry Pi specific path
+            "/home/pi/go-kart-platform/protocol/generated/python",
         ]
         
         # Try each path
