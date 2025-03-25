@@ -4,6 +4,8 @@
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
 
+extern "C" {
+
 // Constructor and destructor wrappers
 can_interface_t can_interface_create(uint32_t node_id) {
     printf("C API: can_interface_create called with node_id=0x%X\n", node_id);
@@ -116,3 +118,5 @@ void can_interface_process(can_interface_t handle) {
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     interface->process();
 }
+
+}  // extern "C"
