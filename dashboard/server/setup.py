@@ -90,7 +90,7 @@ def build_crossplatform_can():
                 "-I", include_dir,
                 "-I", nanopb_include_dir,
                 "-DPLATFORM_LINUX", "-DNON_ARDUINO", "-DDEBUG_MODE",
-                "CANInterface.cpp", "ProtobufCANInterface.cpp",
+                "CANInterface.cpp", "ProtobufCANInterface.cpp", "c_api.cpp",
                 "-o", "libCrossPlatformCAN.so"
             ]
             
