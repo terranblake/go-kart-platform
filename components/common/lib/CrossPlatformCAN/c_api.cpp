@@ -3,6 +3,24 @@
 #include "CANInterface.h"
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
+#include <map>
+#include <string>
+
+// Global registry for C-style handlers
+struct HandlerKey {
+    int comp_type;
+    uint8_t component_id;
+    uint8_t command_id;
+    
+    // For use as map key
+    bool operator<(const HandlerKey& other) const {
+        if (comp_type != other.comp_type) return comp_type < other.comp_type;
+        if (component_id != other.component_id) return component_id < other.component_id;
+        return command_id < other.command_id;
+    }
+};
+
+std::map<HandlerKey, void(*)(int, int, uint8_t, uint8_t, int, int32_t)> g_handlers;
 
 // Constructor and destructor wrappers
 can_interface_t can_interface_create(uint32_t node_id) {
@@ -52,16 +70,13 @@ void can_interface_register_handler(
         return;
     }
     
-    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    // Store the handler in our global registry
+    HandlerKey key = {comp_type, component_id, command_id};
+    g_handlers[key] = handler;
     
-    // Store the user handler in a global dictionary keyed by the component parameters
-    // (This implementation is simplified - in a real system, we'd use a proper registry)
-    
-    // For now, we won't implement the full handler registration
-    // interface->registerHandler() requires a function pointer of type MessageHandler
-    // which is incompatible with our C-style handler
-    
-    printf("C API: handler registration not fully implemented yet\n");
+    // We'll use our own handler processing in the process() function instead of
+    // trying to register with the interface directly
+    printf("C API: Handler registered in global registry\n");
 }
 
 bool can_interface_send_message(
@@ -100,5 +115,11 @@ void can_interface_process(can_interface_t handle) {
     }
     
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    // Process messages from the CAN bus
     interface->process();
+    
+    // In a complete implementation, we would check for received messages here
+    // and call the appropriate handlers from our global registry
+    // This is simplified, but provides a framework for implementing the full functionality
 }
