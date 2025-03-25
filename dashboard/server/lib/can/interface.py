@@ -237,9 +237,9 @@ class CANInterfaceWrapper:
                     # convert the type, command, and value to their numeric values
                     comp_type = self.protocol_registry.get_component_type(component_type)
                     cmd_id = self.protocol_registry.get_command_id(component_type, command)
-                    val_id = self.protocol_registry.get_command_value(component_type, command, value)
 
-                    self.register_handler(comp_type, cmd_id, val_id, self._handle_message)
+                    # listen for messages from all component ids of this type sending this command
+                    self.register_handler(comp_type, 255, cmd_id, self._handle_message)
     
     def register_handler(self, comp_type, comp_id, cmd_id, handler):
         """
@@ -253,6 +253,10 @@ class CANInterfaceWrapper:
         """
         if isinstance(comp_type, str):
             comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
+
+        if not comp_type or not cmd_id:
+            self.logger.info(f"Failed to get component type, component id, or value id for {comp_type}, {comp_id}, {cmd_id}")
+            return
 
         self.logger.info(f"Registering handler for {comp_type}, {comp_id}, {cmd_id}")
 
