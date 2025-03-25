@@ -22,14 +22,12 @@ bool ProtobufCANInterface::begin(long baudRate, const char* canDevice)
     return m_canInterface.begin(baudRate, canDevice);
 }
 
-void ProtobufCANInterface::registerHandler(kart_common_MessageType message_type,
-                                          kart_common_ComponentType type, 
+void ProtobufCANInterface::registerHandler(kart_common_ComponentType type, 
                                           uint8_t component_id, 
                                           uint8_t command_id, 
                                           MessageHandler handler)
 {
     if (m_numHandlers < MAX_HANDLERS) {
-        m_handlers[m_numHandlers].message_type = message_type;
         m_handlers[m_numHandlers].type = type;
         m_handlers[m_numHandlers].component_id = component_id;
         m_handlers[m_numHandlers].command_id = command_id;
@@ -37,15 +35,9 @@ void ProtobufCANInterface::registerHandler(kart_common_MessageType message_type,
         m_numHandlers++;
         
 #if DEBUG_MODE
-        logMessage("REGD", message_type, type, component_id, 
+        logMessage("REGD", kart_common_MessageType_COMMAND, type, component_id, 
                   command_id, kart_common_ValueType_BOOLEAN, false);
 #endif
-        // Always log handler registration (even without DEBUG_MODE)
-        printf("Registered handler: MsgType=%d, CompType=%d, CompID=%u, CmdID=%u\n",
-               (int)message_type, (int)type, component_id, command_id);
-    }
-    else {
-        printf("WARNING: Maximum number of handlers (%d) reached, cannot register more\n", MAX_HANDLERS);
     }
 }
 
@@ -122,7 +114,10 @@ void ProtobufCANInterface::process()
                            msg.data[7];
     int32_t value = unpackValue(value_type, packed_value);
 
-    // NOTE: Removed STATUS message filtering - now processing all message types
+    // Ignore status messages to prevent loops (optional)
+    if (msg_type == kart_common_MessageType_STATUS) {
+        return;
+    }
 
 #if DEBUG_MODE
     logMessage("RECV", msg_type, comp_type, component_id, command_id, value_type, value);
@@ -131,13 +126,8 @@ void ProtobufCANInterface::process()
     // Find and execute matching handlers
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        // Check if message type matches (or handler accepts any message type)
-        if ((m_handlers[i].message_type == msg_type || m_handlers[i].message_type == MESSAGE_TYPE_ANY) &&
-            // Check if component type matches
-            (m_handlers[i].type == comp_type) &&
-            // Check if component ID matches (or handler accepts any component ID with 0xFF)
+        if ((m_handlers[i].type == comp_type) &&
             (m_handlers[i].component_id == component_id || m_handlers[i].component_id == 0xFF) &&
-            // Check if command ID matches
             (m_handlers[i].command_id == command_id)) {
             
             handlerFound = true;

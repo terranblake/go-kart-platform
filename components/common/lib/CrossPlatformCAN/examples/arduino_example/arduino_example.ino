@@ -67,13 +67,10 @@ void setup() {
   }
   
   // Register message handler
-  canInterface.registerHandler(
-    kart_common_MessageType_COMMAND,       // Message type (COMMAND only)
-    kart_common_ComponentType_LIGHTS,      // Component type
-    0x01,                                  // Component ID
-    0x01,                                  // Command ID
-    messageHandler                         // Handler function
-  );
+  canInterface.registerHandler(kart_common_ComponentType_LIGHTS, // Component type
+                              0x01,                             // Component ID
+                              0x01,                             // Command ID
+                              messageHandler);                  // Handler function
   
   Serial.println("CAN Interface initialized successfully!");
 }
