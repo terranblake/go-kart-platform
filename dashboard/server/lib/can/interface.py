@@ -245,6 +245,7 @@ class CANInterfaceWrapper:
         Register a message handler for a specific message type.
         
         Args:
+            message_type (str/int): The message type (e.g., 'COMMAND', 'STATUS')
             comp_type (int): The component type ID.
             comp_id (int): The component ID.
             cmd_id (int): The command ID.
@@ -257,18 +258,18 @@ class CANInterfaceWrapper:
             self.logger.info(f"Failed to get component type, component id, or value id for {comp_type}, {comp_id}, {cmd_id}")
             return
 
-        self.logger.info(f"Registering handler for {comp_type}, {comp_id}, {cmd_id}")
+        self.logger.info(f"Registering handler for message_type={message_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
 
         message_type = self.protocol_registry.get_message_type(message_type)
         if self.has_can_hardware:
-            # Create a CFFI callback function
+            # Create a CFFI callback function - make sure signature matches C API
             cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
             lib.can_interface_register_handler(self._can_interface, message_type, comp_type, comp_id, cmd_id, cb)
         else:
-            self._can_interface.register_handler(comp_type, comp_id, cmd_id, handler)
+            self._can_interface.register_handler(message_type, comp_type, comp_id, cmd_id, handler)
     
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """
