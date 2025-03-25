@@ -21,7 +21,7 @@ sed -i 's|#include "nanopb/pb.h"|#include "include/nanopb/pb.h"|g' include/*.pb.
 
 # Compile with proper flags for shared library and exported symbols
 echo "Compiling library with DEBUG_MODE=1 and PLATFORM_LINUX defined..."
-gcc -shared -fPIC -Wall -Wextra \
+g++ -shared -fPIC -Wall -Wextra \
     -I. \
     -I./include \
     -D__linux__ \
@@ -30,6 +30,7 @@ gcc -shared -fPIC -Wall -Wextra \
     -o build/$LIBRARY \
     CANInterface.cpp \
     ProtobufCANInterface.cpp \
+    c_api.cpp \
     -lstdc++
 
 # Restore the header file
