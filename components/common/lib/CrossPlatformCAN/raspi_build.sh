@@ -21,7 +21,7 @@ sed -i 's|#include "nanopb/pb.h"|#include "include/nanopb/pb.h"|g' include/*.pb.
 
 # Compile with proper flags for shared library and exported symbols
 echo "Compiling library with DEBUG_MODE=1 and PLATFORM_LINUX defined..."
-g++ -shared -fPIC -Wall -Wextra \
+gcc -shared -fPIC -Wall -Wextra \
     -I. \
     -I./include \
     -D__linux__ \
