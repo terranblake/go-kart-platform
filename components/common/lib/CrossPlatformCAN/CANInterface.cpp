@@ -49,6 +49,11 @@ bool CANInterface::begin(long baudRate, const char* canDevice) {
   printf("Debug: Socket set to non-blocking mode\n");
   
   return true;
+#elif defined PLATFORM_WINDOWS
+  // Windows implementation (minimal for testing)
+  (void)baudRate;
+  (void)canDevice;
+  return true;
 #endif
 }
 
@@ -61,6 +66,8 @@ void CANInterface::end() {
     m_socket = -1;
     printf("Debug: Socket closed\n");
   }
+#elif defined PLATFORM_WINDOWS
+  // Nothing to do for Windows mock
 #endif
 }
 
@@ -134,6 +141,10 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   
   printf("Debug: Successfully wrote %d bytes to socket\n", nbytes);
   return true;
+#elif defined PLATFORM_WINDOWS
+  // Windows implementation (minimal for testing)
+  (void)msg; // Prevent unused parameter warning
+  return true;
 #endif
   
   return false;
@@ -149,6 +160,9 @@ bool CANInterface::messageAvailable() {
   
   struct timeval timeout = {0, 0}; // Zero timeout for non-blocking
   return (select((m_socket + 1), &readSet, NULL, NULL, &timeout) > 0);
+#elif defined PLATFORM_WINDOWS
+  // Windows implementation (minimal for testing)
+  return false;
 #endif
   
   return false;
@@ -221,6 +235,10 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   }
   
   return true;
+#elif defined PLATFORM_WINDOWS
+  // Windows implementation (minimal for testing)
+  (void)msg; // Prevent unused parameter warning
+  return false;
 #endif
   
   return false;

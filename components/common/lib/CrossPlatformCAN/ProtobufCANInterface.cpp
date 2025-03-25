@@ -95,6 +95,7 @@ void ProtobufCANInterface::process()
     
     // Message must be 8 bytes for our protocol
     if (msg.length != 8) {
+        printf("ProtobufCANInterface: Received message length is not 8 bytes. Is %d bytes", msg.length);
         return;
     }
 
@@ -115,6 +116,7 @@ void ProtobufCANInterface::process()
     int32_t value = unpackValue(value_type, packed_value);
 
     // Ignore status messages to prevent loops (optional)
+    // needs to be updated so only the rpi receives status messages
     if (msg_type == kart_common_MessageType_STATUS) {
         return;
     }
@@ -135,8 +137,8 @@ void ProtobufCANInterface::process()
         }
     }
 
-    // Echo status if this was a command (optional)
-    if (msg_type == kart_common_MessageType_COMMAND) {
+    // Echo status if this was a command that we processed
+    if (msg_type == kart_common_MessageType_COMMAND && handlerFound) {
         sendMessage(kart_common_MessageType_STATUS, comp_type, component_id, command_id, value_type, value);
     }
 }

@@ -31,8 +31,14 @@
   #include <linux/can.h>
   #include <linux/can/raw.h>
   #define PLATFORM_LINUX
+#elif defined(_WIN32) || defined(_WIN64) || defined(__MINGW32__) || defined(__MINGW64__)
+  // Windows platform - for testing only
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #define PLATFORM_WINDOWS
 #else
-  #error "Unsupported platform - must be either Arduino or Linux"
+  #error "Unsupported platform - must be either Arduino, Linux, or Windows (for testing)"
 #endif
 
 // Common CAN message structure
