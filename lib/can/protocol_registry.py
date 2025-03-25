@@ -249,6 +249,8 @@ class ProtocolRegistry:
         int_cmd_id = self.get_command_id(component_type, command_name)
         int_value_type = self.get_value_type(value_name)
 
+        # int_message_type, int_comp_type, int_comp_id, int_cmd_id, int_value_type, value
+        print(f"int_message_type: {int_message_type}, int_comp_type: {int_comp_type}, int_comp_id: {int_comp_id}, int_cmd_id: {int_cmd_id}, int_value_type: {int_value_type}, value: {value}")
         message = [int_message_type, int_comp_type, int_comp_id, int_cmd_id, int_value_type, value]
         return message
         
