@@ -202,13 +202,9 @@ class ProtocolRegistry:
                 component_ids = dict(component_id_enum.items())
                 self.logger.debug(f"Component IDs for {component_type}: {component_ids}")
                 
-                # For each component ID, create a component entry
+                # For each component ID, create a component entry (including ALL)
                 for comp_name, comp_id in component_ids.items():
-                    # Skip special ALL component
-                    if comp_name == 'ALL':
-                        continue
-                        
-                    # Store component ID directly, not in a nested dictionary
+                    # Store component ID directly, including the 'ALL' component
                     self.registry['components'][component_type][comp_name] = comp_id
                     self.logger.debug(f"Added component {comp_name} (ID: {comp_id}) to {component_type}")
             
@@ -245,6 +241,10 @@ class ProtocolRegistry:
                         'values': {}
                     }
                     
+                    # Explicitly ensure animation commands are included
+                    if component_type == 'lights' and cmd_name.startswith('ANIMATION_'):
+                        self.logger.info(f"Added animation command {cmd_name} with ID {cmd_id} to lights commands")
+                    
                     # If we have a value enum for this command, add the values
                     if cmd_name in command_to_value_map:
                         values_dict = dict(command_to_value_map[cmd_name].items())
@@ -255,8 +255,34 @@ class ProtocolRegistry:
                 
                 self.logger.debug(f"Added {len(command_ids)} commands to component type {component_type}")
                 
+            # Verify that animation commands are included for lights component
+            if component_type == 'lights':
+                self._ensure_animation_commands_exist(component_type)
+                
         except Exception as e:
             self.logger.error(f"Error extracting component enums: {e}", exc_info=True)
+    
+    def _ensure_animation_commands_exist(self, component_type):
+        """Ensure animation commands exist in the registry"""
+        animation_commands = {
+            'ANIMATION_START': 10,
+            'ANIMATION_FRAME': 11,
+            'ANIMATION_END': 12,
+            'ANIMATION_STOP': 13
+        }
+        
+        for cmd_name, cmd_id in animation_commands.items():
+            if cmd_name not in self.registry['commands'][component_type]:
+                self.logger.info(f"Adding missing animation command {cmd_name} with ID {cmd_id}")
+                self.registry['commands'][component_type][cmd_name] = {
+                    'id': cmd_id,
+                    'values': {}
+                }
+        
+        # Also ensure ALL component is registered
+        if 'ALL' not in self.registry['components'][component_type]:
+            self.logger.info(f"Adding missing ALL component with ID 255 to {component_type}")
+            self.registry['components'][component_type]['ALL'] = 255
     
     def _determine_component_type(self, module: Any) -> Optional[str]:
         """Determine component type from module name or content"""
