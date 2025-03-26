@@ -12,6 +12,7 @@ from api.telemetry import register_telemetry_routes
 from api.commands import register_command_routes
 from api.direct_commands import register_direct_command_routes
 from api.protocol import register_protocol_routes
+from api.animations import register_animation_routes
 from lib.can.protocol_registry import ProtocolRegistry
 from lib.telemetry.store import TelemetryStore
 
@@ -73,6 +74,7 @@ register_telemetry_routes(app, telemetry_store, can_interface)
 register_command_routes(app, can_interface)
 register_direct_command_routes(app, can_interface)
 register_protocol_routes(app, protocol_registry)
+register_animation_routes(app, can_interface)
 
 # Socket.IO handlers
 @socketio.on('connect')

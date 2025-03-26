@@ -7,12 +7,43 @@
 #include "lights.pb.h"
 #include "controls.pb.h"
 
+// Animation related constants
+#define MAX_ANIMATION_FRAMES 30
+#define MAX_LEDS_PER_FRAME 60
+
+// Structure to hold LED data for animation frames
+struct LedData {
+  uint8_t x;
+  uint8_t y;
+  CRGB color;
+};
+
+// Animation frame structure
+struct AnimationFrame {
+  uint8_t numLeds;
+  LedData leds[MAX_LEDS_PER_FRAME];
+};
+
+// Animation structure
+struct Animation {
+  bool active;
+  uint8_t numFrames;
+  uint8_t currentFrame;
+  uint16_t frameDelay;
+  unsigned long lastFrameTime;
+  AnimationFrame frames[MAX_ANIMATION_FRAMES];
+};
+
 // Global state variables
 LightState lightState{};
 bool testModeActive = false;
 CRGB leds[NUM_LEDS];
 bool updateFrontLights = true; // Default to updating front lights
 bool locationSelected = false; // whether the primary controller has told this secondary which lights it controls
+
+// Animation state
+Animation currentAnimation;
+bool animationMode = false;
 
 // Animation and turn signal timing variables
 unsigned long lastTurnUpdate = 0;
@@ -22,6 +53,12 @@ unsigned long lastTurnToggle;
 unsigned long lastSweepUpdate;
 
 void setupLightsForTesting();
+void updateAnimation();
+void clearAnimation();
+void handleAnimationStart(kart_common_MessageType msg_type, kart_common_ComponentType comp_type, uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type, int32_t value);
+void handleAnimationFrame(kart_common_MessageType msg_type, kart_common_ComponentType comp_type, uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type, const void* data, size_t data_size);
+void handleAnimationEnd(kart_common_MessageType msg_type, kart_common_ComponentType comp_type, uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type, int32_t value);
+void handleAnimationStop(kart_common_MessageType msg_type, kart_common_ComponentType comp_type, uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type, int32_t value);
 
 // todo: this should be pulled from EEPROM as a unique id
 ProtobufCANInterface canInterface(0x01);
@@ -50,12 +87,22 @@ void setup()
   // Initialize all light states to default
   lightState.mode = 0; // Lights disabled by default
   clearLights(leds, NUM_LEDS);
+  
+  // Initialize animation state
+  clearAnimation();
 
+  // Register standard light handlers
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_CONTROLS, kart_controls_ControlComponentId_DIAGNOSTIC, kart_controls_ControlCommandId_MODE, handleLightTest);
 
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_MODE, handleLightMode);
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_SIGNAL, handleLightSignal);
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_BRAKE, handleLightBrake);
+
+  // Register animation handlers
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_ANIMATION_START, handleAnimationStart);
+  canInterface.registerBinaryHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_ANIMATION_FRAME, handleAnimationFrame);
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_ANIMATION_END, handleAnimationEnd);
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_ANIMATION_STOP, handleAnimationStop);
 
   // todo: remove these in favor of EEPROM-supported node identification
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
@@ -72,8 +119,13 @@ void loop()
 {
   if (!testModeActive)
   {
-    // Update light states based on current settings
-    updateLights(leds, NUM_LEDS, lightState);
+    if (animationMode && currentAnimation.active) {
+      // Update animation if active
+      updateAnimation();
+    } else {
+      // Update light states based on current settings
+      updateLights(leds, NUM_LEDS, lightState);
+    }
 
     // Show the updated lights
     FastLED.show();
@@ -825,6 +877,165 @@ void executeSerialCommand(const char *command)
   {
     Serial.println(F("Unsupported command"));
   }
+}
+
+// Function to clear animation data
+void clearAnimation() {
+  currentAnimation.active = false;
+  currentAnimation.numFrames = 0;
+  currentAnimation.currentFrame = 0;
+  currentAnimation.frameDelay = 100;  // Default to 100ms
+  currentAnimation.lastFrameTime = 0;
+  animationMode = false;
+  
+  // Clear all frames
+  for (int i = 0; i < MAX_ANIMATION_FRAMES; i++) {
+    currentAnimation.frames[i].numLeds = 0;
+  }
+}
+
+// Function to update animation
+void updateAnimation() {
+  unsigned long currentTime = millis();
+  
+  // Check if it's time to advance to the next frame
+  if (currentTime - currentAnimation.lastFrameTime >= currentAnimation.frameDelay) {
+    // Move to next frame
+    currentAnimation.currentFrame = (currentAnimation.currentFrame + 1) % currentAnimation.numFrames;
+    currentAnimation.lastFrameTime = currentTime;
+    
+    // Clear all LEDs
+    clearLights(leds, NUM_LEDS);
+    
+    // Apply the current frame's LED data
+    AnimationFrame& frame = currentAnimation.frames[currentAnimation.currentFrame];
+    for (int i = 0; i < frame.numLeds; i++) {
+      LedData& led = frame.leds[i];
+      
+      // Calculate LED index based on x, y coordinates
+      int index = led.x;
+      
+      // Only set the LED if it's within our strip
+      if (index >= 0 && index < NUM_LEDS) {
+        leds[index] = led.color;
+      }
+    }
+  }
+}
+
+// Handler for ANIMATION_START command
+void handleAnimationStart(kart_common_MessageType msg_type,
+                        kart_common_ComponentType comp_type,
+                        uint8_t component_id,
+                        uint8_t command_id,
+                        kart_common_ValueType value_type,
+                        int32_t value) {
+  // Initialize a new animation
+  clearAnimation();
+  
+  // Set animation mode to true (will override normal lighting)
+  animationMode = true;
+  
+  Serial.println(F("Animation Start"));
+}
+
+// Handler for ANIMATION_FRAME command (binary data)
+void handleAnimationFrame(kart_common_MessageType msg_type,
+                       kart_common_ComponentType comp_type,
+                       uint8_t component_id,
+                       uint8_t command_id,
+                       kart_common_ValueType value_type,
+                       const void* data,
+                       size_t data_size) {
+  // Ensure we don't exceed maximum frames
+  if (currentAnimation.numFrames >= MAX_ANIMATION_FRAMES) {
+    Serial.println(F("Too many animation frames, ignoring"));
+    return;
+  }
+  
+  // Parse the frame data from the binary payload
+  // For simplicity, we'll assume a simple format where the data consists of:
+  // [frame_index (1 byte), num_leds (1 byte), led_data (variable)]
+  // Each led_data entry is: [x (1 byte), y (1 byte), r (1 byte), g (1 byte), b (1 byte)]
+  
+  const uint8_t* bytes = (const uint8_t*)data;
+  
+  if (data_size < 2) {
+    Serial.println(F("Invalid frame data size"));
+    return;
+  }
+  
+  uint8_t frameIndex = bytes[0];
+  uint8_t numLeds = bytes[1];
+  
+  // Check if we have enough data for all LEDs
+  if (data_size < 2 + (numLeds * 5)) {
+    Serial.println(F("Invalid LED data size"));
+    return;
+  }
+  
+  // Ensure we don't exceed maximum LEDs per frame
+  if (numLeds > MAX_LEDS_PER_FRAME) {
+    numLeds = MAX_LEDS_PER_FRAME;
+  }
+  
+  AnimationFrame& frame = currentAnimation.frames[frameIndex];
+  frame.numLeds = numLeds;
+  
+  // Parse LED data
+  for (int i = 0; i < numLeds; i++) {
+    const uint8_t* ledData = bytes + 2 + (i * 5);
+    
+    frame.leds[i].x = ledData[0];
+    frame.leds[i].y = ledData[1];
+    frame.leds[i].color = CRGB(ledData[2], ledData[3], ledData[4]);
+  }
+  
+  // Update number of frames if needed
+  if (frameIndex >= currentAnimation.numFrames) {
+    currentAnimation.numFrames = frameIndex + 1;
+  }
+  
+  Serial.print(F("Received frame "));
+  Serial.print(frameIndex);
+  Serial.print(F(" with "));
+  Serial.print(numLeds);
+  Serial.println(F(" LEDs"));
+}
+
+// Handler for ANIMATION_END command
+void handleAnimationEnd(kart_common_MessageType msg_type,
+                      kart_common_ComponentType comp_type,
+                      uint8_t component_id,
+                      uint8_t command_id,
+                      kart_common_ValueType value_type,
+                      int32_t value) {
+  // value contains the number of frames
+  if (value > 0 && value <= MAX_ANIMATION_FRAMES) {
+    currentAnimation.numFrames = value;
+  }
+  
+  // Set animation as active
+  currentAnimation.active = true;
+  currentAnimation.currentFrame = 0;
+  currentAnimation.lastFrameTime = millis();
+  
+  Serial.print(F("Animation End - Playing with "));
+  Serial.print(currentAnimation.numFrames);
+  Serial.println(F(" frames"));
+}
+
+// Handler for ANIMATION_STOP command
+void handleAnimationStop(kart_common_MessageType msg_type,
+                       kart_common_ComponentType comp_type,
+                       uint8_t component_id,
+                       uint8_t command_id,
+                       kart_common_ValueType value_type,
+                       int32_t value) {
+  // Disable animation mode and clear animation data
+  clearAnimation();
+  
+  Serial.println(F("Animation Stopped"));
 }
 
 #endif

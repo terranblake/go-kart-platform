@@ -425,4 +425,102 @@ socket.on('state_update', (state) => {
         testToggle.checked = state.light_test === 1;
         testStatus.textContent = state.light_test === 1 ? 'On' : 'Off';
     }
+});
+
+// Animation control elements
+const animationSelect = document.getElementById('animation-select');
+const animationPlay = document.getElementById('animation-play');
+const animationStop = document.getElementById('animation-stop');
+const animationSpeed = document.getElementById('animation-speed');
+const animationSpeedValue = document.getElementById('animation-speed-value');
+
+// Load available animations
+fetch('/api/animation/list')
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Group animations by source
+            const animationsBySource = {};
+            
+            data.animations.forEach(animation => {
+                if (!animationsBySource[animation.source]) {
+                    animationsBySource[animation.source] = [];
+                }
+                animationsBySource[animation.source].push(animation);
+            });
+            
+            // Create option groups for each source
+            for (const [source, animations] of Object.entries(animationsBySource)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = source.charAt(0).toUpperCase() + source.slice(1);
+                
+                animations.forEach(animation => {
+                    const option = document.createElement('option');
+                    option.value = animation.id;
+                    option.textContent = animation.name;
+                    optgroup.appendChild(option);
+                });
+                
+                animationSelect.appendChild(optgroup);
+            }
+        } else {
+            console.error('Failed to load animations:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading animations:', error);
+    });
+
+// Update speed display when slider changes
+animationSpeed.addEventListener('input', () => {
+    animationSpeedValue.textContent = `${animationSpeed.value} ms`;
+});
+
+// Play animation button
+animationPlay.addEventListener('click', () => {
+    const selectedAnimation = animationSelect.value;
+    if (!selectedAnimation) {
+        alert('Please select an animation first');
+        return;
+    }
+    
+    fetch('/api/animation/play', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            id: selectedAnimation,
+            speed: parseInt(animationSpeed.value)
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            console.error('Error playing animation:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending animation command:', error);
+    });
+});
+
+// Stop animation button
+animationStop.addEventListener('click', () => {
+    fetch('/api/animation/stop', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            console.error('Error stopping animation:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending stop command:', error);
+    });
 }); 

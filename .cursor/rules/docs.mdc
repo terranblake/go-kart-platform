@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+you can find docs in a README.md format at each major component of the project. e.g. components/common/lib/CrossPlatformCAN, dashboard/server/README.md, and at the project root
+
+after every commit in the relevant project space, go ahead and review the docs if the task added or changed capability, and the same goes for changes to a build or test process
