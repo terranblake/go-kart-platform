@@ -19,7 +19,7 @@
 
 // We must define SERIAL_COMMAND_BUFFER_SIZE to something, even if small
 #ifndef SERIAL_COMMAND_BUFFER_SIZE
-#define SERIAL_COMMAND_BUFFER_SIZE 16
+#define SERIAL_COMMAND_BUFFER_SIZE 0
 #endif
 
 // Define the buffer if it's needed
@@ -34,14 +34,14 @@ struct LedData {
 #else
 // Original unoptimized values
 #ifndef MAX_ANIMATION_FRAMES
-#define MAX_ANIMATION_FRAMES 30
+#define MAX_ANIMATION_FRAMES 2
 #endif
 #ifndef MAX_LEDS_PER_FRAME
-#define MAX_LEDS_PER_FRAME 60
+#define MAX_LEDS_PER_FRAME 2
 #endif
 
 #ifndef SERIAL_COMMAND_BUFFER_SIZE
-#define SERIAL_COMMAND_BUFFER_SIZE 64
+#define SERIAL_COMMAND_BUFFER_SIZE 1
 #endif
 
 // Define the buffer with original size
@@ -159,10 +159,23 @@ void setup()
 
 void loop()
 {
+  static unsigned long lastDebugTime = 0;
+  unsigned long currentTime = millis();
+  
   if (!testModeActive)
   {
+    // Debug animation state every second
+    if (currentTime - lastDebugTime > 1000) {
+      DEBUG_PRINT(F("Animation state: mode="));
+      DEBUG_PRINT(animationMode);
+      DEBUG_PRINT(F(", active="));
+      DEBUG_PRINTLN(currentAnimation.active);
+      lastDebugTime = currentTime;
+    }
+    
     if (animationMode && currentAnimation.active) {
       // Update animation if active
+      DEBUG_PRINTLN(F("Running animation update"));
       updateAnimation();
     } else {
       // Update light states based on current settings
@@ -921,6 +934,8 @@ void executeSerialCommand(const char *command)
   }
 }
 
+#endif
+
 // Function to clear animation data
 void clearAnimation() {
   currentAnimation.active = false;
@@ -941,12 +956,25 @@ void updateAnimation() {
   unsigned long currentTime = millis();
   
   if (currentTime - currentAnimation.lastFrameTime >= currentAnimation.frameDelay) {
+    uint8_t previousFrame = currentAnimation.currentFrame;
     currentAnimation.currentFrame = (currentAnimation.currentFrame + 1) % currentAnimation.numFrames;
     currentAnimation.lastFrameTime = currentTime;
+    
+    DEBUG_PRINT(F("Animation: Frame "));
+    DEBUG_PRINT(previousFrame);
+    DEBUG_PRINT(F(" -> "));
+    DEBUG_PRINT(currentAnimation.currentFrame);
+    DEBUG_PRINT(F(" (of "));
+    DEBUG_PRINT(currentAnimation.numFrames);
+    DEBUG_PRINTLN(F(")"));
     
     clearLights(leds, NUM_LEDS);
     
     AnimationFrame& frame = currentAnimation.frames[currentAnimation.currentFrame];
+    DEBUG_PRINT(F("Showing "));
+    DEBUG_PRINT(frame.numLeds);
+    DEBUG_PRINTLN(F(" LEDs"));
+    
     for (int i = 0; i < frame.numLeds; i++) {
       LedData& led = frame.leds[i];
       
@@ -960,6 +988,22 @@ void updateAnimation() {
       
       if (index >= 0 && index < NUM_LEDS) {
         leds[index] = led.color;
+        DEBUG_PRINT(F("LED "));
+        DEBUG_PRINT(i);
+        DEBUG_PRINT(F(" at pos "));
+        DEBUG_PRINT(index);
+        DEBUG_PRINT(F(" set to R:"));
+        DEBUG_PRINT(led.color.r);
+        DEBUG_PRINT(F(" G:"));
+        DEBUG_PRINT(led.color.g);
+        DEBUG_PRINT(F(" B:"));
+        DEBUG_PRINTLN(led.color.b);
+      } else {
+        DEBUG_PRINT(F("LED "));
+        DEBUG_PRINT(i);
+        DEBUG_PRINT(F(" pos "));
+        DEBUG_PRINT(index);
+        DEBUG_PRINTLN(F(" out of range!"));
       }
     }
   }
@@ -1072,12 +1116,16 @@ void handleAnimationEnd(kart_common_MessageType msg_type,
   
   // Set animation as active
   currentAnimation.active = true;
+  animationMode = true;  // Make sure animationMode is explicitly set
   currentAnimation.currentFrame = 0;
   currentAnimation.lastFrameTime = millis();
   
   DEBUG_PRINT(F("Animation End - Playing with "));
   DEBUG_PRINT(currentAnimation.numFrames);
-  DEBUG_PRINTLN(F(" frames"));
+  DEBUG_PRINT(F(" frames, animationMode="));
+  DEBUG_PRINT(animationMode);
+  DEBUG_PRINT(F(", active="));
+  DEBUG_PRINTLN(currentAnimation.active);
 }
 
 // Handler for ANIMATION_STOP command
@@ -1092,5 +1140,3 @@ void handleAnimationStop(kart_common_MessageType msg_type,
   
   DEBUG_PRINTLN(F("Animation Stopped"));
 }
-
-#endif

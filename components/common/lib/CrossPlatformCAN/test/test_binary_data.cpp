@@ -197,14 +197,12 @@ void test_binary_data_receive() {
     end_msg.data[1] = 0x41;  // End flag, seq 1
     end_msg.data[2] = 0xFF;  // ALL lights
     end_msg.data[3] = 0x0A;  // Animation command
-    end_msg.data[4] = 5;     // 5 bytes in this frame
+    end_msg.data[4] = 5;     // 5 bytes remaining
     
-    // Copy remaining bytes of data
-    end_msg.data[3] = test_data[3];
-    end_msg.data[4] = test_data[4];
-    end_msg.data[5] = test_data[5];
-    end_msg.data[6] = test_data[6];
-    end_msg.data[7] = test_data[7];
+    // Copy remaining bytes of data - place in the proper locations (bytes 5-7)
+    end_msg.data[5] = test_data[3];
+    end_msg.data[6] = test_data[4];
+    end_msg.data[7] = test_data[5];
     
     // Queue the messages
     mock_can.queueTestMessage(start_msg);
@@ -220,6 +218,14 @@ void test_binary_data_receive() {
     
     // Verify received data size
     printf("Last binary size: %zu\n", last_binary_size);
+    assert(last_binary_size == 6);  // 3 bytes from first frame + 3 bytes from second frame
+    
+    // Verify data contents
+    for (size_t i = 0; i < 6; i++) {
+        printf("binary_buffer[%zu] = 0x%02X, test_data[%zu] = 0x%02X\n", 
+               i, binary_buffer[i], i, test_data[i]);
+        assert(binary_buffer[i] == test_data[i]);
+    }
     
     printf("Binary data receive test passed!\n");
 }

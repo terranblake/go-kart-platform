@@ -1,6 +1,6 @@
 /**
- * LED Animation Test using the CrossPlatformCAN library
- * This test directly uses the same libraries as the Arduino to test LED animation
+ * LED Animation Test using the actual CrossPlatformCAN library
+ * This will send animation data to the Arduino using the same protocol implementation
  */
 
 #include <stdio.h>
@@ -9,16 +9,30 @@
 #include <string.h>
 #include <unistd.h>
 
-// Include the CrossPlatformCAN library headers
-#include "ProtobufCANInterface.h"
-#include "common.pb.h"
-#include "lights.pb.h"
+// Define platform before including library
+#define PLATFORM_LINUX
+
+// Include the CrossPlatformCAN library
+#include "components/common/lib/CrossPlatformCAN/ProtobufCANInterface.h"
+
+// Define the protocol constants manually since we can't include the .pb.h files
+// These match the values in the Arduino code
+#define kart_common_MessageType_COMMAND 0
+#define kart_common_ComponentType_LIGHTS 0
+#define kart_lights_LightComponentId_ALL 255
+#define kart_lights_LightCommandId_MODE 0
+#define kart_lights_LightCommandId_ANIMATION_START 10
+#define kart_lights_LightCommandId_ANIMATION_FRAME 11
+#define kart_lights_LightCommandId_ANIMATION_END 12
+#define kart_common_ValueType_UINT8 2
+#define kart_lights_LightModeValue_ON 1
+#define kart_lights_LightModeValue_OFF 0
 
 int main(int argc, char** argv) {
     printf("LED Animation Test Program\n");
     printf("Using CrossPlatformCAN library directly\n");
 
-    // Create the CAN interface with ID 0x001 (same as seen in CAN dump)
+    // Create the CAN interface with ID 0x001
     ProtobufCANInterface canInterface(0x001);
     
     // Initialize the CAN interface
@@ -61,19 +75,19 @@ int main(int argc, char** argv) {
     frameData[0] = 0;      // Frame index
     frameData[1] = 3;      // Number of LEDs
     
-    // LED 0: Red at position 0
+    // LED 0: Red
     frameData[2] = 0;      // Position 0
     frameData[3] = 255;    // R
     frameData[4] = 0;      // G
     frameData[5] = 0;      // B
     
-    // LED 1: Green at position 1
+    // LED 1: Green
     frameData[6] = 1;      // Position 1
     frameData[7] = 0;      // R
     frameData[8] = 255;    // G
     frameData[9] = 0;      // B
     
-    // LED 2: Blue at position 2
+    // LED 2: Blue
     frameData[10] = 2;     // Position 2
     frameData[11] = 0;     // R
     frameData[12] = 0;     // G

@@ -57,7 +57,10 @@ def create_animation_frames(num_frames=3, leds_per_frame=5):
     - 1 byte: number of LEDs
     - For each LED:
       - 1 byte: LED index (position)
-      - 3 bytes: RGB color values
+      - 3 bytes: RGB color values (optimized format)
+      
+    The Arduino code is using OPTIMIZE_MEMORY flag which expects:
+    - Each LED takes 4 bytes (x, r, g, b) instead of 5 bytes (x, y, r, g, b)
     """
     frames = []
     
@@ -70,7 +73,7 @@ def create_animation_frames(num_frames=3, leds_per_frame=5):
         # Add LED data
         for led_idx in range(leds_per_frame):
             # Position the LEDs evenly along the strip, shifting by frame
-            position = (led_idx * 10 + frame_idx * 5) % 30
+            position = led_idx * 3  # Simple mapping to strip positions 0, 3, 6, 9, 12
             
             # Add LED index (position on the strip)
             frame_data.append(position)
@@ -85,6 +88,48 @@ def create_animation_frames(num_frames=3, leds_per_frame=5):
         frames.append(frame_data)
     
     return frames
+
+def create_simple_test_animation():
+    """
+    Create a very simple test animation with a single frame and 5 LEDs with solid colors
+    This is for basic testing to verify the LED strip functionality
+    """
+    # Create a simple frame with 5 LEDs in different colors
+    frame_data = bytearray()
+    frame_data.append(0)  # Frame index 0
+    frame_data.append(5)  # 5 LEDs
+    
+    # LED 0: Red at position 0
+    frame_data.append(0)  # Position 0
+    frame_data.append(255)  # R
+    frame_data.append(0)    # G
+    frame_data.append(0)    # B
+    
+    # LED 1: Green at position 5
+    frame_data.append(5)  # Position 5
+    frame_data.append(0)    # R
+    frame_data.append(255)  # G
+    frame_data.append(0)    # B
+    
+    # LED 2: Blue at position 10
+    frame_data.append(10)  # Position 10
+    frame_data.append(0)    # R
+    frame_data.append(0)    # G
+    frame_data.append(255)  # B
+    
+    # LED 3: Yellow at position 15
+    frame_data.append(15)  # Position 15
+    frame_data.append(255)  # R
+    frame_data.append(255)  # G
+    frame_data.append(0)    # B
+    
+    # LED 4: Purple at position 20
+    frame_data.append(20)  # Position 20
+    frame_data.append(255)  # R
+    frame_data.append(0)    # G
+    frame_data.append(255)  # B
+    
+    return [frame_data]  # Return as a list with one frame
 
 def send_command(bus, command_id, value=0):
     """
@@ -122,6 +167,21 @@ def send_binary_data(bus, command_id, binary_data):
     Observed first frame: can0  001   [8]  00 80 FF 0B 25 00 05 00
     """
     print(f"Sending {len(binary_data)} bytes of binary data")
+    print(f"Binary data: {' '.join([f'{b:02X}' for b in binary_data])}")
+    
+    if len(binary_data) >= 2:
+        frame_idx = binary_data[0]
+        num_leds = binary_data[1]
+        print(f"  Frame index: {frame_idx}, Number of LEDs: {num_leds}")
+        
+        # Debug the LED data - each LED takes 4 bytes in optimized mode
+        for i in range(num_leds):
+            if 2 + i*4 + 3 < len(binary_data):  # Ensure we have enough data
+                led_idx = binary_data[2 + i*4]
+                r = binary_data[2 + i*4 + 1]
+                g = binary_data[2 + i*4 + 2]
+                b = binary_data[2 + i*4 + 3]
+                print(f"  LED {i}: Position={led_idx}, Color=RGB({r},{g},{b})")
     
     # Frame format constants based on observed CAN frames
     HEADER_BYTE = 0x00          # Byte 0: Always 0x00 in observed frames
@@ -210,10 +270,14 @@ def send_binary_data(bus, command_id, binary_data):
     
     print(f"Binary data sent successfully in {seq_num} frames")
 
-def send_animation(bus):
+def send_animation(bus, use_simple_animation=True):
     """Send an animation sequence over CAN"""
-    print("Creating animation frames...")
-    frames = create_animation_frames(ANIMATION_FRAMES, LEDS_PER_FRAME)
+    if use_simple_animation:
+        print("Creating simple test animation with solid colors...")
+        frames = create_simple_test_animation()
+    else:
+        print("Creating rainbow animation frames...")
+        frames = create_animation_frames(ANIMATION_FRAMES, LEDS_PER_FRAME)
     
     print(f"Sending animation with {len(frames)} frames")
     
@@ -237,6 +301,7 @@ def send_animation(bus):
 def main():
     print("Binary LED Animation Test Script")
     print("Using exact CAN frame format based on observed CAN dump")
+    print("SIMPLIFIED MODE: Testing with basic solid colors")
     
     # Configure and open CAN interface
     try:
@@ -247,13 +312,25 @@ def main():
         return
     
     try:
-        # Turn on the lights
+        # Clear any existing state and turn lights on
+        print("Sending MODE=OFF command to reset state...")
+        send_command(bus, CMD_ID_MODE, MODE_OFF)
+        time.sleep(0.5)
+        
         print("Sending MODE=ON command...")
         send_command(bus, CMD_ID_MODE, MODE_ON)
         time.sleep(1)
         
-        # Send animation sequence
-        send_animation(bus)
+        # Explicitly send animation mode command if needed
+        # The Arduino might require this before accepting animation frames
+        print("Explicitly activating animation mode...")
+        animation_mode_cmd = 0x09  # Animation mode command (if it exists in protocol)
+        animation_mode_value = 1    # Value 1 to enable animations
+        send_command(bus, animation_mode_cmd, animation_mode_value)
+        time.sleep(0.5)
+        
+        # Send animation sequence - simplified version with solid colors
+        send_animation(bus, use_simple_animation=True)
         
         # Wait a bit to see the animation run
         print("Waiting for animation to complete...")

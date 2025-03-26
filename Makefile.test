@@ -1,0 +1,35 @@
+# Makefile for LED animation test
+
+CXX = g++
+CXXFLAGS = -Wall -Wextra -std=c++11 -I.
+LDFLAGS = 
+
+# Path to source files
+CAN_LIB_DIR = components/common/lib/CrossPlatformCAN
+
+# Source files
+SOURCES = test_led_animation.cpp \
+          $(CAN_LIB_DIR)/CANInterface.cpp \
+          $(CAN_LIB_DIR)/ProtobufCANInterface.cpp \
+          $(CAN_LIB_DIR)/c_api.cpp
+
+# Object files
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Target executable
+TARGET = test_led_animation
+
+# We don't need to define PLATFORM_LINUX here since it's in the source file
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+clean:
+	rm -f $(TARGET) $(OBJECTS)
+
+.PHONY: all clean 
