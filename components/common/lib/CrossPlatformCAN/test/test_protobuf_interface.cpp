@@ -24,11 +24,11 @@ TEST(ProtobufCANInterfaceTest, ValueFunctions) {
     // Integer value
     int32_t int_value = 12345;
     uint32_t packed_int = ProtobufCANInterface::packValue(
-        kart_common_ValueType_INTEGER, 
+        kart_common_ValueType_INT24, 
         int_value
     );
     int32_t unpacked_int = ProtobufCANInterface::unpackValue(
-        kart_common_ValueType_INTEGER, 
+        kart_common_ValueType_INT24, 
         packed_int
     );
     EXPECT_EQ(int_value, unpacked_int);
@@ -56,6 +56,19 @@ TEST(ProtobufCANInterfaceTest, ValueFunctions) {
         packed_bool_false
     );
     EXPECT_EQ(bool_value_false, unpacked_bool_false);
+
+    // Test both packing and unpacking
+    for (int i = -1000; i < 1000; i++) {
+        uint32_t packed = ProtobufCANInterface::packValue(
+            kart_common_ValueType_INT24,
+            i
+        );
+        int32_t unpacked = ProtobufCANInterface::unpackValue(
+            kart_common_ValueType_INT24,
+            packed
+        );
+        EXPECT_EQ(i, unpacked);
+    }
 }
 
 TEST(ProtobufCANInterfaceTest, InterfaceCreation) {
