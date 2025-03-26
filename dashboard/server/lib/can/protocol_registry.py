@@ -44,30 +44,73 @@ class ProtocolRegistry:
             self.logger.debug(f"Using provided protocol path: {pb_path}")
             return pb_path
             
+        # Project root detection - look for common markers
+        def find_project_root():
+            # Start from the current directory and go up until we find a marker file
+            current_dir = os.path.abspath(os.getcwd())
+            # Keep track of searched directories to avoid infinite loops
+            searched_dirs = set()
+            
+            while current_dir not in searched_dirs:
+                searched_dirs.add(current_dir)
+                # Check for common project root markers
+                if (os.path.exists(os.path.join(current_dir, "README.md")) and 
+                    (os.path.exists(os.path.join(current_dir, "protocol")) or 
+                     os.path.exists(os.path.join(current_dir, "dashboard")))):
+                    return current_dir
+                
+                # Move up one directory
+                parent = os.path.dirname(current_dir)
+                if parent == current_dir:  # We've reached the filesystem root
+                    break
+                current_dir = parent
+            
+            return None
+        
+        # Try to find project root
+        project_root = find_project_root()
+        self.logger.debug(f"Detected project root: {project_root}")
+        
         # Try common locations based on project structure
         possible_paths = [
             # Provided path or default
             pb_path or "./protocol/generated/python",
             
-            # Relative to current directory
+            # Protocol at project root
+            os.path.join(project_root, "protocol", "generated", "python") if project_root else None,
+            
+            # Relative to current working directory
             os.path.join(os.getcwd(), "protocol", "generated", "python"),
             
-            # Relative to server directory 
+            # Relative to server directory
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
                          "protocol", "generated", "python"),
             
-            # One level up from server directory (project root)
+            # One level up from server directory (possible project root)
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 
                          "protocol", "generated", "python"),
-                         
+            
+            # Two levels up (in case we're in a deeper nested directory)
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), 
+                         "protocol", "generated", "python"),
+            
             # Raspberry Pi specific path
             "/home/pi/go-kart-platform/protocol/generated/python",
+            
+            # Direct protocol directory (no generated/python)
+            os.path.join(project_root, "protocol") if project_root else None,
         ]
+        
+        # Filter out None values
+        possible_paths = [path for path in possible_paths if path is not None]
+        
+        # Log all paths we're checking
+        self.logger.debug(f"Checking the following paths for protocol directory: {possible_paths}")
         
         # Try each path
         for path in possible_paths:
             if os.path.exists(path):
-                self.logger.debug(f"Found protocol directory at: {path}")
+                self.logger.info(f"Found protocol directory at: {path}")
                 return path
                 
         # If we get here, just return the provided path or default
@@ -121,86 +164,31 @@ class ProtocolRegistry:
         common_module = self.modules.get('common_pb2')
         if common_module:
             self._extract_common_enums(common_module)
-        
+            
         # Extract component-specific enums from other modules
         for name, module in self.modules.items():
             if name != 'common_pb2':
                 self._extract_component_enums(module)
-        
-        # Add required components and commands that might be missing
-        self._ensure_required_components()
         
         # Log the extracted registry for debugging
         self.logger.debug(f"Extracted message_types: {self.registry['message_types']}")
         self.logger.debug(f"Extracted component_types: {self.registry['component_types']}")
         self.logger.debug(f"Extracted value_types: {self.registry['value_types']}")
     
-    def _ensure_required_components(self):
-        """Ensure required components and commands are registered regardless of imports"""
-        # Register message types if they don't exist
-        if not self.registry['message_types']:
-            self.logger.info("Adding default message types")
-            self.registry['message_types'] = {
-                'COMMAND': 0, 
-                'STATUS': 1
-            }
-            
-        # Register component types if they don't exist
-        if not self.registry['component_types']:
-            self.logger.info("Adding default component types")
-            self.registry['component_types'] = {
-                'lights': 3
-            }
-        
-        # Ensure lights component exists
-        if 'lights' not in self.registry['components']:
-            self.logger.info("Adding lights components")
-            self.registry['components']['lights'] = {}
-            
-        # Ensure commands for lights exist
-        if 'lights' not in self.registry['commands']:
-            self.logger.info("Adding lights commands")
-            self.registry['commands']['lights'] = {}
-            
-        # Ensure ALL component exists for lights
-        self._ensure_animation_commands_exist('lights')
-    
-    def _ensure_animation_commands_exist(self, component_type):
-        """Ensure animation commands exist in the registry"""
-        animation_commands = {
-            'ANIMATION_START': 10,
-            'ANIMATION_FRAME': 11,
-            'ANIMATION_END': 12,
-            'ANIMATION_STOP': 13
-        }
-        
-        for cmd_name, cmd_id in animation_commands.items():
-            if cmd_name not in self.registry['commands'][component_type]:
-                self.logger.info(f"Adding missing animation command {cmd_name} with ID {cmd_id}")
-                self.registry['commands'][component_type][cmd_name] = {
-                    'id': cmd_id,
-                    'values': {}
-                }
-        
-        # Also ensure ALL component is registered
-        if 'ALL' not in self.registry['components'][component_type]:
-            self.logger.info(f"Adding missing ALL component with ID 255 to {component_type}")
-            self.registry['components'][component_type]['ALL'] = 255
-    
-    def _extract_common_enums(self, common_module: Any) -> None:
+    def _extract_common_enums(self, module: Any) -> None:
         """Extract common message, component, and value type enums"""
         try:
             # Direct extraction of well-known enums
-            if hasattr(common_module, 'MessageType') and hasattr(common_module.MessageType, 'items'):
-                self.registry['message_types'] = dict(common_module.MessageType.items())
+            if hasattr(module, 'MessageType') and hasattr(module.MessageType, 'items'):
+                self.registry['message_types'] = dict(module.MessageType.items())
                 self.logger.debug(f"Extracted MessageType enum: {self.registry['message_types']}")
                 
-            if hasattr(common_module, 'ComponentType') and hasattr(common_module.ComponentType, 'items'):
-                self.registry['component_types'] = dict(common_module.ComponentType.items())
+            if hasattr(module, 'ComponentType') and hasattr(module.ComponentType, 'items'):
+                self.registry['component_types'] = dict(module.ComponentType.items())
                 self.logger.debug(f"Extracted ComponentType enum: {self.registry['component_types']}")
                 
-            if hasattr(common_module, 'ValueType') and hasattr(common_module.ValueType, 'items'):
-                self.registry['value_types'] = dict(common_module.ValueType.items())
+            if hasattr(module, 'ValueType') and hasattr(module.ValueType, 'items'):
+                self.registry['value_types'] = dict(module.ValueType.items())
                 self.logger.debug(f"Extracted ValueType enum: {self.registry['value_types']}")
         except Exception as e:
             self.logger.error(f"Error extracting common enums: {e}")
@@ -316,6 +304,28 @@ class ProtocolRegistry:
                 
         except Exception as e:
             self.logger.error(f"Error extracting component enums: {e}", exc_info=True)
+    
+    def _ensure_animation_commands_exist(self, component_type):
+        """Ensure animation commands exist in the registry"""
+        animation_commands = {
+            'ANIMATION_START': 10,
+            'ANIMATION_FRAME': 11,
+            'ANIMATION_END': 12,
+            'ANIMATION_STOP': 13
+        }
+        
+        for cmd_name, cmd_id in animation_commands.items():
+            if cmd_name not in self.registry['commands'][component_type]:
+                self.logger.info(f"Adding missing animation command {cmd_name} with ID {cmd_id}")
+                self.registry['commands'][component_type][cmd_name] = {
+                    'id': cmd_id,
+                    'values': {}
+                }
+        
+        # Also ensure ALL component is registered
+        if 'ALL' not in self.registry['components'][component_type]:
+            self.logger.info(f"Adding missing ALL component with ID 255 to {component_type}")
+            self.registry['components'][component_type]['ALL'] = 255
     
     def _determine_component_type(self, module: Any) -> Optional[str]:
         """Determine component type from module name or content"""

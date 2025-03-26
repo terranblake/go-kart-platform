@@ -16,8 +16,36 @@ from api.animations import register_animation_routes
 from lib.can.protocol_registry import ProtocolRegistry
 from lib.telemetry.store import TelemetryStore
 
-# Let ProtocolRegistry autodetect the path
-protocol_path = None
+# Find the project root
+def find_project_root():
+    current_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    # Keep track of searched directories to avoid infinite loops
+    searched_dirs = set()
+    
+    while current_dir not in searched_dirs:
+        searched_dirs.add(current_dir)
+        # Check for common project root markers
+        if (os.path.exists(os.path.join(current_dir, "README.md")) and 
+            (os.path.exists(os.path.join(current_dir, "protocol")) or 
+             os.path.exists(os.path.join(current_dir, "dashboard")))):
+            return current_dir
+        
+        # Move up one directory
+        parent = os.path.dirname(current_dir)
+        if parent == current_dir:  # We've reached the filesystem root
+            break
+        current_dir = parent
+    
+    return None
+
+# Try to set protocol path to project root
+project_root = find_project_root()
+protocol_path = os.path.join(project_root, "protocol") if project_root else None
+logger = logging.getLogger(__name__)
+if protocol_path:
+    logger.info(f"Using protocol path: {protocol_path}")
+else:
+    logger.warning("Could not find project root, letting ProtocolRegistry auto-detect the protocol path")
 
 # Create telemetry store and protocol registry
 telemetry_store = TelemetryStore()
@@ -64,17 +92,6 @@ def index():
         return render_template('index.html')
     except Exception as e:
         logger.debug(f"Error rendering template: {e}")
-        return f"Error: {e}", 500
-
-# Animation editor route
-@app.route('/animation-editor')
-def animation_editor():
-    """Render the animation editor."""
-    logger.debug("Animation editor route accessed!")
-    try:
-        return render_template('animation_editor.html')
-    except Exception as e:
-        logger.debug(f"Error rendering animation editor template: {e}")
         return f"Error: {e}", 500
 
 # Register blueprint
