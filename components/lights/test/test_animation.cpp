@@ -8,11 +8,12 @@ CRGB leds[NUM_LEDS];
 LightState lightState;
 AnimationState animationState;
 AnimationConfig animationConfig;
+bool updateFrontLights = true;
 
 // Function declarations for functions we'll test
 void resetAnimationState();
-void displayAnimationFrame(CRGB* ledArray, uint16_t numLeds, AnimationState& anim);
-void updateAnimation(CRGB* ledArray, uint16_t numLeds, AnimationState& anim, const AnimationConfig& config);
+void displayAnimationFrame(uint32_t frameIndex);
+void updateAnimation();
 
 // Setup function runs before each test
 void setUp(void) {
@@ -38,49 +39,64 @@ void setUp(void) {
   
   // Reset animation state
   resetAnimationState();
+  
+  // Set update front lights to true for testing
+  updateFrontLights = true;
 }
 
 // Test resetAnimationState function
 void test_reset_animation_state(void) {
   // First set some values in animation state
-  animationState.currentFrame = 10;
-  animationState.receivingFrame = true;
-  animationState.frameComplete = true;
-  animationState.totalFrames = 5;
-  animationState.receivedFrames = 3;
+  animationState.active = true;
+  animationState.frameCount = 10;
+  animationState.currentFrame = 5;
   animationState.lastFrameTime = 1000;
-  animationState.isPlaying = true;
-  animationState.singlePixelIndex = 15;
+  animationState.dataSize = 100;
+  animationState.frameSize = 20;
+  
+  // Set some data in the animation buffer
+  for (int i = 0; i < 100; i++) {
+    animationState.animationData[i] = i % 255;
+  }
   
   // Now reset and verify all values are reset
   resetAnimationState();
   
+  TEST_ASSERT_EQUAL_INT(false, animationState.active);
+  TEST_ASSERT_EQUAL_INT(0, animationState.frameCount);
   TEST_ASSERT_EQUAL_INT(0, animationState.currentFrame);
-  TEST_ASSERT_EQUAL_INT(false, animationState.receivingFrame);
-  TEST_ASSERT_EQUAL_INT(false, animationState.frameComplete);
-  TEST_ASSERT_EQUAL_INT(0, animationState.totalFrames);
-  TEST_ASSERT_EQUAL_INT(0, animationState.receivedFrames);
   TEST_ASSERT_EQUAL_INT(0, animationState.lastFrameTime);
-  TEST_ASSERT_EQUAL_INT(false, animationState.isPlaying);
-  TEST_ASSERT_EQUAL_INT(0, animationState.singlePixelIndex);
+  TEST_ASSERT_EQUAL_INT(0, animationState.dataSize);
+  TEST_ASSERT_EQUAL_INT(0, animationState.frameSize);
+  
+  // Check that buffer is cleared
+  for (int i = 0; i < 10; i++) {
+    TEST_ASSERT_EQUAL_INT(0, animationState.animationData[i]);
+  }
 }
 
 // Test displayAnimationFrame function
 void test_display_animation_frame(void) {
-  // Setup test data
-  animationState.totalFrames = 2;
-  animationState.currentFrame = 0;
+  // Prepare animation data (3 bytes per LED for RGB)
+  const uint16_t testFrameSize = (FRONT_END_LED - FRONT_START_LED + 1) * 3;
   
-  // Fill first frame with red
-  for (int i = 0; i < NUM_LEDS; i++) {
-    uint16_t bufferIndex = i % MAX_ANIMATION_BUFFER_SIZE;
-    animationState.frameBuffer[bufferIndex] = CRGB(255, 0, 0); // Red
+  // Setup animation state
+  animationState.active = true;
+  animationState.frameCount = 2;
+  animationState.frameSize = testFrameSize;
+  
+  // Fill first frame with red data
+  for (int i = 0; i < testFrameSize; i += 3) {
+    animationState.animationData[i] = 255;     // R
+    animationState.animationData[i + 1] = 0;   // G
+    animationState.animationData[i + 2] = 0;   // B
   }
   
-  // Fill second frame with blue
-  for (int i = 0; i < NUM_LEDS; i++) {
-    uint16_t bufferIndex = (NUM_LEDS + i) % MAX_ANIMATION_BUFFER_SIZE;
-    animationState.frameBuffer[bufferIndex] = CRGB(0, 0, 255); // Blue
+  // Fill second frame with blue data
+  for (int i = 0; i < testFrameSize; i += 3) {
+    animationState.animationData[testFrameSize + i] = 0;       // R
+    animationState.animationData[testFrameSize + i + 1] = 0;   // G
+    animationState.animationData[testFrameSize + i + 2] = 255; // B
   }
   
   // Clear current LEDs
@@ -89,36 +105,100 @@ void test_display_animation_frame(void) {
   }
   
   // Display first frame
-  displayAnimationFrame(leds, NUM_LEDS, animationState);
+  displayAnimationFrame(0);
   
-  // Check that all LEDs are red
-  for (int i = 0; i < NUM_LEDS; i++) {
+  // Check that front LEDs are red
+  for (int i = FRONT_START_LED; i <= FRONT_END_LED; i++) {
     TEST_ASSERT_EQUAL_INT(255, leds[i].r);
     TEST_ASSERT_EQUAL_INT(0, leds[i].g);
     TEST_ASSERT_EQUAL_INT(0, leds[i].b);
   }
   
-  // Switch to second frame
-  animationState.currentFrame = 1;
-  
   // Display second frame
-  displayAnimationFrame(leds, NUM_LEDS, animationState);
+  displayAnimationFrame(1);
   
-  // Check that all LEDs are blue
-  for (int i = 0; i < NUM_LEDS; i++) {
+  // Check that front LEDs are blue
+  for (int i = FRONT_START_LED; i <= FRONT_END_LED; i++) {
     TEST_ASSERT_EQUAL_INT(0, leds[i].r);
+    TEST_ASSERT_EQUAL_INT(0, leds[i].g);
+    TEST_ASSERT_EQUAL_INT(255, leds[i].b);
+  }
+  
+  // Now test with rear lights
+  updateFrontLights = false;
+  
+  // Reset animation state to create new test frames
+  resetAnimationState();
+  
+  // Prepare animation data for rear lights
+  const uint16_t rearTestFrameSize = (REAR_END_LED - REAR_START_LED + 1) * 3;
+  
+  // Setup animation state
+  animationState.active = true;
+  animationState.frameCount = 2;
+  animationState.frameSize = rearTestFrameSize;
+  
+  // Fill first frame with green data
+  for (int i = 0; i < rearTestFrameSize; i += 3) {
+    animationState.animationData[i] = 0;     // R
+    animationState.animationData[i + 1] = 255;   // G
+    animationState.animationData[i + 2] = 0;   // B
+  }
+  
+  // Fill second frame with purple data
+  for (int i = 0; i < rearTestFrameSize; i += 3) {
+    animationState.animationData[rearTestFrameSize + i] = 255;       // R
+    animationState.animationData[rearTestFrameSize + i + 1] = 0;   // G
+    animationState.animationData[rearTestFrameSize + i + 2] = 255; // B
+  }
+  
+  // Clear current LEDs
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Black;
+  }
+  
+  // Display first frame (green)
+  displayAnimationFrame(0);
+  
+  // Check that rear LEDs are green
+  for (int i = REAR_START_LED; i <= REAR_END_LED; i++) {
+    TEST_ASSERT_EQUAL_INT(0, leds[i].r);
+    TEST_ASSERT_EQUAL_INT(255, leds[i].g);
+    TEST_ASSERT_EQUAL_INT(0, leds[i].b);
+  }
+  
+  // Display second frame (purple)
+  displayAnimationFrame(1);
+  
+  // Check that rear LEDs are purple
+  for (int i = REAR_START_LED; i <= REAR_END_LED; i++) {
+    TEST_ASSERT_EQUAL_INT(255, leds[i].r);
     TEST_ASSERT_EQUAL_INT(0, leds[i].g);
     TEST_ASSERT_EQUAL_INT(255, leds[i].b);
   }
 }
 
+// Helper function to implement the test animation function
+void test_update_anim_helper(void) {
+  // Mock the millis() function by updating lastFrameTime
+  // so it appears enough time has passed for a frame update
+  animationState.lastFrameTime = millis() - (animationConfig.frameDuration + 10);
+  
+  // Call the animation update function
+  updateAnimation();
+}
+
 // Test updateAnimation function
 void test_update_animation(void) {
+  // Prepare animation data
+  const uint16_t testFrameSize = (FRONT_END_LED - FRONT_START_LED + 1) * 3;
+  
   // Setup animation state
-  animationState.totalFrames = 3;
+  animationState.active = true;
+  animationState.frameCount = 3;
   animationState.currentFrame = 0;
-  animationState.isPlaying = true;
-  animationState.lastFrameTime = millis() - 1000; // Ensure we're past frame duration
+  animationState.frameSize = testFrameSize;
+  animationState.lastFrameTime = millis();
   
   // Setup animation config
   animationConfig.fps = 10;
@@ -126,55 +206,65 @@ void test_update_animation(void) {
   animationConfig.loopAnimation = true;
   
   // Fill frames with different colors
-  for (int frame = 0; frame < 3; frame++) {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      uint16_t bufferIndex = (frame * NUM_LEDS + i) % MAX_ANIMATION_BUFFER_SIZE;
-      if (frame == 0) {
-        animationState.frameBuffer[bufferIndex] = CRGB(255, 0, 0); // Red
-      } else if (frame == 1) {
-        animationState.frameBuffer[bufferIndex] = CRGB(0, 255, 0); // Green
-      } else {
-        animationState.frameBuffer[bufferIndex] = CRGB(0, 0, 255); // Blue
-      }
-    }
+  // Frame 0: Red
+  for (int i = 0; i < testFrameSize; i += 3) {
+    animationState.animationData[i] = 255;     // R
+    animationState.animationData[i + 1] = 0;   // G
+    animationState.animationData[i + 2] = 0;   // B
   }
   
-  // Update animation - should move to frame 1
-  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  // Frame 1: Green
+  for (int i = 0; i < testFrameSize; i += 3) {
+    animationState.animationData[testFrameSize + i] = 0;       // R
+    animationState.animationData[testFrameSize + i + 1] = 255; // G
+    animationState.animationData[testFrameSize + i + 2] = 0;   // B
+  }
+  
+  // Frame 2: Blue
+  for (int i = 0; i < testFrameSize; i += 3) {
+    animationState.animationData[2 * testFrameSize + i] = 0;       // R
+    animationState.animationData[2 * testFrameSize + i + 1] = 0;   // G
+    animationState.animationData[2 * testFrameSize + i + 2] = 255; // B
+  }
+  
+  // Set current mode to animation
+  lightState.mode = kart_lights_LightModeValue_ANIMATION;
+  
+  // Call update (should move to frame 1)
+  test_update_anim_helper();
   
   // Verify we moved to frame 1
   TEST_ASSERT_EQUAL_INT(1, animationState.currentFrame);
   
   // Verify LEDs show green (frame 1)
-  TEST_ASSERT_EQUAL_INT(0, leds[0].r);
-  TEST_ASSERT_EQUAL_INT(255, leds[0].g);
-  TEST_ASSERT_EQUAL_INT(0, leds[0].b);
+  TEST_ASSERT_EQUAL_INT(0, leds[FRONT_START_LED].r);
+  TEST_ASSERT_EQUAL_INT(255, leds[FRONT_START_LED].g);
+  TEST_ASSERT_EQUAL_INT(0, leds[FRONT_START_LED].b);
   
   // Test animation looping
   animationState.currentFrame = 2;
-  animationState.lastFrameTime = millis() - 200; // Ensure we're past frame duration
   
-  // Update animation - should loop back to frame 0
-  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  // Update animation (should loop back to frame 0)
+  test_update_anim_helper();
   
   // Verify we looped back to frame 0
   TEST_ASSERT_EQUAL_INT(0, animationState.currentFrame);
   
   // Verify LEDs show red (frame 0)
-  TEST_ASSERT_EQUAL_INT(255, leds[0].r);
-  TEST_ASSERT_EQUAL_INT(0, leds[0].g);
-  TEST_ASSERT_EQUAL_INT(0, leds[0].b);
+  TEST_ASSERT_EQUAL_INT(255, leds[FRONT_START_LED].r);
+  TEST_ASSERT_EQUAL_INT(0, leds[FRONT_START_LED].g);
+  TEST_ASSERT_EQUAL_INT(0, leds[FRONT_START_LED].b);
   
-  // Test animation stopping at end
+  // Test animation stopping at end when not looping
   animationConfig.loopAnimation = false;
   animationState.currentFrame = 2;
-  animationState.lastFrameTime = millis() - 200;
   
-  // Update animation - should stop at end
-  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  // Update animation (should stop at end)
+  test_update_anim_helper();
   
   // Verify animation stopped
-  TEST_ASSERT_EQUAL_INT(false, animationState.isPlaying);
+  TEST_ASSERT_EQUAL_INT(false, animationState.active);
+  TEST_ASSERT_EQUAL_INT(kart_lights_LightModeValue_OFF, lightState.mode);
 }
 
 void setup() {
