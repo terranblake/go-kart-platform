@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+<custom_instructions>
+- Before starting any task, search for a TASK_*.md file matching the task and use it as the primary context source
+- When reviewing documentation, prioritize reading files in this order: CONTEXT.md, README.md, component-specific README, other specialized guides
+- When designing solutions, always propose a design approach before implementation and wait for confirmation
+- Explicitly note when you've reached a DESIGN REVIEW CHECKPOINT or IMPLEMENTATION REVIEW CHECKPOINT in task files, and pause for user input
+- Look for <!-- LLM_CONTEXT: section_name --> and <!-- LLM_CODE_MARKER: marker_name --> sections in documentation to quickly find relevant information
+- When working with terminal commands:
+  - Always use non-interactive command patterns from TERMINAL.md
+  - Run servers and long-running processes in background with proper output redirection
+  - Follow the multi-terminal workflows defined in WORKFLOWS.md when tasks require coordination
+- For testing operations:
+  - Implement clear exit conditions for all test scripts as defined in TESTING.md
+  - Never exceed maximum retry attempts (3)
+  - Always include timeout limits for operations
+  - Ensure cleanup runs even after failures
+- When developing code:
+  - Adhere strictly to the constraints defined in CONSTRAINTS.md
+  - Check existing code for conventions before implementing new features
+  - Document new code with LLM-friendly markers
+  - Follow memory efficiency best practices for Arduino code
+- Before committing changes:
+  - Ensure documentation is updated with LLM-friendly formats
+  - Create or update component READMEs if needed
+  - Commit messages should use semantic format: type(scope): description
+</custom_instructions>

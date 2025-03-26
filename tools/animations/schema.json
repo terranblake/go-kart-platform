@@ -1,0 +1,67 @@
+{
+    "animations": [
+      {
+        "name": "Animation Schema Example",
+        "type": "chase",
+        "speed": 100,
+        "direction": "forward",
+        "dimensions": {
+          "length": 60,
+          "height": 1
+        },
+        "colors": [
+          "#ff0000"
+        ],
+        "frames": [
+          {
+            "leds": [
+              {
+                "index": 0,
+                "color": "#ff0000"
+              },
+              {
+                "index": 1,
+                "color": "#ff0000"
+              },
+              {
+                "index": 2,
+                "color": "#ff0000"
+              },
+              {
+                "index": 3,
+                "color": "#ff0000"
+              }
+            ]
+          },
+          {
+            "leds": [
+              {
+                "index": 0,
+                "color": "#ff0000"
+              },
+              {
+                "index": 1,
+                "color": "#ff0000"
+              },
+              {
+                "index": 2,
+                "color": "#ff0000"
+              },
+              {
+                "index": 3,
+                "color": "#ff0000"
+              },
+              {
+                "index": 4,
+                "color": "#ff0000"
+              },
+              {
+                "index": 5,
+                "color": "#ff0000"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
