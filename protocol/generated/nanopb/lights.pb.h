@@ -95,6 +95,15 @@ typedef enum _kart_lights_LightSequenceValue {
     kart_lights_LightSequenceValue_RANDOM = 4
 } kart_lights_LightSequenceValue;
 
+/* Animation command values */
+typedef enum _kart_lights_AnimationCommandValue {
+    kart_lights_AnimationCommandValue_ANIMATION_PLAY = 0,
+    kart_lights_AnimationCommandValue_ANIMATION_PAUSE = 1,
+    kart_lights_AnimationCommandValue_ANIMATION_RESET = 2,
+    kart_lights_AnimationCommandValue_ANIMATION_LOOP = 3,
+    kart_lights_AnimationCommandValue_ANIMATION_SPEED = 4
+} kart_lights_AnimationCommandValue;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -127,6 +136,10 @@ extern "C" {
 #define _kart_lights_LightSequenceValue_MIN kart_lights_LightSequenceValue_SEQ1
 #define _kart_lights_LightSequenceValue_MAX kart_lights_LightSequenceValue_RANDOM
 #define _kart_lights_LightSequenceValue_ARRAYSIZE ((kart_lights_LightSequenceValue)(kart_lights_LightSequenceValue_RANDOM+1))
+
+#define _kart_lights_AnimationCommandValue_MIN kart_lights_AnimationCommandValue_ANIMATION_PLAY
+#define _kart_lights_AnimationCommandValue_MAX kart_lights_AnimationCommandValue_ANIMATION_SPEED
+#define _kart_lights_AnimationCommandValue_ARRAYSIZE ((kart_lights_AnimationCommandValue)(kart_lights_AnimationCommandValue_ANIMATION_SPEED+1))
 
 
 #ifdef __cplusplus

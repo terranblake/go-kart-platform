@@ -36,7 +36,8 @@ typedef enum _kart_common_ValueType {
     kart_common_ValueType_UINT16 = 4,
     kart_common_ValueType_INT24 = 5,
     kart_common_ValueType_UINT24 = 6,
-    kart_common_ValueType_FLOAT16 = 7 /* Reserved space for 8 more types */
+    kart_common_ValueType_FLOAT16 = 7,
+    kart_common_ValueType_BINARY = 8 /* For binary data like animation frames */
 } kart_common_ValueType;
 
 /* Struct definitions */
@@ -70,8 +71,8 @@ extern "C" {
 #define _kart_common_ComponentType_ARRAYSIZE ((kart_common_ComponentType)(kart_common_ComponentType_CONTROLS+1))
 
 #define _kart_common_ValueType_MIN kart_common_ValueType_BOOLEAN
-#define _kart_common_ValueType_MAX kart_common_ValueType_FLOAT16
-#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_FLOAT16+1))
+#define _kart_common_ValueType_MAX kart_common_ValueType_BINARY
+#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_BINARY+1))
 
 #define kart_common_KartMessage_message_type_ENUMTYPE kart_common_MessageType
 #define kart_common_KartMessage_component_type_ENUMTYPE kart_common_ComponentType
