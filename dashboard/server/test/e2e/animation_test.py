@@ -28,13 +28,39 @@ from lib.can.protocol_registry import ProtocolRegistry
 NODE_ID = 0x01
 CHANNEL = 'can0'  # CAN interface on Linux/RPi
 BAUDRATE = 500000  # 500kbps
+# Update the animation directory to include both possible locations
 ANIMATION_DIR = os.path.join(server_dir, '../..', 'tools', 'animations')
+API_ANIMATIONS_DIR = os.path.join(server_dir, 'api', 'animations')
 
 def load_animation(animation_id):
     """
     Load an animation from the animations directory
     """
-    # Check for car animations directory
+    # First check the API animations directory (where we created our animation)
+    api_animation_path = os.path.join(API_ANIMATIONS_DIR, animation_id)
+    if os.path.exists(api_animation_path):
+        metadata_file = os.path.join(api_animation_path, 'metadata.json')
+        if os.path.exists(metadata_file):
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                
+                # Load the frames
+                frames_dir = os.path.join(api_animation_path, 'frames')
+                if os.path.exists(frames_dir):
+                    frames = []
+                    frame_files = sorted([f for f in os.listdir(frames_dir) if f.startswith('frame') and f.endswith('.json')])
+                    for frame_file in frame_files:
+                        with open(os.path.join(frames_dir, frame_file), 'r') as f:
+                            frame_data = json.load(f)
+                            frames.append(frame_data)
+                    
+                    metadata['frames'] = frames
+                    return metadata
+            except Exception as e:
+                logger.warning(f"Failed to load animation from {api_animation_path}: {e}")
+    
+    # Check for car animations directory (original code)
     car_animations_path = os.path.join(ANIMATION_DIR, 'car')
     if os.path.exists(car_animations_path):
         car_animations_file = os.path.join(car_animations_path, 'animations.json')
@@ -69,7 +95,14 @@ def prepare_animation_frame(frame, frame_index):
     """
     Convert an animation frame to binary data for transmission
     """
-    leds = frame.get('leds', [])
+    # Modified to handle both our frame format and the original format
+    leds = []
+    
+    if 'leds' in frame:
+        leds = frame.get('leds', [])
+    elif 'frameIndex' in frame:
+        # This is our format where the frame itself has frameIndex and leds
+        leds = frame.get('leds', [])
     
     # Create binary packet for this frame
     packet = bytearray([frame_index, len(leds)])  # Frame index and LED count
@@ -88,20 +121,26 @@ def prepare_animation_frame(frame, frame_index):
             y = led.get('y', 0)
         
         # Get RGB color
-        color = led.get('color', '#ff0000')
-        if isinstance(color, str) and color.startswith('#'):
-            # Parse hex color
-            color = color.lstrip('#')
-            if len(color) == 6:
-                r = int(color[0:2], 16)
-                g = int(color[2:4], 16)
-                b = int(color[4:6], 16)
-            else:
-                # Default red for invalid colors
-                r, g, b = 255, 0, 0
+        if 'r' in led and 'g' in led and 'b' in led:
+            # Direct RGB values
+            r = led.get('r', 0)
+            g = led.get('g', 0)
+            b = led.get('b', 0)
         else:
-            # Default red
-            r, g, b = 255, 0, 0
+            color = led.get('color', '#ff0000')
+            if isinstance(color, str) and color.startswith('#'):
+                # Parse hex color
+                color = color.lstrip('#')
+                if len(color) == 6:
+                    r = int(color[0:2], 16)
+                    g = int(color[2:4], 16)
+                    b = int(color[4:6], 16)
+                else:
+                    # Default red for invalid colors
+                    r, g, b = 255, 0, 0
+            else:
+                # Default red
+                r, g, b = 255, 0, 0
         
         # Add to packet
         packet.extend([x, y, r, g, b])
@@ -117,13 +156,24 @@ def send_animation(can_interface, animation):
         logger.error("Animation has no frames")
         return False
     
+    # Use direct command IDs from the protocol definition
+    # ANIMATION_START = 10, ANIMATION_FRAME = 11, ANIMATION_END = 12
+    
     # First, send a start command to initialize animation mode
     logger.info("Sending animation start command")
-    result = can_interface.send_command(
-        component_type='LIGHTS',
-        component_name='ALL',
-        command_name='ANIMATION_START',
-        direct_value=1
+    
+    # Get numerical values for component type and component ID
+    lights_component_type = can_interface.protocol_registry.get_component_type("LIGHTS")
+    all_component_id = 0xFF  # 'ALL' component ID
+    
+    # Send ANIMATION_START directly using send_message
+    result = can_interface.send_message(
+        msg_type=0,  # COMMAND
+        comp_type=lights_component_type,
+        comp_id=all_component_id,
+        cmd_id=10,   # ANIMATION_START
+        value_type=2, # UINT8
+        value=1
     )
     
     if not result:
@@ -140,12 +190,13 @@ def send_animation(can_interface, animation):
         # Prepare the binary data for this frame
         binary_data = prepare_animation_frame(frame, i)
         
-        # Send the binary frame data
-        result = can_interface.send_binary_data(
-            component_type_name='LIGHTS',
-            component_name='ALL',
-            command_name='ANIMATION_FRAME',
-            value_type='UINT8',
+        # Send the binary frame data using direct command ID
+        result = can_interface._send_binary_data(
+            msg_type=0,  # COMMAND
+            comp_type=lights_component_type,
+            comp_id=all_component_id,
+            cmd_id=11,   # ANIMATION_FRAME
+            value_type=2,  # UINT8
             data=binary_data
         )
         
@@ -158,11 +209,13 @@ def send_animation(can_interface, animation):
     
     # Finally, send end command to start playback
     logger.info("Sending animation end command")
-    result = can_interface.send_command(
-        component_type='LIGHTS',
-        component_name='ALL',
-        command_name='ANIMATION_END',
-        direct_value=len(frames)
+    result = can_interface.send_message(
+        msg_type=0,  # COMMAND
+        comp_type=lights_component_type,
+        comp_id=all_component_id,
+        cmd_id=12,   # ANIMATION_END
+        value_type=2,  # UINT8
+        value=len(frames)
     )
     
     if not result:
@@ -176,11 +229,19 @@ def stop_animation(can_interface):
     Stop the currently playing animation
     """
     logger.info("Stopping animation playback")
-    result = can_interface.send_command(
-        component_type='LIGHTS',
-        component_name='ALL',
-        command_name='ANIMATION_STOP',
-        direct_value=0
+    
+    # Get numerical values for component type and component ID
+    lights_component_type = can_interface.protocol_registry.get_component_type("LIGHTS")
+    all_component_id = 0xFF  # 'ALL' component ID
+    
+    # Send ANIMATION_STOP directly
+    result = can_interface.send_message(
+        msg_type=0,  # COMMAND
+        comp_type=lights_component_type,
+        comp_id=all_component_id,
+        cmd_id=13,   # ANIMATION_STOP
+        value_type=2,  # UINT8
+        value=0
     )
     
     if not result:
