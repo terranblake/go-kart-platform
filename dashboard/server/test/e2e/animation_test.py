@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 import json
 import logging
-import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -250,109 +249,57 @@ def stop_animation(can_interface):
     
     return True
 
-def load_animation_frames(animation_name):
-    """Load animation frames from JSON files."""
-    animation_dir = os.path.join(server_dir, 'api/animations', animation_name, 'frames')
-    frames = []
+def test_animation_transmission():
+    """
+    End-to-end test of animation transmission
+    """
+    logger.info("Starting animation transmission test")
     
-    if not os.path.exists(animation_dir):
-        logger.error(f"Animation directory not found: {animation_dir}")
-        return frames
-    
-    # Load all frame JSON files
-    frame_files = sorted([f for f in os.listdir(animation_dir) if f.endswith('.json')])
-    for frame_file in frame_files:
-        frame_path = os.path.join(animation_dir, frame_file)
-        try:
-            with open(frame_path, 'r') as f:
-                frame_data = json.load(f)
-                frames.append(frame_data)
-                logger.debug(f"Loaded frame: {frame_path}")
-        except Exception as e:
-            logger.error(f"Error loading frame {frame_path}: {e}")
-    
-    return frames
-
-def send_animation_frame_individual_leds(can_interface, frame_data):
-    """Send animation frame by sending each LED individually."""
-    # Handle case where frame_data is an array containing a single object
-    if isinstance(frame_data, list) and len(frame_data) > 0:
-        frame_data = frame_data[0]
-    
-    frame_index = frame_data.get('frameIndex', 0)
-    leds = frame_data.get('leds', [])
-    
-    # First send the frame index
-    can_interface.send_command('LIGHTS', 'ALL', 'ANIMATION_FRAME', direct_value=frame_index)
-    
-    # Then send each LED
-    for i, led in enumerate(leds):
-        r = led.get('r', 0)
-        g = led.get('g', 0)
-        b = led.get('b', 0)
-        
-        # Pack RGB into a single value (assuming 8 bits per color)
-        rgb_value = (r << 16) | (g << 8) | b
-        
-        # Send the LED value - we'll use the LED_VALUE command with the LED index
-        # The LED_VALUE command is expected to be implemented in the protocol
-        can_interface.send_command('LIGHTS', 'ALL', 'LED_VALUE', direct_value=rgb_value, command_data={'index': i})
-        
-        # Small delay to prevent bus flooding
-        time.sleep(0.001)
-    
-    return True
-
-def run_animation_test():
-    """Run the animation test."""
-    # Create CAN interface
-    can_interface = CANInterfaceWrapper(node_id=0x01, channel='can0')
+    # Create a CAN interface wrapper
+    can_interface = CANInterfaceWrapper(node_id=NODE_ID, channel=CHANNEL, baudrate=BAUDRATE)
     
     # Start message processing
     can_interface.start_processing()
     
     try:
-        # Animation name to test
-        animation_name = 'car_knight_rider'
-        logger.info(f"Sending animation: {animation_name}")
+        # Test with a simple animation
+        animation_id = "car_knight_rider"  # Knight Rider animation (light chaser)
         
-        # Load animation frames
-        frames = load_animation_frames(animation_name)
-        if not frames:
-            logger.error(f"No frames found for animation {animation_name}")
+        # Load the animation
+        animation = load_animation(animation_id)
+        if not animation:
+            logger.error(f"Failed to load animation {animation_id}")
             return False
         
-        # Send animation start command
-        logger.info("Sending animation start command")
-        can_interface.send_command('LIGHTS', 'ALL', 'ANIMATION_START', direct_value=1)
-        time.sleep(0.1)  # Give a little time for processing
+        # Send the animation
+        logger.info(f"Sending animation: {animation.get('name', animation_id)}")
+        if not send_animation(can_interface, animation):
+            logger.error("Failed to send animation")
+            return False
         
-        # Send each frame
-        for i, frame in enumerate(frames):
-            logger.info(f"Sending frame {i+1} of {len(frames)}")
-            
-            # Send frame data using individual LED messages
-            send_animation_frame_individual_leds(can_interface, frame)
-            
-            # Delay between frames
-            time.sleep(0.1)
+        # Let it play for a few seconds
+        logger.info("Animation playing...")
+        time.sleep(5)
         
-        # Send animation end command
-        logger.info("Sending animation end command")
-        can_interface.send_command('LIGHTS', 'ALL', 'ANIMATION_END', direct_value=1)
+        # Stop the animation
+        if not stop_animation(can_interface):
+            logger.error("Failed to stop animation")
+            return False
         
-        # Test successful
         logger.info("Animation test completed successfully")
         return True
         
+    except KeyboardInterrupt:
+        logger.info("Test interrupted by user")
     except Exception as e:
-        logger.error(f"Test failed with error: {str(e)}")
-        return False
+        logger.error(f"Test failed with error: {e}")
     finally:
         # Stop message processing
         can_interface.stop_processing()
+    
+    return False
 
 if __name__ == "__main__":
     # Run the test
-    success = run_animation_test()
+    success = test_animation_transmission()
     sys.exit(0 if success else 1) 

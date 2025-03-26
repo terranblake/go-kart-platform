@@ -87,12 +87,3 @@ enum LightSequenceValue {
   SEQ4 = 3;
   RANDOM = 4;
 }
-
-// Animation command values
-enum AnimationCommandValue {
-  ANIMATION_PLAY = 0;
-  ANIMATION_PAUSE = 1;
-  ANIMATION_RESET = 2;
-  ANIMATION_LOOP = 3;
-  ANIMATION_SPEED = 4;
-}

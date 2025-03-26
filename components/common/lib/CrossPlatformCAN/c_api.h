@@ -5,16 +5,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// Include common.pb.h to get the enum declarations
-#include "include/common.pb.h"
+// Handle for the CAN interface
+typedef void* can_interface_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Forward declarations of C++ types for opaque pointer
-struct ProtobufCANInterface;
-typedef struct ProtobufCANInterface* can_interface_t;
 
 /**
  * Create a new CAN interface
@@ -23,13 +19,6 @@ typedef struct ProtobufCANInterface* can_interface_t;
  * @return Handle to the interface or NULL on failure
  */
 can_interface_t can_interface_create(uint32_t node_id);
-
-/**
- * Destroy a CAN interface
- * 
- * @param handle Handle to the interface
- */
-void can_interface_destroy(can_interface_t handle);
 
 /**
  * Initialize the CAN interface
@@ -42,93 +31,80 @@ void can_interface_destroy(can_interface_t handle);
 bool can_interface_begin(can_interface_t handle, long baudrate, const char* device);
 
 /**
- * Register a handler for specific message types
+ * Clean up and destroy the CAN interface
  * 
  * @param handle Handle to the interface
- * @param msg_type Type of message to handle (command/status/etc)
- * @param comp_type Component type to handle
- * @param component_id Component ID to handle (or 0xFF for all)
- * @param command_id Command ID to handle
- * @param handler Function to call when matching message is received
  */
-void can_interface_register_handler(
-    can_interface_t handle,
-    int msg_type,
-    int comp_type,
-    uint8_t component_id,
-    uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
-);
+void can_interface_destroy(can_interface_t handle);
 
 /**
- * Register a handler for binary data messages
- * Used for larger payloads like animation frames
+ * Send a simple message over the CAN bus
  * 
  * @param handle Handle to the interface
- * @param msg_type Type of message to handle (command/status/etc)
- * @param comp_type Component type to handle
- * @param component_id Component ID to handle (or 0xFF for all)
- * @param command_id Command ID to handle
- * @param handler Function to call when matching message is received
- */
-void can_interface_register_binary_handler(
-    can_interface_t handle,
-    int msg_type,
-    int comp_type,
-    uint8_t component_id,
-    uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, const void*, size_t)
-);
-
-/**
- * Send a message over the CAN bus
- * 
- * @param handle Handle to the interface
- * @param msg_type Type of message (command/status)
- * @param comp_type Type of component
- * @param component_id ID of the component
- * @param command_id Command ID
- * @param value_type Type of value
+ * @param msg_type Type of message (0=command, 1=status)
+ * @param comp_type Type of component (0=lights, 1=motors, etc.)
+ * @param component_id ID of the component (or 255 for all)
+ * @param command_id Command ID to send
+ * @param value_type Type of value (0=int8, 1=uint8, etc.)
  * @param value Value to send
  * @return true on success, false on failure
  */
 bool can_interface_send_message(
     can_interface_t handle,
-    int msg_type,
-    int comp_type,
+    uint8_t msg_type,
+    uint8_t comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    int value_type,
+    uint8_t value_type,
     int32_t value
 );
 
 /**
- * Send binary data over the CAN bus using multiple frames
+ * Start an animation sequence
  * 
  * @param handle Handle to the interface
- * @param msg_type Type of message (command/status)
- * @param comp_type Type of component
- * @param component_id ID of the component
- * @param command_id Command ID
- * @param value_type Type of value
- * @param data Pointer to binary data
- * @param data_size Size of the binary data in bytes
  * @return true on success, false on failure
  */
-bool can_interface_send_binary_data(
+bool can_interface_animation_start(can_interface_t handle);
+
+/**
+ * Send a single animation frame
+ * 
+ * @param handle Handle to the interface
+ * @param frame_index Index of this frame
+ * @param led_data Array of LED data (x, y, r, g, b) for each LED
+ * @param led_count Number of LEDs in the frame
+ * @return true on success, false on failure
+ */
+bool can_interface_animation_frame(
     can_interface_t handle,
-    int msg_type,
-    int comp_type,
-    uint8_t component_id,
-    uint8_t command_id,
-    int value_type,
-    const void* data,
-    size_t data_size
+    uint8_t frame_index,
+    const uint8_t* led_data,
+    uint8_t led_count
 );
 
 /**
- * Process incoming messages
- * Should be called regularly in the main loop
+ * End an animation sequence
+ * 
+ * @param handle Handle to the interface
+ * @param total_frames Total number of frames in the animation
+ * @return true on success, false on failure
+ */
+bool can_interface_animation_end(
+    can_interface_t handle,
+    uint8_t total_frames
+);
+
+/**
+ * Stop the current animation
+ * 
+ * @param handle Handle to the interface
+ * @return true on success, false on failure
+ */
+bool can_interface_animation_stop(can_interface_t handle);
+
+/**
+ * Process incoming messages (should be called regularly)
  * 
  * @param handle Handle to the interface
  */

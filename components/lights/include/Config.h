@@ -1,3 +1,6 @@
+#ifndef _CONFIG_H
+#define _CONFIG_H
+
 #include <stdint.h>  // For uint8_t type
 
 // Pin definitions
@@ -6,19 +9,22 @@
 // Light configuration
 #define NUM_LEDS 60
 #define DEFAULT_BRIGHTNESS 50
-#define BRIGHT_BRIGHTNESS 127
-#define BRAKE_BRIGHTNESS 255 // Much brighter for brake lights
+#define BRIGHT_BRIGHTNESS 100
+#define BRAKE_BRIGHTNESS 120
 
 // Turn signal configuration
 #define TURN_SIGNAL_BLINK_RATE 500 // Blink rate in milliseconds
-#define TURN_SIGNAL_COUNT 10       // Number of LEDs to use for turn signals on each side
-#define TURN_SIGNAL_SWEEP_STEP 50  // Time between each LED in the sweep (milliseconds)
+#define TURN_SIGNAL_COUNT 5       // Number of LEDs to use for turn signals on each side
+#define TURN_SIGNAL_SWEEP_STEP 30  // Time between each LED in the sweep (milliseconds)
 
 // Startup/Shutdown configuration
-#define ANIMATION_STEP_DELAY 5 // Duration between the next step of the start/stop animation
+#define ANIMATION_STEP_DELAY 30 // Duration between the next step of the start/stop animation
 
 // Serial command configuration
-#define SERIAL_COMMAND_BUFFER_SIZE 32
+#define SERIAL_COMMAND_BUFFER_SIZE 64
+
+// Debug mode
+#define DEBUG_MODE 1
 
 // Structure for light state
 typedef struct
@@ -74,3 +80,5 @@ void runTestSequence();
 void processSerialCommands();
 void executeSerialCommand(const char *command);
 #endif
+
+#endif // _CONFIG_H

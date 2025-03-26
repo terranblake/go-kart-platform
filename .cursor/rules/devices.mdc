@@ -3,6 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-there's a remote raspberry pi running at 192.168.1.154 that is running the server stored at dashboard/server. you can ssh into this device to test that server. if you need to update changes on the server, please commit your changes to a branch (NOT MAIN), ssh in, and pull down the updated branch
+there's a raspberry pi on the network running the server stored at dashboard/server. you can ssh into this device to test that server. if you need to update changes on the server, please commit your changes to a branch (NOT MAIN), ssh in, and pull down the updated branch
 
 remote arduinos are connected to comX ports where X is the number of the com port. currently only lighting is running on com5 and communicates over serial at 115200 baud. you can interface with these devices using pio, a library that manages embedded deployments and compilations. each folder in components which is not the reserved "common" library, will have a platformio.ini file, which describes how the component-specific arduino is compiled, and is what is used to deploy changes to it. pio run -e debug is preferred for testing, and pio device monitor -p comX -b 115200 for viewing logs

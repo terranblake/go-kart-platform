@@ -1,3 +1,4 @@
+
 syntax = "proto3";
 
 package kart.common;
@@ -30,8 +31,7 @@ enum ValueType {
   INT24 = 5;
   UINT24 = 6;
   FLOAT16 = 7;
-  BINARY = 8;  // For binary data like animation frames
-  // Reserved space for 7 more types
+  // Reserved space for 8 more types
 }
 
 // Special value for addressing all components of a type
