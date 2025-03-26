@@ -1,161 +1,194 @@
+<!-- LLM_CONTEXT
+library: CrossPlatformCAN
+purpose: Cross-platform CAN bus communication library for Arduino and Raspberry Pi
+languages: C++, Python
+message_format: 8-byte format with message type, component type, component ID, command ID, value type, and value
+platforms: Arduino (with CAN library), Raspberry Pi (with SocketCAN)
+key_apis: send_message, register_handler, process
+-->
+
 # CrossPlatformCAN Library
 
-A cross-platform CAN interface library that works seamlessly on both Raspberry Pi (Linux) and Arduino platforms. The library provides a consistent API for CAN communication and supports Protocol Buffer message serialization.
+## Overview
+Cross-platform CAN interface library for Raspberry Pi and Arduino with Protocol Buffer message serialization.
 
-## Features
+## Platform Support
+<!-- LLM_CODE_MARKER: platform_support -->
+| Platform | Communication Method | Dependencies | Hardware |
+|----------|---------------------|--------------|----------|
+| Raspberry Pi | SocketCAN (Linux kernel) | C++11, CMake 3.10+, can-utils | MCP2515 HAT or USB-CAN adapter |
+| Arduino | Arduino-CAN library | Arduino IDE/PlatformIO | MCP2515 + TJA1050, SPI connection |
+<!-- LLM_CODE_MARKER_END -->
 
-- Unified API for both Raspberry Pi and Arduino platforms
-- Automatic platform detection at compile time
-- Protocol Buffer message serialization support
-- Message handler registration for event-driven programming
-- Efficient 8-byte message format supporting various data types
-- Python bindings using CFFI
-- Socket-based CAN communication on Linux
-- Fallback to can-utils when needed
+## Message Format
+<!-- LLM_CODE_MARKER: message_format -->
+| Byte | Content | Description |
+|------|---------|-------------|
+| 0 | Header | Message type (2 bits) + Component type (3 bits) + Reserved (3 bits) |
+| 1 | Reserved | Reserved for future use |
+| 2 | Component ID | Identifies specific component instance |
+| 3 | Command ID | Specific command or status identifier |
+| 4 | Value type | Value type (4 bits) + Reserved (4 bits) |
+| 5-7 | Value | Value data (up to 24 bits) |
+<!-- LLM_CODE_MARKER_END -->
 
-## Requirements
+## Enumeration Values
+<!-- LLM_CODE_MARKER: enumeration_values -->
+### Message Types
+- COMMAND (0): Instructions to execute
+- STATUS (1): Status updates
+- ACK (2): Acknowledgments
+- ERROR (3): Error reports
 
-### For Raspberry Pi
+### Component Types
+- LIGHTS (0): Lighting systems
+- MOTORS (1): Motor control
+- SENSORS (2): Sensor readings
+- BATTERY (3): Battery management
+- CONTROLS (4): User input controls
 
-- Linux with SocketCAN support (built into Linux kernel)
-- CAN hardware interface (e.g., MCP2515 based HAT or USB-CAN adapter)
-- C++11 compatible compiler
-- CMake 3.10 or newer
-- Protocol Buffer generated files
-- can-utils package for fallback option
+### Value Types
+- BOOLEAN (0): True/false values
+- INT8 (1): 8-bit signed integer
+- UINT8 (2): 8-bit unsigned integer
+- INT16 (3): 16-bit signed integer
+- UINT16 (4): 16-bit unsigned integer
+- INT24 (5): 24-bit signed integer
+- UINT24 (6): 24-bit unsigned integer
+- FLOAT16 (7): 16-bit floating point
+<!-- LLM_CODE_MARKER_END -->
 
-### For Arduino
+## API Reference
+<!-- LLM_API_BOUNDARY: C++ API -->
+```cpp
+// Create an interface with node ID
+ProtobufCANInterface canInterface(uint8_t node_id);
 
-- Arduino IDE or PlatformIO
-- Arduino-CAN library
-- CAN transceiver hardware (e.g., MCP2515 + TJA1050)
-- SPI connection to the CAN controller
+// Initialize with baudrate
+void begin(uint32_t baudrate = 500000);
 
-## Installation
+// Register message handler
+void registerHandler(
+    kart_common_ComponentType comp_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    void (*handler)(kart_common_MessageType, kart_common_ComponentType, 
+                   uint8_t, uint8_t, kart_common_ValueType, int32_t)
+);
 
-### Raspberry Pi
+// Send message
+bool sendMessage(
+    kart_common_MessageType msg_type,
+    kart_common_ComponentType comp_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    kart_common_ValueType value_type,
+    int32_t value
+);
 
-1. Install dependencies:
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y cmake build-essential can-utils
-   ```
+// Process incoming messages (call in loop)
+void process();
+```
+<!-- LLM_API_END -->
 
-2. Set up the CAN hardware:
-   ```bash
-   # Configure and bring up the CAN interface
-   sudo ip link set can0 type can bitrate 500000
-   sudo ip link set up can0
-   
-   # Verify the interface is up
-   ip -details link show can0
-   ```
+<!-- LLM_API_BOUNDARY: Python API -->
+```python
+# Create an interface with node ID
+can = CANInterface(node_id=0x01)
 
-3. Build the library using the provided script:
-   ```bash
-   cd ~/go-kart-platform/components/common/lib/CrossPlatformCAN
-   chmod +x raspi_build.sh
-   ./raspi_build.sh
-   ```
-   
-   The build script performs the following tasks:
-   - Creates necessary directories (include, build)
-   - Copies header files to the right locations
-   - Sets compilation flags for Linux platform
-   - Compiles the library as a shared library (.so)
-   - Copies the shared library to the python directory
-   - Exports C API symbols for CFFI integration
+# Initialize with baudrate and device
+can.begin(baudrate=500000, device="can0")
 
-### Arduino
+# Register message handler
+can.register_handler(
+    ComponentType.LIGHTS,  # Component type
+    component_id=0x01,     # Component ID
+    command_id=0x01,       # Command ID
+    handler=message_handler # Callback function
+)
 
-1. Install the Arduino-CAN library:
-   - Open Arduino IDE
-   - Go to Sketch > Include Library > Manage Libraries
-   - Search for "CAN" and install the library by Sandeep Mistry
+# Send message
+can.send_message(
+    MessageType.COMMAND,   # Message type
+    ComponentType.LIGHTS,  # Component type
+    component_id=0x01,     # Component ID
+    command_id=0x01,       # Command ID
+    value_type=ValueType.BOOLEAN, # Value type
+    value=1                # Value
+)
 
-2. Copy the CrossPlatformCAN library files to your Arduino libraries folder:
-   ```bash
-   cp -r CrossPlatformCAN ~/Arduino/libraries/
-   ```
+# Start/stop background processing
+can.start_processing()
+can.stop_processing()
+```
+<!-- LLM_API_END -->
 
-## Usage
-
-### C++ API
-
+## Usage Examples
+<!-- LLM_CODE_MARKER: usage_examples -->
+### Arduino Usage
 ```cpp
 #include "ProtobufCANInterface.h"
 
-// Define a node ID for this device
-#define NODE_ID 0x01
+// Create interface with node ID 0x01
+ProtobufCANInterface canInterface(0x01);
 
-// Create a CAN interface instance
-ProtobufCANInterface canInterface(NODE_ID);
-
-// Handler for received messages
-void messageHandler(kart_common_MessageType msg_type, 
-                   kart_common_ComponentType comp_type,
-                   uint8_t component_id, uint8_t command_id, 
-                   kart_common_ValueType value_type, int32_t value) {
-  // Handle the message
-  // ...
+// Message handler function
+void handleLightCommand(kart_common_MessageType msg_type,
+                       kart_common_ComponentType comp_type,
+                       uint8_t component_id,
+                       uint8_t command_id,
+                       kart_common_ValueType value_type,
+                       int32_t value) {
+  // Handle light command
+  if (command_id == 0x01) {  // MODE command
+    // Set light mode based on value
+  }
 }
 
 void setup() {
-  // Initialize CAN interface (default: 500kbps)
+  // Initialize CAN interface
   canInterface.begin(500000);
   
-  // Register message handler
-  canInterface.registerHandler(kart_common_ComponentType_LIGHTS, 
-                              0x01, 
-                              0x01, 
-                              messageHandler);
+  // Register handler for light commands
+  canInterface.registerHandler(kart_common_ComponentType_LIGHTS,
+                              0x01,  // Front lights
+                              0x01,  // MODE command
+                              handleLightCommand);
 }
 
 void loop() {
-  // Process incoming CAN messages
+  // Process incoming messages
   canInterface.process();
-  
-  // Send a message
-  canInterface.sendMessage(
-    kart_common_MessageType_COMMAND,
-    kart_common_ComponentType_LIGHTS,
-    0x01,
-    0x01,
-    kart_common_ValueType_BOOLEAN,
-    true
-  );
 }
 ```
 
-### Python API
-
-The library provides Python bindings using CFFI. The Python interface can be used as follows:
-
+### Python Usage
 ```python
 from can_interface import CANInterface, MessageType, ComponentType, ValueType
 
-# Create a CAN interface instance
+# Create interface with node ID 0x01
 can = CANInterface(node_id=0x01)
 
-# Initialize the CAN interface
+# Initialize
 can.begin(baudrate=500000, device="can0")
 
-# Define a message handler
-def message_handler(msg_type, comp_type, comp_id, cmd_id, val_type, value):
-    print(f"Received message: {msg_type}, {comp_type}, {comp_id}, {cmd_id}, {val_type}, {value}")
+# Message handler
+def handle_light_status(msg_type, comp_type, comp_id, cmd_id, val_type, value):
+    # Process light status update
+    print(f"Light status: {value}")
 
-# Register the handler
+# Register handler
 can.register_handler(
     ComponentType.LIGHTS,
     component_id=0x01,
     command_id=0x01,
-    handler=message_handler
+    handler=handle_light_status
 )
 
-# Start automatic message processing in a background thread
+# Start processing in background
 can.start_processing()
 
-# Send a message
+# Send command
 can.send_message(
     MessageType.COMMAND,
     ComponentType.LIGHTS,
@@ -164,104 +197,47 @@ can.send_message(
     value_type=ValueType.BOOLEAN,
     value=1
 )
+```
+<!-- LLM_CODE_MARKER_END -->
 
-# When done, stop processing
-can.stop_processing()
+## Setup Instructions
+<!-- LLM_CODE_MARKER: setup_instructions -->
+### Raspberry Pi Setup
+```bash
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y cmake build-essential can-utils
+
+# Configure CAN interface
+sudo ip link set can0 type can bitrate 500000
+sudo ip link set up can0
+
+# Build library
+cd components/common/lib/CrossPlatformCAN
+chmod +x raspi_build.sh
+./raspi_build.sh
 ```
 
-The Python interface has a fallback mechanism to use can-utils (cansend/candump) if the CFFI library cannot be loaded or initialized.
-
-## Message Format
-
-The library uses a consistent 8-byte message format:
-
-| Byte | Description |
-|------|-------------|
-| 0    | Header byte: Message type (2 bits) + Component type (3 bits) + Reserved (3 bits) |
-| 1    | Reserved for future use |
-| 2    | Component ID |
-| 3    | Command ID |
-| 4    | Value type (4 bits) + Reserved (4 bits) |
-| 5-7  | Value data (up to 24 bits) |
-
-### Message Types
-
-- COMMAND (0) - Instructions to be executed
-- STATUS (1) - Status updates
-- ACK (2) - Acknowledgments
-- ERROR (3) - Error reports
-
-### Component Types
-
-- LIGHTS (0)
-- MOTORS (1)
-- SENSORS (2)
-- BATTERY (3)
-- CONTROLS (4)
-
-### Value Types
-
-- BOOLEAN (0)
-- INT8 (1)
-- UINT8 (2)
-- INT16 (3)
-- UINT16 (4)
-- INT24 (5)
-- UINT24 (6)
-- FLOAT16 (7)
-
-## Build Process Details
-
-### raspi_build.sh
-
-This script is used to build the library for Raspberry Pi:
-
-1. Sets up include directories for header files
-2. Defines preprocessing flags for Linux platform
-3. Compiles the library as a shared object (.so)
-4. Copies the compiled library to the Python directory
-5. Uses `nm` to verify exported symbols for C API
-
-### deploy_to_pi.sh
-
-This script deploys the library to a Raspberry Pi:
-
-1. Creates the directory structure on the Pi
-2. Copies all necessary files (source files, headers, and protocol files)
-3. Makes scripts executable
-4. Provides instructions for building and testing
-
-### C API
-
-The library exposes a C API through `c_api.cpp` for use with other languages:
-
-- `can_interface_create()` - Creates a CAN interface instance
-- `can_interface_destroy()` - Destroys the instance
-- `can_interface_begin()` - Initializes the CAN interface
-- `can_interface_register_handler()` - Registers a message handler
-- `can_interface_send_message()` - Sends a CAN message
-- `can_interface_process()` - Processes incoming messages
+### Arduino Setup
+1. Install Arduino-CAN library from Library Manager
+2. Copy CrossPlatformCAN to Arduino libraries folder
+3. Include in your sketch with `#include "ProtobufCANInterface.h"`
+<!-- LLM_CODE_MARKER_END -->
 
 ## Troubleshooting
-
+<!-- LLM_CODE_MARKER: troubleshooting -->
 ### Raspberry Pi
-
-- Check if the CAN interface is up: `ip -details link show can0`
+- Check if CAN interface is up: `ip -details link show can0`
 - Monitor CAN traffic: `candump can0`
-- Send a test frame: `cansend can0 123#DEADBEEF`
-- Use socket_direct_test.py to send test messages directly via socket API
-- If you get compilation errors about missing headers:
-  - Ensure all Protocol Buffer headers are in the include directory
-  - Make sure nanopb headers are available in include/nanopb
+- Send test message: `cansend can0 123#DEADBEEF`
+- Verify library is loaded: `ldd python_binding.so`
 
-### CAN Error States
-
-If `ip -details link show can0` shows an error state:
-
-- ERROR-ACTIVE: Normal state, can send and receive
-- ERROR-WARNING: Error counters are high but still operational
-- ERROR-PASSIVE: Cannot send active error frames, only passive ones
-- BUS-OFF: Cannot send or receive, needs reset
+### Arduino
+- Verify SPI connections to CAN controller
+- Check baudrate matches between all devices
+- Monitor serial output for debugging messages
+- Test with loopback configuration
+<!-- LLM_CODE_MARKER_END -->
 
 ## License
 
