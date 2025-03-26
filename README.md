@@ -58,8 +58,6 @@ The Go-Kart Platform includes support for LED animations through the LED control
 - Animation playback over the CAN bus
 - Support for creating and storing animations
 - Animation commands: start, frame-by-frame data transfer, stop
-- Web-based animation editor for creating custom animations
-- Animation library with premade effects
 
 ### Animation Implementation
 
@@ -69,17 +67,12 @@ The animation system works through binary data transfer over the CAN bus using t
 - `ANIMATION_END`: Marks the end of an animation sequence
 - `ANIMATION_STOP`: Immediately stops the current animation
 
-### Animation Editor
+### Recent Animation System Improvements
 
-The Go-Kart Platform includes a web-based animation editor accessible from the dashboard. The editor allows you to:
-
-1. Create new animations with multiple frames
-2. Edit existing animations
-3. Preview animations before uploading them to the Go-Kart
-4. Manage an animation library
-5. Control animations playing on the Go-Kart in real-time
-
-To access the animation editor, navigate to the `/animations` endpoint on the dashboard server.
+- Fixed C API type conversion issues in CrossPlatformCAN library to ensure proper binary data transmission
+- Enhanced protocol registry to ensure animation commands are always properly registered
+- Added automated tests to verify animation protocol functionality
+- Improved binary data handling between Raspberry Pi and Arduino components
 
 See [TODO.md](TODO.md) for current issues and planned improvements to the animation system.
 
