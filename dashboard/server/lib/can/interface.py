@@ -58,6 +58,16 @@ ffi.cdef("""
         void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
     );
     
+    // Binary data handler registration
+    void can_interface_register_binary_handler(
+        can_interface_t handle,
+        int msg_type,
+        int comp_type,
+        uint8_t component_id,
+        uint8_t command_id,
+        void (*handler)(int, int, uint8_t, uint8_t, int, const void*, size_t)
+    );
+    
     // Message sending
     bool can_interface_send_message(
         can_interface_t handle,
@@ -67,6 +77,18 @@ ffi.cdef("""
         uint8_t command_id,
         int value_type,
         int32_t value
+    );
+    
+    // Binary data sending
+    bool can_interface_send_binary_data(
+        can_interface_t handle,
+        int msg_type,
+        int comp_type,
+        uint8_t component_id,
+        uint8_t command_id,
+        int value_type,
+        const void* data,
+        size_t data_size
     );
     
     // Message processing
@@ -103,6 +125,7 @@ class MockCANInterface:
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Created mock CAN interface with node_id={node_id}")
         self.handlers = {}
+        self.binary_handlers = {}
         
     def begin(self, baudrate, device):
         """Mock implementation of begin()"""
@@ -115,11 +138,25 @@ class MockCANInterface:
         self.handlers[key] = handler
         self.logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
+    
+    def register_binary_handler(self, comp_type, comp_id, cmd_id, handler):
+        """Mock implementation of register_binary_handler()"""
+        key = (comp_type, comp_id, cmd_id)
+        self.binary_handlers[key] = handler
+        self.logger.debug(f"Registered mock binary handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        return True
         
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """Mock implementation of send_message()"""
         self.logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
                    f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, value={value}")
+        return True
+    
+    def send_binary_data(self, msg_type, comp_type, comp_id, cmd_id, value_type, data, data_size):
+        """Mock implementation of send_binary_data()"""
+        self.logger.info(f"Mock send binary data: msg_type={msg_type}, comp_type={comp_type}, " 
+                   f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, data_size={data_size}")
+        # In a real scenario, we might simulate handling of this data
         return True
         
     def process(self):
@@ -281,6 +318,47 @@ class CANInterfaceWrapper:
         else:
             self._can_interface.register_handler(message_type, comp_type, comp_id, cmd_id, handler)
     
+    def register_binary_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
+        """
+        Register a binary data handler function for receiving binary data.
+        
+        Args:
+            message_type (str): The message type name ('COMMAND', 'STATUS').
+            comp_type (int): The component type ID.
+            comp_id (int): The component ID.
+            cmd_id (int): The command ID.
+            handler (function): The handler function to call when a matching message is received.
+        """
+        self.logger.info(f"Registering binary handler for {message_type}, comp_type={comp_type}, "
+                        f"comp_id={comp_id}, cmd_id={cmd_id}")
+        
+        # Convert message type name to numeric value
+        msg_type = self.protocol_registry.registry["message_types"].get(message_type)
+        if msg_type is None:
+            self.logger.error(f"Unknown message type: {message_type}")
+            return False
+        
+        # Create a callback function that matches the expected C signature
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, const void*, size_t)")
+        def callback(msg_type_val, comp_type_val, comp_id_val, cmd_id_val, value_type_val, data_ptr, data_size):
+            # Create a Python bytes object from the C data pointer
+            data = bytes(ffi.buffer(data_ptr, data_size))
+            handler(msg_type_val, comp_type_val, comp_id_val, cmd_id_val, value_type_val, data, data_size)
+        
+        # Store the callback to prevent it from being garbage collected
+        self.callbacks.append(callback)
+        
+        if self.has_can_hardware:
+            # Register the handler with the C library
+            lib.can_interface_register_binary_handler(
+                self._can_interface, msg_type, comp_type, comp_id, cmd_id, callback
+            )
+        else:
+            # Register with the mock interface
+            self._can_interface.register_binary_handler(comp_type, comp_id, cmd_id, handler)
+        
+        return True
+    
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """
         Send a message directly through the CAN interface.
@@ -302,49 +380,79 @@ class CANInterfaceWrapper:
         else:
             return self._can_interface.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
     
-    def send_command(self, message_type_name, component_type_name, component_name, command_name, value_name=None, direct_value=None):
+    def _send_binary_data(self, msg_type, comp_type, comp_id, cmd_id, value_type, data):
         """
-        Send a command message to a component.
+        Send binary data over the CAN bus.
         
         Args:
-            component_path (str): The path to the component (e.g., 'motors.main', 'lights.headlights').
-            command_name (str): The name of the command (e.g., 'SPEED', 'POWER').
-            command_data (dict, optional): Additional command data.
-            value_name (str, optional): The name of the value to send (e.g., 'ON', 'OFF').
-            direct_value (int, optional): The direct value to send.
+            msg_type (int): The message type ID.
+            comp_type (int): The component type ID.
+            comp_id (int): The component ID.
+            cmd_id (int): The command ID.
+            value_type (int): The value type ID.
+            data (bytes): The binary data to send.
             
         Returns:
             bool: True if the message was sent successfully, False otherwise.
         """
-        try:
-            # Use message_type = 'COMMAND' for all commands
-            message = self.protocol_registry.create_message(
-                message_type=message_type_name,
-                component_type=component_type_name,
-                component_name=component_name,
-                command_name=command_name,
-                value_name=value_name,
-                value=direct_value
-            )
+        self.logger.debug(f"Sending binary data: msg_type={msg_type}, comp_type={comp_type}, "
+                        f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, data_size={len(data)}")
+        
+        if self.has_can_hardware:
+            # Create a C pointer to the data
+            c_data = ffi.new("char[]", data)
             
-            if message:
-                logger.info(f"Sending command: {component_type_name}.{component_name}.{command_name} = {value_name} ({message[5]})")
-                logger.info(f"message: {message}")
-                return self.send_message(
-                    msg_type=message[0],
-                    comp_type=message[1],
-                    comp_id=message[2],
-                    cmd_id=message[3],
-                    value_type=message[4],
-                    value=message[5]
-                )
-            else:
-                logger.error(f"Failed to create message for {component_type_name}.{component_name}.{command_name}")
-                return False
-        except Exception as e:
-            logger.error(f"Error sending command: {e}")
-            return False
+            # Send the binary data
+            return lib.can_interface_send_binary_data(
+                self._can_interface, msg_type, comp_type, comp_id, cmd_id, value_type, c_data, len(data)
+            )
+        else:
+            # Use the mock interface
+            return self._can_interface.send_binary_data(msg_type, comp_type, comp_id, cmd_id, value_type, data, len(data))
     
+    def send_command(self, component_type_name, component_name, command_name, value_name=None, direct_value=None, command_data=None):
+        """
+        Send a command message to a component.
+        
+        Args:
+            component_type_name (str): The component type name ('LIGHTS', 'MOTOR', etc).
+            component_name (str): The component name ('FRONT', 'REAR', etc).
+            command_name (str): The command name ('MODE', 'SPEED', etc).
+            value_name (str, optional): The name of the value to send (e.g., 'ON', 'OFF').
+            direct_value (int, optional): The direct value to send.
+            command_data (dict, optional): Additional command data.
+            
+        Returns:
+            bool: True if the command was sent successfully, False otherwise.
+        """
+        if value_name is not None:
+            self.logger.info(f"Sending command: {component_type_name}.{component_name}.{command_name} = {value_name}")
+        else:
+            self.logger.info(f"Sending command: {component_type_name}.{component_name}.{command_name} = {direct_value}")
+        
+        # Use message_type = 'COMMAND' for all commands
+        message = self.protocol_registry.create_message(
+            message_type="COMMAND",
+            component_type=component_type_name,
+            component_name=component_name,
+            command_name=command_name,
+            value_name=value_name,
+            direct_value=direct_value
+        )
+        
+        if not message:
+            self.logger.error(f"Failed to create message for {component_type_name}.{component_name}.{command_name}")
+            return False
+        
+        return self.send_message(
+            message["message_type"],
+            message["component_type"],
+            message["component_id"],
+            message["command_id"],
+            message["value_type"],
+            message["value"]
+        )
+
     def process(self):
         """Process any pending messages from the CAN bus"""
         if self.has_can_hardware:
@@ -380,3 +488,50 @@ class CANInterfaceWrapper:
         if hasattr(self, 'process_thread') and self.process_thread and self.process_thread.is_alive():
             self.process_thread.join(1.0)
             logger.info("Stopped automatic message processing")
+
+    def send_binary_data(self, component_type_name, component_name, command_name, value_type, data):
+        """
+        Send binary data using the higher-level API.
+        
+        Args:
+            component_type_name (str): The component type name ('LIGHTS', 'MOTOR', etc).
+            component_name (str): The component name ('FRONT', 'REAR', etc).
+            command_name (str): The command name ('MODE', 'SPEED', etc).
+            value_type (str): The value type name ('UINT8', 'INT16', etc).
+            data (bytes): The binary data to send.
+            
+        Returns:
+            bool: True if the data was sent successfully, False otherwise.
+        """
+        self.logger.info(f"Sending binary data: {component_type_name}.{component_name}.{command_name} "
+                        f"with value_type={value_type}, data_size={len(data)}")
+        
+        # Convert component type name to numeric value
+        comp_type = self.protocol_registry.get_component_type(component_type_name.upper())
+        if comp_type is None:
+            self.logger.error(f"Unknown component type: {component_type_name}")
+            return False
+        
+        # Convert component name to numeric value
+        comp_id = self.protocol_registry.get_component_id(component_type_name.upper(), component_name.upper())
+        if comp_id is None:
+            self.logger.error(f"Unknown component name: {component_name} for type {component_type_name}")
+            return False
+        
+        # Convert command name to numeric value
+        cmd_id = self.protocol_registry.get_command_id(component_type_name.upper(), command_name.upper())
+        if cmd_id is None:
+            self.logger.error(f"Unknown command name: {command_name} for type {component_type_name}")
+            return False
+        
+        # Convert value type name to numeric value
+        val_type = self.protocol_registry.registry["value_types"].get(value_type.upper())
+        if val_type is None:
+            self.logger.error(f"Unknown value type: {value_type}")
+            return False
+        
+        # Use the 'COMMAND' message type
+        msg_type = self.protocol_registry.registry["message_types"]["COMMAND"]
+        
+        # Send the binary data using the low-level function
+        return self._send_binary_data(msg_type, comp_type, comp_id, cmd_id, val_type, data)

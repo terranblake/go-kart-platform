@@ -5,6 +5,7 @@ API routes for animations on the go-kart lights
 import os
 import json
 import logging
+import time
 from flask import jsonify, request, Blueprint
 from lib.can.interface import CANInterfaceWrapper
 
@@ -135,18 +136,77 @@ def register_animation_routes(app, can_interface: CANInterfaceWrapper):
                 direct_value=1
             )
             
-            # Send the animation data as a series of frames
+            # Process the animation frames
             frames = animation.get('frames', [])
+            
+            # For each frame, construct a binary packet and send it
             for i, frame in enumerate(frames):
-                # Encode frame data as a direct value
-                # This is simplified - in reality, you'd need to use a more
-                # complex protocol to send the frame data over CAN
-                can_interface.send_command(
+                # Extract LED data from the frame
+                leds = frame.get('leds', [])
+                
+                # Create binary packet for this frame
+                # Format: [frame_index(1), num_leds(1), led_data...]
+                # Each led_data is: [x(1), y(1), r(1), g(1), b(1)]
+                
+                packet = bytearray()
+                packet.append(i)  # Frame index
+                packet.append(len(leds))  # Number of LEDs
+                
+                # Add LED data
+                for led in leds:
+                    # Support both index-based and coordinate-based formats
+                    if 'index' in led:
+                        # Convert linear index to x,y
+                        dimensions = animation.get('dimensions', {'length': 60, 'height': 1})
+                        width = dimensions.get('length', 60)
+                        index = led['index']
+                        
+                        # For a 1D strip, y is always 0
+                        x = index % width
+                        y = index // width
+                    else:
+                        x = led.get('x', 0)
+                        y = led.get('y', 0)
+                    
+                    # Get RGB color
+                    color = led.get('color', '#ff0000')
+                    if isinstance(color, str) and color.startswith('#'):
+                        # Parse hex color
+                        color = color.lstrip('#')
+                        if len(color) == 6:
+                            r = int(color[0:2], 16)
+                            g = int(color[2:4], 16)
+                            b = int(color[4:6], 16)
+                        else:
+                            # Default red for invalid colors
+                            r, g, b = 255, 0, 0
+                    elif isinstance(color, dict):
+                        # Dict with r,g,b keys
+                        r = color.get('r', 0)
+                        g = color.get('g', 0)
+                        b = color.get('b', 0)
+                    else:
+                        # Default red
+                        r, g, b = 255, 0, 0
+                    
+                    # Add to packet
+                    packet.append(x)
+                    packet.append(y)
+                    packet.append(r)
+                    packet.append(g)
+                    packet.append(b)
+                
+                # Send the binary frame data
+                can_interface.send_binary_data(
                     component_type='LIGHTS',
                     component_name='ALL',
                     command_name='ANIMATION_FRAME',
-                    command_data={'frame_index': i, 'frame_data': frame}
+                    value_type='UINT8',
+                    data=bytes(packet)
                 )
+                
+                # Short delay to avoid overwhelming the CAN bus
+                time.sleep(0.01)
             
             # Send end command to start playback
             can_interface.send_command(

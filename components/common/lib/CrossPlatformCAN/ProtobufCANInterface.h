@@ -16,6 +16,11 @@
 typedef void (*MessageHandler)(kart_common_MessageType, kart_common_ComponentType, 
                              uint8_t, uint8_t, kart_common_ValueType, int32_t);
 
+// Function pointer type for binary data handlers
+typedef void (*BinaryDataHandler)(kart_common_MessageType, kart_common_ComponentType,
+                               uint8_t, uint8_t, kart_common_ValueType, 
+                               const void*, size_t);
+
 class ProtobufCANInterface {
 public:
   /**
@@ -50,6 +55,22 @@ public:
                       MessageHandler handler);
   
   /**
+   * Register a handler for binary data messages
+   * Used for larger payloads like animation frames
+   * 
+   * @param msg_type Type of message to handle (command/status/etc)
+   * @param type Component type to handle
+   * @param component_id Component ID to handle (or 0xFF for all)
+   * @param command_id Command ID to handle
+   * @param handler Function to call when matching message is received
+   */
+  void registerBinaryHandler(kart_common_MessageType msg_type,
+                          kart_common_ComponentType type, 
+                          uint8_t component_id, 
+                          uint8_t command_id, 
+                          BinaryDataHandler handler);
+  
+  /**
    * Send a message over the CAN bus
    * 
    * @param message_type Type of message (command/status)
@@ -64,6 +85,24 @@ public:
                   kart_common_ComponentType component_type,
                   uint8_t component_id, uint8_t command_id, 
                   kart_common_ValueType value_type, int32_t value);
+  
+  /**
+   * Send binary data over the CAN bus using multiple frames
+   * 
+   * @param message_type Type of message (command/status)
+   * @param component_type Type of component
+   * @param component_id ID of the component
+   * @param command_id Command ID
+   * @param value_type Type of value
+   * @param data Pointer to binary data
+   * @param data_size Size of the binary data in bytes
+   * @return true on success, false on failure
+   */
+  bool sendBinaryData(kart_common_MessageType message_type,
+                    kart_common_ComponentType component_type,
+                    uint8_t component_id, uint8_t command_id,
+                    kart_common_ValueType value_type,
+                    const void* data, size_t data_size);
   
   /**
    * Process incoming messages
@@ -99,7 +138,20 @@ private:
     uint8_t component_id;
     uint8_t command_id;
     MessageHandler handler;
+    BinaryDataHandler binary_handler;
+    bool is_binary;
   };
+
+  // Buffer for reassembling multi-frame binary data
+  static const size_t MAX_BINARY_SIZE = 1024;
+  uint8_t m_binaryBuffer[MAX_BINARY_SIZE];
+  size_t m_binarySize;
+  bool m_binaryInProgress;
+  uint8_t m_binaryComponentId;
+  uint8_t m_binaryCommandId;
+  kart_common_ValueType m_binaryValueType;
+  kart_common_MessageType m_binaryMsgType;
+  kart_common_ComponentType m_binaryCompType;
 
   uint32_t m_nodeId;
   HandlerEntry m_handlers[MAX_HANDLERS];
