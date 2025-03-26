@@ -21,6 +21,7 @@ include_directories(
 set(TEST_SOURCES
   test_can_interface.cpp
   test_protobuf_interface.cpp
+  test_animation_protocol.cpp
 )
 
 # Create test executable
