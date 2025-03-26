@@ -3,7 +3,14 @@
  */
 
 #include "ProtobufCANInterface.h"
-#include "../../../protocol/generated/nanopb/lights.pb.h" // Use correct path to generated Protocol Buffer header
+
+// Include the Protocol Buffer definitions - make sure path is relative to build system
+// Different build systems might include files from different base paths
+#ifdef ARDUINO
+#include "protocol/generated/nanopb/lights.pb.h"
+#else
+#include "../../../protocol/generated/nanopb/lights.pb.h"
+#endif
 
 // Debug mode
 #ifndef DEBUG_MODE
