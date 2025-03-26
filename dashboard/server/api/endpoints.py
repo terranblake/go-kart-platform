@@ -29,6 +29,9 @@ can_interface = CANInterfaceWrapper(
     telemetry_store=telemetry_store
 )
 
+# Start automatic message processing
+can_interface.start_processing()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -106,8 +109,8 @@ def send_updates():
     
     while running and clients_connected:
         try:
-            # Process CAN messages - this will update the telemetry store
-            can_interface.process()
+            # Process CAN messages is now handled automatically by the background thread
+            # No need to call can_interface.process() here
             
             # Get the current state from telemetry store
             current_time = time.time()

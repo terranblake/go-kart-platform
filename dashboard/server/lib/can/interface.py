@@ -205,7 +205,7 @@ class CANInterfaceWrapper:
         comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
         val_type_name = self._get_type_name(self.value_types_by_value, val_type)
         
-        logger.info(f"Received message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
+        logger.info(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
                     f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
         if not self.telemetry_store:
@@ -228,6 +228,8 @@ class CANInterfaceWrapper:
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
         self.logger.info("Registering default handlers")
+        registered_count = 0
+        
         for component_type in self.protocol_registry.get_component_types():
             for command in self.protocol_registry.get_commands(component_type):
                 for value in self.protocol_registry.get_command_values(component_type, command):
@@ -237,8 +239,15 @@ class CANInterfaceWrapper:
                     comp_type = self.protocol_registry.get_component_type(component_type)
                     cmd_id = self.protocol_registry.get_command_id(component_type, command)
 
-                    # listen for messages from all component ids of this type sending this command
+                    # Register handler for STATUS messages from all component IDs
                     self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
+                    
+                    # Also register for COMMAND echo messages (Arduino might be sending these)
+                    self.register_handler('COMMAND', comp_type, 255, cmd_id, self._handle_message)
+                    
+                    registered_count += 2
+        
+        self.logger.info(f"Registered {registered_count} message handlers")
     
     def register_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
         """
