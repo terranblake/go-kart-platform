@@ -132,18 +132,18 @@ class MockCANInterface:
         self.logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
         return True
         
-    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_handler(self, msg_type, comp_type, comp_id, cmd_id, handler):
         """Mock implementation of register_handler()"""
-        key = (comp_type, comp_id, cmd_id)
+        key = (msg_type, comp_type, comp_id, cmd_id)
         self.handlers[key] = handler
-        self.logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        self.logger.debug(f"Registered mock handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
     
-    def register_binary_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_binary_handler(self, msg_type, comp_type, comp_id, cmd_id, handler):
         """Mock implementation of register_binary_handler()"""
-        key = (comp_type, comp_id, cmd_id)
+        key = (msg_type, comp_type, comp_id, cmd_id)
         self.binary_handlers[key] = handler
-        self.logger.debug(f"Registered mock binary handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        self.logger.debug(f"Registered mock binary handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
         
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
@@ -355,7 +355,7 @@ class CANInterfaceWrapper:
             )
         else:
             # Register with the mock interface
-            self._can_interface.register_binary_handler(comp_type, comp_id, cmd_id, handler)
+            self._can_interface.register_binary_handler(msg_type, comp_type, comp_id, cmd_id, handler)
         
         return True
     
@@ -399,13 +399,18 @@ class CANInterfaceWrapper:
                         f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, data_size={len(data)}")
         
         if self.has_can_hardware:
-            # Create a C pointer to the data
-            c_data = ffi.new("char[]", data)
-            
-            # Send the binary data
-            return lib.can_interface_send_binary_data(
-                self._can_interface, msg_type, comp_type, comp_id, cmd_id, value_type, c_data, len(data)
-            )
+            try:
+                # Create a C pointer to the data
+                c_data = ffi.new("char[]", data)
+                
+                # Send the binary data
+                return lib.can_interface_send_binary_data(
+                    self._can_interface, msg_type, comp_type, comp_id, cmd_id, value_type, c_data, len(data)
+                )
+            except (AttributeError, TypeError) as e:
+                self.logger.error(f"Failed to send binary data: {e}. Function may not be implemented in the library.")
+                # Fall back to mock implementation
+                return self._can_interface.send_binary_data(msg_type, comp_type, comp_id, cmd_id, value_type, data, len(data))
         else:
             # Use the mock interface
             return self._can_interface.send_binary_data(msg_type, comp_type, comp_id, cmd_id, value_type, data, len(data))
@@ -431,26 +436,28 @@ class CANInterfaceWrapper:
             self.logger.info(f"Sending command: {component_type_name}.{component_name}.{command_name} = {direct_value}")
         
         # Use message_type = 'COMMAND' for all commands
-        message = self.protocol_registry.create_message(
+        message_tuple = self.protocol_registry.create_message(
             message_type="COMMAND",
             component_type=component_type_name,
             component_name=component_name,
             command_name=command_name,
             value_name=value_name,
-            direct_value=direct_value
+            value=direct_value
         )
         
-        if not message:
+        if not message_tuple or None in message_tuple[:4]:  # Check if essential parts are None
             self.logger.error(f"Failed to create message for {component_type_name}.{component_name}.{command_name}")
             return False
         
+        msg_type, comp_type, comp_id, cmd_id, val_type, val = message_tuple
+        
         return self.send_message(
-            message["message_type"],
-            message["component_type"],
-            message["component_id"],
-            message["command_id"],
-            message["value_type"],
-            message["value"]
+            msg_type,
+            comp_type,
+            comp_id,
+            cmd_id,
+            val_type,
+            val
         )
 
     def process(self):
