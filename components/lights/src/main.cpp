@@ -9,6 +9,8 @@
 
 // Global state variables
 LightState lightState{};
+AnimationState animationState{};
+AnimationConfig animationConfig{};
 bool testModeActive = false;
 CRGB leds[NUM_LEDS];
 bool updateFrontLights = true; // Default to updating front lights
@@ -34,62 +36,122 @@ char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
 
 void setup()
 {
-#if DEBUG_MODE
+  // Initialize serial for debugging
   Serial.begin(115200);
-#endif
+  Serial.println(F("Go Kart Lights Controller Starting..."));
 
-  if (!canInterface.begin(500E3))
-  {
-    while (1)
-      ;
-  }
+  // Initialize FastLED
+  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+  FastLED.clear();
+  FastLED.show();
 
-  // Initialize LED strips
-  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+  // Initialize CAN interface
+  canInterface.begin(canInterfaceConfig);
 
-  // Initialize all light states to default
-  lightState.mode = 0; // Lights disabled by default
-  clearLights(leds, NUM_LEDS);
+  // Initialize light state
+  lightState.mode = kart_lights_LightModeValue_OFF;
+  lightState.brightness = DEFAULT_BRIGHTNESS;
+  lightState.turnLeft = 0;
+  lightState.turnRight = 0;
+  lightState.hazard = 0;
+  lightState.braking = 0;
+  lightState.sweepPosition = 0;
+  lightState.animation = 0;
 
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_CONTROLS, kart_controls_ControlComponentId_DIAGNOSTIC, kart_controls_ControlCommandId_MODE, handleLightTest);
+  // Initialize animation config
+  animationConfig.fps = DEFAULT_ANIMATION_FPS;
+  animationConfig.frameDuration = 1000 / DEFAULT_ANIMATION_FPS;
+  animationConfig.loopAnimation = true;
+  animationConfig.brightness = DEFAULT_BRIGHTNESS;
 
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_MODE, handleLightMode);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_SIGNAL, handleLightSignal);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_BRAKE, handleLightBrake);
+  // Reset animation state
+  resetAnimationState();
 
-  // todo: remove these in favor of EEPROM-supported node identification
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
+  // Register regular message handlers
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_MODE,
+    handleLightMode);
 
-  Serial.println(F("Go-Kart Lights"));
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_SIGNAL,
+    handleLightSignal);
 
-#if DEBUG_MODE
-  setupLightsForTesting();
-#endif
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_BRAKE,
+    handleLightBrake);
+
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_TEST,
+    handleLightTest);
+
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_LOCATION,
+    handleLightLocation);
+
+  // Register animation handlers
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_ANIMATION,
+    handleAnimationControl);
+
+  canInterface.registerCommandHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_ANIMATION_CONFIG,
+    handleAnimationConfig);
+
+  // Register animation data handler
+  canInterface.registerAnimationHandler(
+    kart_common_ComponentType_LIGHTS,
+    kart_lights_LightCommandId_ANIMATION_DATA,
+    processAnimationMessage);
+
+  // Set default location (front)
+  updateFrontLights = true;
+
+  // Enable test mode if configured
+  #if RUN_TEST_SEQUENCE
+  testModeActive = true;
+  Serial.println(F("Test mode enabled"));
+  #endif
 }
 
 void loop()
 {
-  if (!testModeActive)
-  {
-    // Update light states based on current settings
-    updateLights(leds, NUM_LEDS, lightState);
+  // Process incoming CAN messages
+  canInterface.loop();
 
-    // Show the updated lights
-    FastLED.show();
-  }
-
-  // Small delay to prevent flickering
-  delay(10);
-  canInterface.process();
-
-#if DEBUG_MODE
+  // Run test sequence if enabled
   if (testModeActive)
   {
-    // Run the test sequence if in test mode
     runTestSequence();
+    return; // Skip normal updates when in test mode
   }
-#endif
+
+  // Animation mode has priority over other light modes
+  if (lightState.mode == kart_lights_LightModeValue_ANIMATION && 
+      animationState.isPlaying && 
+      !animationState.receivingFrame) 
+  {
+    // Update animation using current animation frame
+    updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  } 
+  else 
+  {
+    // Regular light update based on current light state
+    updateLights(leds, NUM_LEDS, lightState);
+  }
+
+  // Show the updated LED values
+  FastLED.show();
+
+  // Small delay to prevent excessive updates
+  delay(10);
 }
 
 void updateLights(CRGB *leds, int numLeds, LightState &lightState)
@@ -382,6 +444,19 @@ void handleLightMode(kart_common_MessageType msg_type,
                      kart_common_ValueType value_type,
                      int32_t value)
 {
+  // Only process if we match our location or it's a broadcast
+  if (component_id != kart_lights_LightComponentId_ALL && 
+      (updateFrontLights && component_id != kart_lights_LightComponentId_FRONT) &&
+      (!updateFrontLights && component_id != kart_lights_LightComponentId_REAR)) {
+    return;
+  }
+  
+  // If switching to animation mode, reset animation state
+  if (value == kart_lights_LightModeValue_ANIMATION && lightState.mode != kart_lights_LightModeValue_ANIMATION) {
+    resetAnimationState();
+    FastLED.setBrightness(animationConfig.brightness);
+  }
+  
   lightState.mode = value;
   Serial.print(F("Light mode: "));
   Serial.println(lightState.mode);
@@ -485,7 +560,7 @@ void runTestSequence()
 {
   static unsigned long lastStateChange = 0;
   static uint8_t testState = 0;
-  const uint8_t numTestStates = 12;
+  const uint8_t numTestStates = 14; // Increased to add animation test states
   const unsigned long testInterval = 3000; // 3 seconds per state
 
   unsigned long currentMillis = millis();
@@ -705,13 +780,90 @@ void runTestSequence()
           kart_common_ValueType_UINT8,
           kart_lights_LightModeValue_OFF);
       break;
+      
+    case 12:
+      // Front animation mode test
+      updateFrontLights = true;
+      // First set mode to animation
+      canInterface.sendMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_MODE,
+          kart_common_ValueType_UINT8,
+          kart_lights_LightModeValue_ANIMATION);
+      
+      // Set animation config - 10 FPS, loop enabled
+      canInterface.sendMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_ANIMATION_CONFIG,
+          kart_common_ValueType_UINT8,
+          10); // 10 FPS
+      
+      // Set total frames to 3
+      canInterface.sendMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_ANIMATION,
+          kart_common_ValueType_UINT8,
+          103); // 100 + totalFrames (3)
+      
+      // Start animation playback
+      canInterface.sendMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_ANIMATION,
+          kart_common_ValueType_UINT8,
+          kart_lights_AnimationCommandValue_ANIM_PLAY);
+          
+      // Send test animation frame 1 (all red)
+      for (int i = 0; i < 20; i++) {
+        uint8_t ledData[] = {255, 0, 0}; // RGB: pure red
+        uint32_t value = (ledData[0] << 16) | (ledData[1] << 8) | ledData[2];
+        
+        // Process as if received from CAN
+        processAnimationMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          (i == 0) ? kart_common_AnimationFlag_ANIMATION_START : 
+                     (i == 19) ? kart_common_AnimationFlag_ANIMATION_END : 
+                                 kart_common_AnimationFlag_ANIMATION_FRAME,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_ANIMATION_DATA,
+          value
+        );
+      }
+      break;
+      
+    case 13:
+      // Turn off animation mode
+      canInterface.sendMessage(
+          kart_common_MessageType_COMMAND,
+          kart_common_ComponentType_LIGHTS,
+          kart_lights_LightComponentId_FRONT,
+          kart_lights_LightCommandId_MODE,
+          kart_common_ValueType_UINT8,
+          kart_lights_LightModeValue_OFF);
+      break;
     }
 
     Serial.print(F("TS:"));
     Serial.println(testState);
   }
 
-  updateLights(leds, NUM_LEDS, lightState);
+  // For animation mode, we need to process more frequently
+  if (lightState.mode == kart_lights_LightModeValue_ANIMATION && 
+      animationState.isPlaying && 
+      !animationState.receivingFrame) {
+    updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  } else {
+    updateLights(leds, NUM_LEDS, lightState);
+  }
+  
   FastLED.show();
 }
 
@@ -824,6 +976,229 @@ void executeSerialCommand(const char *command)
   else
   {
     Serial.println(F("Unsupported command"));
+  }
+}
+
+// Animation-related functions
+
+void resetAnimationState()
+{
+  animationState.currentFrame = 0;
+  animationState.receivingFrame = false;
+  animationState.frameComplete = false;
+  animationState.totalFrames = 0;
+  animationState.receivedFrames = 0;
+  animationState.lastFrameTime = 0;
+  animationState.isPlaying = false;
+  animationState.singlePixelIndex = 0;
+}
+
+void handleAnimationControl(uint8_t messageType, uint8_t componentType, uint8_t commandFlag, uint8_t componentId, uint8_t commandId, uint32_t value)
+{
+  // Only process messages for this component or broadcasts
+  if (componentId != kart_lights_LightComponentId_ALL && 
+      componentId != (updateFrontLights ? kart_lights_LightComponentId_FRONT : kart_lights_LightComponentId_REAR)) {
+    return;
+  }
+
+  // Extract the control command
+  uint8_t animCommand = value & 0xFF;
+  
+  // Handle special case for total frames (value > 100)
+  if (animCommand >= 100) {
+    animationState.totalFrames = animCommand - 100;
+    Serial.print(F("Animation total frames: "));
+    Serial.println(animationState.totalFrames);
+    return;
+  }
+
+  switch (animCommand) {
+    case kart_lights_AnimationCommandValue_ANIM_PLAY:
+      // Start playing animation from start
+      animationState.isPlaying = true;
+      animationState.currentFrame = 0;
+      animationState.lastFrameTime = millis();
+      Serial.println(F("Animation: Play"));
+      break;
+    
+    case kart_lights_AnimationCommandValue_ANIM_PAUSE:
+      // Pause animation at current frame
+      animationState.isPlaying = false;
+      Serial.println(F("Animation: Pause"));
+      break;
+    
+    case kart_lights_AnimationCommandValue_ANIM_STOP:
+      // Stop animation and reset
+      animationState.isPlaying = false;
+      animationState.currentFrame = 0;
+      Serial.println(F("Animation: Stop"));
+      break;
+    
+    case kart_lights_AnimationCommandValue_ANIM_NEXT:
+      // Move to next frame
+      if (animationState.totalFrames > 0) {
+        animationState.currentFrame = (animationState.currentFrame + 1) % animationState.totalFrames;
+        animationState.lastFrameTime = millis();
+        displayAnimationFrame(leds, NUM_LEDS, animationState);
+      }
+      Serial.print(F("Animation: Next frame "));
+      Serial.println(animationState.currentFrame);
+      break;
+    
+    case kart_lights_AnimationCommandValue_ANIM_PREV:
+      // Move to previous frame
+      if (animationState.totalFrames > 0) {
+        animationState.currentFrame = (animationState.currentFrame > 0) ? 
+                                      (animationState.currentFrame - 1) : 
+                                      (animationState.totalFrames - 1);
+        animationState.lastFrameTime = millis();
+        displayAnimationFrame(leds, NUM_LEDS, animationState);
+      }
+      Serial.print(F("Animation: Previous frame "));
+      Serial.println(animationState.currentFrame);
+      break;
+  }
+}
+
+void handleAnimationConfig(uint8_t messageType, uint8_t componentType, uint8_t commandFlag, uint8_t componentId, uint8_t commandId, uint32_t value)
+{
+  // Only process messages for this component or broadcasts
+  if (componentId != kart_lights_LightComponentId_ALL && 
+      componentId != (updateFrontLights ? kart_lights_LightComponentId_FRONT : kart_lights_LightComponentId_REAR)) {
+    return;
+  }
+
+  // Value bits:
+  // [7:0] = FPS (1-60)
+  // [8] = Loop flag (0=no loop, 1=loop)
+  uint8_t fps = value & 0xFF;
+  bool loopEnabled = (value & 0x100) != 0;
+  
+  if (fps < 1) fps = 1;
+  if (fps > 60) fps = 60;
+  
+  animationConfig.fps = fps;
+  animationConfig.frameDuration = 1000 / fps;
+  animationConfig.loopAnimation = loopEnabled;
+  
+  Serial.print(F("Animation Config - FPS: "));
+  Serial.print(fps);
+  Serial.print(F(", Loop: "));
+  Serial.println(loopEnabled ? "Yes" : "No");
+}
+
+void processAnimationMessage(uint8_t messageType, uint8_t componentType, uint8_t commandFlag, uint8_t componentId, uint8_t commandId, uint32_t value)
+{
+  // Only process messages for this component or broadcasts
+  if (componentId != kart_lights_LightComponentId_ALL && 
+      componentId != (updateFrontLights ? kart_lights_LightComponentId_FRONT : kart_lights_LightComponentId_REAR)) {
+    return;
+  }
+  
+  // Check if we're in animation mode
+  if (lightState.mode != kart_lights_LightModeValue_ANIMATION) {
+    return;
+  }
+  
+  // Extract RGB values from the command value
+  uint8_t r = (value >> 16) & 0xFF;
+  uint8_t g = (value >> 8) & 0xFF;
+  uint8_t b = value & 0xFF;
+  
+  // Handle animation frame flags
+  switch (commandFlag) {
+    case kart_common_AnimationFlag_ANIMATION_START:
+      // Start of a new frame
+      animationState.receivingFrame = true;
+      animationState.frameComplete = false;
+      animationState.singlePixelIndex = 0;
+      Serial.print(F("Animation frame start "));
+      Serial.println(animationState.receivedFrames);
+      break;
+      
+    case kart_common_AnimationFlag_ANIMATION_FRAME:
+      // Middle of a frame data
+      if (animationState.receivingFrame && animationState.singlePixelIndex < NUM_LEDS) {
+        // Store pixel data in the animation buffer
+        uint16_t bufferIndex = (animationState.currentFrame * NUM_LEDS + animationState.singlePixelIndex) % MAX_ANIMATION_BUFFER_SIZE;
+        animationState.frameBuffer[bufferIndex] = CRGB(r, g, b);
+        animationState.singlePixelIndex++;
+      }
+      break;
+      
+    case kart_common_AnimationFlag_ANIMATION_END:
+      // End of a frame
+      if (animationState.receivingFrame) {
+        // Complete the frame
+        if (animationState.singlePixelIndex < NUM_LEDS) {
+          // Fill remaining pixels with the last color
+          uint16_t bufferIndex;
+          for (uint16_t i = animationState.singlePixelIndex; i < NUM_LEDS; i++) {
+            bufferIndex = (animationState.currentFrame * NUM_LEDS + i) % MAX_ANIMATION_BUFFER_SIZE;
+            animationState.frameBuffer[bufferIndex] = CRGB(r, g, b);
+          }
+        }
+        
+        animationState.receivingFrame = false;
+        animationState.frameComplete = true;
+        
+        // Increment received frames counter
+        animationState.receivedFrames++;
+        
+        // If this is the first frame, automatically display it
+        if (animationState.receivedFrames == 1) {
+          displayAnimationFrame(leds, NUM_LEDS, animationState);
+        }
+        
+        Serial.print(F("Animation frame complete "));
+        Serial.println(animationState.receivedFrames);
+      }
+      break;
+  }
+}
+
+void displayAnimationFrame(CRGB* ledArray, uint16_t numLeds, AnimationState& anim)
+{
+  if (anim.totalFrames == 0 || anim.currentFrame >= anim.totalFrames) {
+    return;
+  }
+  
+  // Copy the frame data to the LED array
+  for (uint16_t i = 0; i < numLeds; i++) {
+    uint16_t bufferIndex = (anim.currentFrame * numLeds + i) % MAX_ANIMATION_BUFFER_SIZE;
+    ledArray[i] = anim.frameBuffer[bufferIndex];
+  }
+}
+
+void updateAnimation(CRGB* ledArray, uint16_t numLeds, AnimationState& anim, const AnimationConfig& config)
+{
+  if (!anim.isPlaying || anim.totalFrames == 0) {
+    return;
+  }
+  
+  unsigned long currentMillis = millis();
+  
+  // Check if it's time to update to the next frame
+  if (currentMillis - anim.lastFrameTime >= config.frameDuration) {
+    anim.lastFrameTime = currentMillis;
+    
+    // Move to the next frame
+    anim.currentFrame++;
+    
+    // Check if we've reached the end of the animation
+    if (anim.currentFrame >= anim.totalFrames) {
+      if (config.loopAnimation) {
+        // Loop back to the beginning
+        anim.currentFrame = 0;
+      } else {
+        // Stop the animation
+        anim.isPlaying = false;
+        return;
+      }
+    }
+    
+    // Display the current frame
+    displayAnimationFrame(ledArray, numLeds, anim);
   }
 }
 
