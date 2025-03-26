@@ -103,6 +103,20 @@ EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const cha
     return result;
 }
 
+// Define wrapper functions with correct function signatures
+void handlerWrapper(kart_common_MessageType msg_t, kart_common_ComponentType comp_t, 
+                 uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val,
+                 CHandlerWrapper* wrapper) {
+    cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, wrapper);
+}
+
+void binaryHandlerWrapper(kart_common_MessageType msg_t, kart_common_ComponentType comp_t, 
+                       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, 
+                       const void* data, size_t data_size,
+                       CBinaryHandlerWrapper* wrapper) {
+    cpp_binary_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, data, data_size, wrapper);
+}
+
 EXPORT void can_interface_register_handler(
     can_interface_t handle,
     int msg_type,
@@ -126,22 +140,36 @@ EXPORT void can_interface_register_handler(
     // Register the C++ handler
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
-    // Use a compatible lambda signature for the handler function
-    auto cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val) {
-        cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, wrapper);
+    // Simple solution without lambdas
+    class HandlerAdapter {
+    public:
+        static void callback(kart_common_MessageType msg_t, kart_common_ComponentType comp_t, 
+                         uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val) {
+            if (currentWrapper) {
+                cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, currentWrapper);
+            }
+        }
+        
+        static CHandlerWrapper* currentWrapper;
     };
+    
+    // Set the current wrapper for the static callback
+    HandlerAdapter::currentWrapper = wrapper;
     
     interface->registerHandler(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        cpp_callback
+        HandlerAdapter::callback
     );
     
     printf("C API: handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
            msg_type, comp_type, component_id, command_id);
 }
+
+// Define static member variable
+CHandlerWrapper* HandlerAdapter::currentWrapper = nullptr;
 
 EXPORT void can_interface_register_binary_handler(
     can_interface_t handle,
@@ -163,28 +191,40 @@ EXPORT void can_interface_register_binary_handler(
     g_binary_handlers.push_back(wrapper);
     g_num_binary_handlers++;
     
-    // Register the C++ binary handler with explicit type conversion
+    // Register the C++ binary handler
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
-    // Define handler type that matches the expected signature in ProtobufCANInterface::registerBinaryHandler
-    typedef void (*BinaryDataHandlerType)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, const void*, size_t);
-    
-    // Create a compatible callback function that will match the expected BinaryDataHandler type
-    BinaryDataHandlerType cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, const void* data, size_t data_size) {
-        cpp_binary_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, data, data_size, wrapper);
+    // Simple solution without lambdas
+    class BinaryHandlerAdapter {
+    public:
+        static void callback(kart_common_MessageType msg_t, kart_common_ComponentType comp_t, 
+                         uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, 
+                         const void* data, size_t data_size) {
+            if (currentWrapper) {
+                cpp_binary_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, data, data_size, currentWrapper);
+            }
+        }
+        
+        static CBinaryHandlerWrapper* currentWrapper;
     };
+    
+    // Set the current wrapper for the static callback
+    BinaryHandlerAdapter::currentWrapper = wrapper;
     
     interface->registerBinaryHandler(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        cpp_callback
+        BinaryHandlerAdapter::callback
     );
     
     printf("C API: binary handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
            msg_type, comp_type, component_id, command_id);
 }
+
+// Define static member variable
+CBinaryHandlerWrapper* BinaryHandlerAdapter::currentWrapper = nullptr;
 
 EXPORT bool can_interface_send_message(
     can_interface_t handle,
