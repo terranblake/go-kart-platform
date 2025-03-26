@@ -7,16 +7,53 @@
 #include "lights.pb.h"
 #include "controls.pb.h"
 
-// Animation related constants
-#define MAX_ANIMATION_FRAMES 30
-#define MAX_LEDS_PER_FRAME 60
+// Check if we should use memory optimizations (set in platformio.ini)
+#ifdef OPTIMIZE_MEMORY
+// Use build flags from platformio.ini
+#ifndef MAX_ANIMATION_FRAMES
+#define MAX_ANIMATION_FRAMES 3  // Memory-optimized default
+#endif
+#ifndef MAX_LEDS_PER_FRAME
+#define MAX_LEDS_PER_FRAME 5    // Memory-optimized default
+#endif
 
-// Structure to hold LED data for animation frames
+// We must define SERIAL_COMMAND_BUFFER_SIZE to something, even if small
+#ifndef SERIAL_COMMAND_BUFFER_SIZE
+#define SERIAL_COMMAND_BUFFER_SIZE 16
+#endif
+
+// Define the buffer if it's needed
+char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
+
+// Optimized LED data structure - omits y coordinate to save RAM
+struct LedData {
+  uint8_t x;
+  CRGB color;
+};
+
+#else
+// Original unoptimized values
+#ifndef MAX_ANIMATION_FRAMES
+#define MAX_ANIMATION_FRAMES 30
+#endif
+#ifndef MAX_LEDS_PER_FRAME
+#define MAX_LEDS_PER_FRAME 60
+#endif
+
+#ifndef SERIAL_COMMAND_BUFFER_SIZE
+#define SERIAL_COMMAND_BUFFER_SIZE 64
+#endif
+
+// Define the buffer with original size
+char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
+
+// Original LED data structure with x,y coordinates
 struct LedData {
   uint8_t x;
   uint8_t y;
   CRGB color;
 };
+#endif
 
 // Animation frame structure
 struct AnimationFrame {
@@ -63,10 +100,15 @@ void handleAnimationStop(kart_common_MessageType msg_type, kart_common_Component
 // todo: this should be pulled from EEPROM as a unique id
 ProtobufCANInterface canInterface(0x01);
 
-#if DEBUG_MODE
-
-char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
-
+// Optimized print macros to disable serial prints when not needed
+#ifdef DISABLE_SERIAL_PRINTS
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINT_VAL(x, y)
+#else
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINT_VAL(x, y) do { Serial.print(x); Serial.println(y); } while(0)
 #endif
 
 void setup()
@@ -435,8 +477,8 @@ void handleLightMode(kart_common_MessageType msg_type,
                      int32_t value)
 {
   lightState.mode = value;
-  Serial.print(F("Light mode: "));
-  Serial.println(lightState.mode);
+  DEBUG_PRINT(F("Light mode: "));
+  DEBUG_PRINTLN(lightState.mode);
 }
 
 void handleLightSignal(kart_common_MessageType msg_type,
@@ -461,10 +503,10 @@ void handleLightSignal(kart_common_MessageType msg_type,
     lightState.turnRight = 1;
     break;
   }
-  Serial.print(F("Turn signals: L="));
-  Serial.print(lightState.turnLeft);
-  Serial.print(F(" R="));
-  Serial.println(lightState.turnRight);
+  DEBUG_PRINT(F("Turn signals: L="));
+  DEBUG_PRINT(lightState.turnLeft);
+  DEBUG_PRINT(F(" R="));
+  DEBUG_PRINTLN(lightState.turnRight);
 }
 
 void handleLightBrake(kart_common_MessageType msg_type,
@@ -475,8 +517,8 @@ void handleLightBrake(kart_common_MessageType msg_type,
                       int32_t value)
 {
   lightState.braking = (value == 1) ? 1 : 0;
-  Serial.print(F("Brake: "));
-  Serial.println(lightState.braking);
+  DEBUG_PRINT(F("Brake: "));
+  DEBUG_PRINTLN(lightState.braking);
 }
 
 void handleLightTest(kart_common_MessageType msg_type,
@@ -487,12 +529,12 @@ void handleLightTest(kart_common_MessageType msg_type,
                      int32_t value)
 {
   testModeActive = (value == kart_controls_ControlModeValue_TEST);
-  Serial.print(F("Test mode: "));
-  Serial.print(value);
-  Serial.print(" ");
-  Serial.print(kart_controls_ControlModeValue_TEST);
-  Serial.print(" ");
-  Serial.println(testModeActive);
+  DEBUG_PRINT(F("Test mode: "));
+  DEBUG_PRINT(value);
+  DEBUG_PRINT(" ");
+  DEBUG_PRINT(kart_controls_ControlModeValue_TEST);
+  DEBUG_PRINT(" ");
+  DEBUG_PRINTLN(testModeActive);
 }
 
 void handleLightLocation(kart_common_MessageType msg_type,
@@ -504,8 +546,8 @@ void handleLightLocation(kart_common_MessageType msg_type,
 {
   updateFrontLights = (value == 1);
   locationSelected = true;
-  Serial.print(F("Light location: "));
-  Serial.println(updateFrontLights ? F("Front") : F("Rear"));
+  DEBUG_PRINT(F("Light location: "));
+  DEBUG_PRINTLN(updateFrontLights ? F("Front") : F("Rear"));
 }
 
 #if DEBUG_MODE
@@ -894,28 +936,28 @@ void clearAnimation() {
   }
 }
 
-// Function to update animation
+// Function to update animation with memory optimizations
 void updateAnimation() {
   unsigned long currentTime = millis();
   
-  // Check if it's time to advance to the next frame
   if (currentTime - currentAnimation.lastFrameTime >= currentAnimation.frameDelay) {
-    // Move to next frame
     currentAnimation.currentFrame = (currentAnimation.currentFrame + 1) % currentAnimation.numFrames;
     currentAnimation.lastFrameTime = currentTime;
     
-    // Clear all LEDs
     clearLights(leds, NUM_LEDS);
     
-    // Apply the current frame's LED data
     AnimationFrame& frame = currentAnimation.frames[currentAnimation.currentFrame];
     for (int i = 0; i < frame.numLeds; i++) {
       LedData& led = frame.leds[i];
       
-      // Calculate LED index based on x, y coordinates
+#ifdef OPTIMIZE_MEMORY
+      // Optimized: Use x directly as index
       int index = led.x;
+#else
+      // Original: Calculate index from x, y (specific to application)
+      int index = led.x;
+#endif
       
-      // Only set the LED if it's within our strip
       if (index >= 0 && index < NUM_LEDS) {
         leds[index] = led.color;
       }
@@ -936,7 +978,7 @@ void handleAnimationStart(kart_common_MessageType msg_type,
   // Set animation mode to true (will override normal lighting)
   animationMode = true;
   
-  Serial.println(F("Animation Start"));
+  DEBUG_PRINTLN(F("Animation Start"));
 }
 
 // Handler for ANIMATION_FRAME command (binary data)
@@ -949,46 +991,59 @@ void handleAnimationFrame(kart_common_MessageType msg_type,
                        size_t data_size) {
   // Ensure we don't exceed maximum frames
   if (currentAnimation.numFrames >= MAX_ANIMATION_FRAMES) {
-    Serial.println(F("Too many animation frames, ignoring"));
+    DEBUG_PRINTLN(F("Too many animation frames, ignoring"));
     return;
   }
-  
-  // Parse the frame data from the binary payload
-  // For simplicity, we'll assume a simple format where the data consists of:
-  // [frame_index (1 byte), num_leds (1 byte), led_data (variable)]
-  // Each led_data entry is: [x (1 byte), y (1 byte), r (1 byte), g (1 byte), b (1 byte)]
   
   const uint8_t* bytes = (const uint8_t*)data;
   
   if (data_size < 2) {
-    Serial.println(F("Invalid frame data size"));
+    DEBUG_PRINTLN(F("Invalid binary data size"));
     return;
   }
   
   uint8_t frameIndex = bytes[0];
   uint8_t numLeds = bytes[1];
   
-  // Check if we have enough data for all LEDs
-  if (data_size < 2 + (numLeds * 5)) {
-    Serial.println(F("Invalid LED data size"));
+#ifdef OPTIMIZE_MEMORY
+  // Optimized: Each LED takes 4 bytes (x, r, g, b)
+  size_t requiredSize = 2 + (numLeds * 4);
+#else
+  // Original: Each LED takes 5 bytes (x, y, r, g, b)
+  size_t requiredSize = 2 + (numLeds * 5);
+#endif
+
+  if (data_size < requiredSize) {
+    DEBUG_PRINT(F("Invalid LED data size: "));
+    DEBUG_PRINT(data_size);
+    DEBUG_PRINT(F(" < "));
+    DEBUG_PRINTLN(requiredSize);
     return;
-  }
-  
-  // Ensure we don't exceed maximum LEDs per frame
-  if (numLeds > MAX_LEDS_PER_FRAME) {
-    numLeds = MAX_LEDS_PER_FRAME;
   }
   
   AnimationFrame& frame = currentAnimation.frames[frameIndex];
   frame.numLeds = numLeds;
   
-  // Parse LED data
+  // Ensure we don't exceed maximum LEDs per frame
+  if (numLeds > MAX_LEDS_PER_FRAME) {
+    numLeds = MAX_LEDS_PER_FRAME;
+    frame.numLeds = numLeds;
+  }
+  
+  // Parse LED data with memory optimizations if enabled
   for (int i = 0; i < numLeds; i++) {
+#ifdef OPTIMIZE_MEMORY
+    // Optimized: Each LED takes 4 bytes (x, r, g, b)
+    const uint8_t* ledData = bytes + 2 + (i * 4);
+    frame.leds[i].x = ledData[0];
+    frame.leds[i].color = CRGB(ledData[1], ledData[2], ledData[3]);
+#else
+    // Original: Each LED takes 5 bytes (x, y, r, g, b)
     const uint8_t* ledData = bytes + 2 + (i * 5);
-    
     frame.leds[i].x = ledData[0];
     frame.leds[i].y = ledData[1];
     frame.leds[i].color = CRGB(ledData[2], ledData[3], ledData[4]);
+#endif
   }
   
   // Update number of frames if needed
@@ -996,11 +1051,11 @@ void handleAnimationFrame(kart_common_MessageType msg_type,
     currentAnimation.numFrames = frameIndex + 1;
   }
   
-  Serial.print(F("Received frame "));
-  Serial.print(frameIndex);
-  Serial.print(F(" with "));
-  Serial.print(numLeds);
-  Serial.println(F(" LEDs"));
+  DEBUG_PRINT(F("Received frame "));
+  DEBUG_PRINT(frameIndex);
+  DEBUG_PRINT(F(" with "));
+  DEBUG_PRINT(numLeds);
+  DEBUG_PRINTLN(F(" LEDs"));
 }
 
 // Handler for ANIMATION_END command
@@ -1020,9 +1075,9 @@ void handleAnimationEnd(kart_common_MessageType msg_type,
   currentAnimation.currentFrame = 0;
   currentAnimation.lastFrameTime = millis();
   
-  Serial.print(F("Animation End - Playing with "));
-  Serial.print(currentAnimation.numFrames);
-  Serial.println(F(" frames"));
+  DEBUG_PRINT(F("Animation End - Playing with "));
+  DEBUG_PRINT(currentAnimation.numFrames);
+  DEBUG_PRINTLN(F(" frames"));
 }
 
 // Handler for ANIMATION_STOP command
@@ -1035,7 +1090,7 @@ void handleAnimationStop(kart_common_MessageType msg_type,
   // Disable animation mode and clear animation data
   clearAnimation();
   
-  Serial.println(F("Animation Stopped"));
+  DEBUG_PRINTLN(F("Animation Stopped"));
 }
 
 #endif
