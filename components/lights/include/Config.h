@@ -1,122 +1,99 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 #include <stdint.h>  // For uint8_t type
+#include <FastLED.h>  // For CRGB type
+#include "common.pb.h"
+#include "lights.pb.h"
 
 // Pin definitions
-#define DATA_PIN 6 // LED data pin for lights
+#define DATA_PIN 13 // LED data pin for lights
 
 // Light configuration
-#define NUM_LEDS 60
-#define DEFAULT_BRIGHTNESS 50
-#define BRIGHT_BRIGHTNESS 127
-#define BRAKE_BRIGHTNESS 255 // Much brighter for brake lights
+#define NUM_LEDS 300
+#define DEFAULT_BRIGHTNESS 100
+#define MIN_BRIGHTNESS 30
+#define MAX_BRIGHTNESS 200
 
-// Turn signal configuration
-#define TURN_SIGNAL_BLINK_RATE 500 // Blink rate in milliseconds
-#define TURN_SIGNAL_COUNT 10       // Number of LEDs to use for turn signals on each side
-#define TURN_SIGNAL_SWEEP_STEP 50  // Time between each LED in the sweep (milliseconds)
-
-// Startup/Shutdown configuration
-#define ANIMATION_STEP_DELAY 5 // Duration between the next step of the start/stop animation
+// Timing configuration
+#define TURN_SIGNAL_INTERVAL 500 
+#define BRAKE_PULSE_INTERVAL 120
+#define SWEEP_INTERVAL 50
+#define ANIMATION_STEP_DELAY 15  // Delay for startup/shutdown animation (ms)
 
 // Animation configuration
-#define MAX_ANIMATION_BUFFER_SIZE 180 // 60 LEDs * 3 bytes (RGB) = 180 bytes
-#define DEFAULT_ANIMATION_FPS 30      // Default frames per second
-#define MAX_ANIMATION_FRAMES 255      // Maximum number of frames in an animation
+#define MAX_ANIMATION_BUFFER_SIZE 2048
+#define DEFAULT_ANIMATION_FPS 30
+#define MAX_ANIMATION_FRAMES 120
 
-// Serial command configuration
-#define SERIAL_COMMAND_BUFFER_SIZE 32
+// Node ID
+#define NODE_ID 0x01
 
-// Structure for animation configuration
-typedef struct
-{
-    uint8_t fps = DEFAULT_ANIMATION_FPS;  // Frames per second
-    uint8_t loopAnimation = 1;           // Whether to loop the animation (0=no, 1=yes)
-    uint8_t brightness = DEFAULT_BRIGHTNESS; // Animation brightness
-    uint8_t ledCount = NUM_LEDS;         // Number of LEDs to update
-} AnimationConfig;
+// Debug mode
+#define DEBUG_MODE 1
 
-// Structure for animation state
-typedef struct
-{
-    uint8_t isPlaying = 0;              // Whether the animation is currently playing
-    uint8_t currentFrame = 0;           // Current frame being displayed
-    uint8_t totalFrames = 0;            // Total number of frames in the animation
-    unsigned long lastFrameTime = 0;    // Last time a frame was displayed
-    uint8_t frameData[MAX_ANIMATION_BUFFER_SIZE]; // Buffer for current frame data
-    uint16_t dataSize = 0;              // Size of valid data in the buffer
-    uint8_t receivingFrame = 0;         // Whether we're currently receiving a frame
-} AnimationState;
+// Test sequence
+#define RUN_TEST_SEQUENCE 0
 
-// Structure for light state
-typedef struct
-{
-    uint8_t mode = 0;          // Light mode: 0=Off, 1=Low, 2=High, 3=Hazard, 9=Animation
-    uint8_t turnLeft = 0;      // 0=Off, 1=On
-    uint8_t turnRight = 0;     // 0=Off, 1=On
-    uint8_t braking = 0;       // 0=Off, 1=On
-    uint8_t animation = 0;     // 0=Off, 1=On (startup), 2=On->Off (shutdown)
-    uint8_t sweepPosition = 0; // For animations
-} LightState;
+// Section definitions
+#define FRONT_START_LED 0
+#define FRONT_END_LED 149
+#define REAR_START_LED 150
+#define REAR_END_LED 299
+#define FRONT_CENTER_LED 75
+#define REAR_CENTER_LED 225
 
-// Function prototypes for command handlers
-void handleLightMode(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightSignal(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightBrake(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightTest(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightLocation(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleAnimationControl(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleAnimationConfig(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void processAnimationMessage(kart_common_MessageType message_type, 
-                         kart_common_ComponentType component_type,
-                         kart_common_AnimationFlag animation_flag,
-                         uint8_t component_id, uint8_t command_id,
-                         uint32_t value);
+// Turn signal configuration
+#define TURN_SIGNAL_WIDTH 25    // Width of turn signal in LEDs
+#define TURN_SIGNAL_STEPS 10    // Steps to complete turn signal animation
 
-// Forward declarations for functions
-void clearLights(CRGB *leds, int numLeds);
-void updateTurnSignals(CRGB *leds, int numLeds, LightState &state);
-void updateLights(CRGB *leds, int numLeds, LightState &state);
-void updateStartupShutdownAnimation(CRGB *leds, int numLeds, LightState &state);
-void updateAnimation(CRGB *leds, int numLeds, AnimationState &animState, AnimationConfig &config);
-void displayAnimationFrame(CRGB *leds, const uint8_t *frameData, uint16_t dataSize);
-void resetAnimationState(AnimationState &animState);
+// Animation structures
+struct AnimationConfig {
+    uint8_t fps;               // Frames per second
+    uint16_t frameDuration;    // Frame duration in milliseconds
+    bool loopAnimation;        // Whether to loop the animation
+    uint8_t brightness;        // Animation brightness
+};
 
-#if DEBUG_MODE
-void runTestSequence();
-void processSerialCommands();
-void executeSerialCommand(const char *command);
+struct AnimationState {
+    bool active;               // Whether animation is currently active
+    uint32_t frameCount;       // Number of frames in the animation
+    uint32_t currentFrame;     // Current frame index
+    uint32_t lastFrameTime;    // Last time a frame was displayed
+    uint8_t animationData[MAX_ANIMATION_BUFFER_SIZE]; // Animation data buffer
+    uint32_t dataSize;         // Size of animation data
+    uint16_t frameSize;        // Size of each frame in bytes
+};
+
+// Light state struct
+struct LightState {
+    kart_lights_LightModeValue mode;    // Current light mode
+    uint8_t brightness;                  // Current brightness
+    uint8_t turnLeft;                    // Left turn signal active
+    uint8_t turnRight;                   // Right turn signal active
+    uint8_t hazard;                      // Hazard lights active
+    uint8_t braking;                     // Brake lights active
+    uint8_t sweepPosition;               // Position for sweep animation
+    uint8_t animation;                   // Animation flags
+};
+
+// Function prototypes
+void handleLightMode(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleLightSignal(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleLightBrake(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleLightTest(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleLightLocation(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleAnimationControl(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void handleAnimationConfig(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void processAnimationMessage(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void resetAnimationState();
+void displayAnimationFrame(uint32_t frameIndex);
+void updateAnimation();
+void updateLights();
+void updateTurnSignals();
+void updateBrake();
+void setSolidColor(CRGB color);
+void runTest();
+void setupLightsForTesting();
+
 #endif
