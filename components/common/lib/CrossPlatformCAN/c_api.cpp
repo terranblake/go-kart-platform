@@ -12,9 +12,18 @@ struct HandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
 };
 
+// Store pointers to animation handler functions
+struct AnimationHandlerWrapper {
+    void (*handler)(uint8_t, uint8_t, const uint8_t*, size_t, bool);
+};
+
 #define MAX_WRAPPERS 128
 static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
+
+#define MAX_ANIMATION_WRAPPERS 16
+static AnimationHandlerWrapper g_animation_handlers[MAX_ANIMATION_WRAPPERS];
+static int g_num_animation_handlers = 0;
 
 // Global wrapper function for message handlers
 static void global_message_handler(kart_common_MessageType msg_type,
@@ -33,6 +42,27 @@ static void global_message_handler(kart_common_MessageType msg_type,
                 cmd_id,
                 static_cast<int>(val_type),
                 val
+            );
+            break;
+        }
+    }
+}
+
+// Global wrapper function for animation handlers
+static void global_animation_handler(uint8_t comp_id,
+                                   uint8_t cmd_id,
+                                   const uint8_t* data,
+                                   size_t length,
+                                   bool is_last_chunk) {
+    // Find and call the appropriate handler
+    for (int i = 0; i < g_num_animation_handlers; i++) {
+        if (g_animation_handlers[i].handler) {
+            g_animation_handlers[i].handler(
+                comp_id,
+                cmd_id,
+                data,
+                length,
+                is_last_chunk
             );
             break;
         }
@@ -112,6 +142,39 @@ EXPORT void can_interface_register_handler(
            msg_type, comp_type, component_id, command_id);
 }
 
+EXPORT void can_interface_register_animation_handler(
+    can_interface_t handle,
+    uint8_t component_id,
+    uint8_t command_id,
+    void (*handler)(uint8_t, uint8_t, const uint8_t*, size_t, bool)
+) {
+    printf("C API: can_interface_register_animation_handler called with handle=%p, component_id=%u, command_id=%u\n", 
+           handle, component_id, command_id);
+    if (!handle) {
+        printf("C API ERROR: Null handle in can_interface_register_animation_handler\n");
+        return;
+    }
+    
+    // Store the handler in our global array
+    if (g_num_animation_handlers < MAX_ANIMATION_WRAPPERS) {
+        g_animation_handlers[g_num_animation_handlers].handler = handler;
+        g_num_animation_handlers++;
+    } else {
+        printf("C API ERROR: Too many animation handlers registered\n");
+        return;
+    }
+    
+    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    interface->registerAnimationHandler(
+        component_id,
+        command_id,
+        global_animation_handler
+    );
+    printf("C API: animation handler registered successfully for component_id=%u, command_id=%u\n", 
+           component_id, command_id);
+}
+
 EXPORT bool can_interface_send_message(
     can_interface_t handle,
     int msg_type,
@@ -138,6 +201,35 @@ EXPORT bool can_interface_send_message(
         value
     );
     printf("C API: can_interface_send_message %s\n", result ? "succeeded" : "failed");
+    return result;
+}
+
+EXPORT bool can_interface_send_animation_data(
+    can_interface_t handle,
+    int comp_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    const uint8_t* data,
+    size_t length,
+    uint8_t chunk_size
+) {
+    printf("C API: can_interface_send_animation_data called - handle=%p, comp_type=%d, component_id=%u, command_id=%u, data=%p, length=%zu, chunk_size=%u\n", 
+           handle, comp_type, component_id, command_id, data, length, chunk_size);
+    if (!handle) {
+        printf("C API ERROR: Null handle in can_interface_send_animation_data\n");
+        return false;
+    }
+    
+    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    bool result = interface->sendAnimationData(
+        static_cast<kart_common_ComponentType>(comp_type),
+        component_id,
+        command_id,
+        data,
+        length,
+        chunk_size
+    );
+    printf("C API: can_interface_send_animation_data %s\n", result ? "succeeded" : "failed");
     return result;
 }
 

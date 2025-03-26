@@ -1,4 +1,3 @@
-
 syntax = "proto3";
 
 package kart.common;
@@ -21,6 +20,14 @@ enum ComponentType {
   // Reserved space for 3 more types
 }
 
+// Animation flags (3 bits - previously reserved in header byte)
+enum AnimationFlag {
+  ANIMATION_NONE = 0;
+  ANIMATION_START = 1;  // First message in animation frame
+  ANIMATION_FRAME = 2;  // Continuation message for a frame
+  ANIMATION_END = 3;    // Final message in animation frame
+}
+
 // Value types (4 bits - allows 16 types)
 enum ValueType {
   BOOLEAN = 0;
@@ -31,7 +38,8 @@ enum ValueType {
   INT24 = 5;
   UINT24 = 6;
   FLOAT16 = 7;
-  // Reserved space for 8 more types
+  BINARY = 8;           // Binary data for animations
+  // Reserved space for 7 more types
 }
 
 // Special value for addressing all components of a type
@@ -39,10 +47,10 @@ enum ValueType {
 
 // Main message structure (8 bytes total)
 message KartMessage {
-  // Byte 0: [2 bits MessageType][3 bits ComponentType][3 bits reserved]
+  // Byte 0: [2 bits MessageType][3 bits ComponentType][3 bits AnimationFlag]
   MessageType message_type = 1;      // 2 bits
   ComponentType component_type = 2;  // 3 bits
-  // 3 bits reserved in byte 0
+  AnimationFlag animation_flag = 3;  // 3 bits (previously reserved)
 
   // Byte 1: Reserved for future use
   // (Not represented in proto)

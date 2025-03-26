@@ -1,4 +1,3 @@
-
 syntax = "proto3";
 
 package kart.lights;
@@ -32,6 +31,9 @@ enum LightCommandId {
   SEQUENCE = 7;
   BRAKE = 8;
   LOCATION = 9; // lights that share code can set this to determine where on the kart they are
+  ANIMATION = 10; // Animation control command
+  ANIMATION_DATA = 11; // Animation frame data
+  ANIMATION_CONFIG = 12; // Animation configuration
 }
 
 // Light mode values
@@ -45,6 +47,7 @@ enum LightModeValue {
   PULSE = 6;
   FADE = 7;
   HAZARD = 8;
+  ANIMATION = 9; // New animation mode
 }
 
 enum LightSignalValue {
@@ -83,4 +86,22 @@ enum LightSequenceValue {
   SEQ3 = 2;
   SEQ4 = 3;
   RANDOM = 4;
+}
+
+// Animation command values
+enum AnimationCommandValue {
+  ANIM_STOP = 0;
+  ANIM_PLAY = 1;
+  ANIM_PAUSE = 2;
+  ANIM_RESET = 3;
+  ANIM_NEXT_FRAME = 4;
+  ANIM_PREV_FRAME = 5;
+}
+
+// Animation config options
+enum AnimationConfigValue {
+  ANIM_CONFIG_FPS = 0;
+  ANIM_CONFIG_LOOP = 1;
+  ANIM_CONFIG_BRIGHTNESS = 2;
+  ANIM_CONFIG_LED_COUNT = 3;
 }

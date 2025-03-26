@@ -48,7 +48,7 @@ ffi.cdef("""
     // Member function wrappers
     bool can_interface_begin(can_interface_t handle, long baudrate, const char* device);
     
-    // Handler registration
+    // Regular message handler registration
     void can_interface_register_handler(
         can_interface_t handle,
         int msg_type,
@@ -58,7 +58,15 @@ ffi.cdef("""
         void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
     );
     
-    // Message sending
+    // Animation handler registration
+    void can_interface_register_animation_handler(
+        can_interface_t handle,
+        uint8_t component_id,
+        uint8_t command_id,
+        void (*handler)(uint8_t, uint8_t, const uint8_t*, size_t, bool)
+    );
+    
+    // Regular message sending
     bool can_interface_send_message(
         can_interface_t handle,
         int msg_type,
@@ -67,6 +75,17 @@ ffi.cdef("""
         uint8_t command_id,
         int value_type,
         int32_t value
+    );
+    
+    // Animation data streaming
+    bool can_interface_send_animation_data(
+        can_interface_t handle,
+        int comp_type,
+        uint8_t component_id,
+        uint8_t command_id,
+        const uint8_t* data,
+        size_t length,
+        uint8_t chunk_size
     );
     
     // Message processing
@@ -103,6 +122,7 @@ class MockCANInterface:
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Created mock CAN interface with node_id={node_id}")
         self.handlers = {}
+        self.animation_handlers = {}
         
     def begin(self, baudrate, device):
         """Mock implementation of begin()"""
@@ -116,10 +136,38 @@ class MockCANInterface:
         self.logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
         
+    def register_animation_handler(self, comp_id, cmd_id, handler):
+        """Mock implementation of register_animation_handler()"""
+        key = (comp_id, cmd_id)
+        self.animation_handlers[key] = handler
+        self.logger.debug(f"Registered mock animation handler for comp_id={comp_id}, cmd_id={cmd_id}")
+        return True
+        
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """Mock implementation of send_message()"""
         self.logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
                    f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, value={value}")
+        return True
+        
+    def send_animation_data(self, comp_type, comp_id, cmd_id, data, length, chunk_size=6):
+        """Mock implementation of send_animation_data()"""
+        self.logger.info(f"Mock send animation data: comp_type={comp_type}, comp_id={comp_id}, " 
+                   f"cmd_id={cmd_id}, data_length={length}, chunk_size={chunk_size}")
+                   
+        # In simulation mode, we could trigger any registered animation handlers
+        # with chunks of the data to simulate real transmission
+        if (comp_id, cmd_id) in self.animation_handlers:
+            handler = self.animation_handlers[(comp_id, cmd_id)]
+            
+            # Simulate chunking the data
+            for i in range(0, length, chunk_size):
+                is_last = (i + chunk_size >= length)
+                chunk_length = min(chunk_size, length - i)
+                chunk = data[i:i+chunk_length]
+                
+                # Call the handler with the chunk
+                handler(comp_id, cmd_id, chunk, chunk_length, is_last)
+                
         return True
         
     def process(self):
@@ -380,3 +428,92 @@ class CANInterfaceWrapper:
         if hasattr(self, 'process_thread') and self.process_thread and self.process_thread.is_alive():
             self.process_thread.join(1.0)
             logger.info("Stopped automatic message processing")
+
+    def register_animation_handler(self, component_id, command_id, handler):
+        """
+        Register an animation handler for binary data streams.
+        
+        Args:
+            component_id (int): The component ID.
+            command_id (int): The command ID.
+            handler (callable): The handler function to call when animation data is received.
+                Signature: handler(component_id, command_id, data, length, is_last_chunk)
+        """
+        self.logger.info(f"Registering animation handler for component_id={component_id}, command_id={command_id}")
+
+        if self.has_can_hardware:
+            # Create a CFFI callback function for the animation handler
+            cb = ffi.callback("void(uint8_t, uint8_t, const uint8_t*, size_t, bool)", handler)
+            self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
+
+            # Register with the CAN interface
+            lib.can_interface_register_animation_handler(self._can_interface, component_id, command_id, cb)
+        else:
+            self._can_interface.register_animation_handler(component_id, command_id, handler)
+    
+    def send_animation_data(self, component_type_name, component_name, command_name, data, chunk_size=6):
+        """
+        Send animation data as a binary stream.
+        
+        Args:
+            component_type_name (str): Name of the component type (e.g., 'LIGHTS').
+            component_name (str): Name of the component (e.g., 'FRONT').
+            command_name (str): Name of the command (e.g., 'ANIMATION_DATA').
+            data (bytes): Binary data to send.
+            chunk_size (int, optional): Maximum bytes per message. Defaults to 6.
+            
+        Returns:
+            bool: True if the data was sent successfully, False otherwise.
+        """
+        try:
+            # Get component type, component ID, and command ID
+            component_type = self.protocol_registry.get_component_type(component_type_name)
+            component_id = self.protocol_registry.get_component_id(component_type_name, component_name)
+            command_id = self.protocol_registry.get_command_id(component_type_name, command_name)
+            
+            if component_type is None or component_id is None or command_id is None:
+                self.logger.error(f"Failed to get component type, component id, or command id for {component_type_name}.{component_name}.{command_name}")
+                return False
+                
+            # Convert data to bytes if it's not already
+            if not isinstance(data, bytes):
+                if isinstance(data, list):
+                    data = bytes(data)
+                else:
+                    data = bytes(str(data), 'utf-8')
+            
+            # Create CFFI objects for the binary data
+            data_length = len(data)
+            cffi_data = ffi.new(f"uint8_t[{data_length}]")
+            for i in range(data_length):
+                cffi_data[i] = data[i]
+                
+            logger.info(f"Sending animation data: {component_type_name}.{component_name}.{command_name}, {data_length} bytes")
+            
+            if self.has_can_hardware:
+                success = lib.can_interface_send_animation_data(
+                    self._can_interface,
+                    component_type,
+                    component_id,
+                    command_id,
+                    cffi_data,
+                    data_length,
+                    chunk_size
+                )
+                
+                if not success:
+                    logger.error(f"Failed to send animation data for {component_type_name}.{component_name}.{command_name}")
+                    
+                return success
+            else:
+                return self._can_interface.send_animation_data(
+                    component_type,
+                    component_id, 
+                    command_id,
+                    data,
+                    data_length,
+                    chunk_size
+                )
+        except Exception as e:
+            logger.error(f"Error sending animation data: {e}")
+            return False
