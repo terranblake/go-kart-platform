@@ -27,12 +27,12 @@ import logging
 import os
 import time
 import threading
-import platform
 from typing import Callable
 from cffi import FFI
 
 from lib.can.protocol_registry import ProtocolRegistry
-
+from lib.telemetry.state import GoKartState
+from lib.telemetry.store import TelemetryStore
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,7 @@ ffi.cdef("""
     // Handler registration
     void can_interface_register_handler(
         can_interface_t handle,
+        int msg_type,
         int comp_type,
         uint8_t component_id,
         uint8_t command_id,
@@ -132,7 +133,7 @@ class CANInterfaceWrapper:
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store=None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: TelemetryStore = None):
         """
         Initialize the CAN interface.
         
@@ -205,39 +206,56 @@ class CANInterfaceWrapper:
         comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
         val_type_name = self._get_type_name(self.value_types_by_value, val_type)
         
-        logger.info(f"Received message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
+        logger.info(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
                     f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
-        # Update telemetry store if available
-        if self.telemetry_store:
-            state_data = {
-                'message_type': msg_type_name,
-                'component_type': comp_type_name,
-                'component_id': comp_id,
-                'command_id': cmd_id,
-                'value_type': val_type_name,
-                'value': value,
-                'last_update': time.time()
-            }
-            
-            # Get current state, update it, and store back
-            from lib.telemetry.state import GoKartState
-            new_state = GoKartState().from_dict(state_data)
-            self.telemetry_store.update_state(new_state)
+        if not self.telemetry_store:
+            logger.warning("Telemetry store is not set, skipping update")
+            return
+
+        state_data = {
+            'message_type': msg_type_name,
+            'component_type': comp_type_name,
+            'component_id': comp_id,
+            'command_id': cmd_id,
+            'value_type': val_type_name,
+            'value': value,
+            'last_update': time.time()
+        }
+        
+        state_data = GoKartState().from_dict(state_data)
+        self.telemetry_store.update_state(state_data)
     
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
         self.logger.info("Registering default handlers")
+        registered_count = 0
+        
         for component_type in self.protocol_registry.get_component_types():
             for command in self.protocol_registry.get_commands(component_type):
                 for value in self.protocol_registry.get_command_values(component_type, command):
-                    self.register_handler(component_type, command, value, self._handle_message)
+                    self.logger.info(f"Registering handlers for component type: {component_type} command: {command} value: {value}")
+
+                    # convert the type, command, and value to their numeric values
+                    comp_type = self.protocol_registry.get_component_type(component_type)
+                    cmd_id = self.protocol_registry.get_command_id(component_type, command)
+
+                    # Register handler for STATUS messages from all component IDs
+                    self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
+                    
+                    # Also register for COMMAND echo messages (Arduino might be sending these)
+                    self.register_handler('COMMAND', comp_type, 255, cmd_id, self._handle_message)
+                    
+                    registered_count += 2
+        
+        self.logger.info(f"Registered {registered_count} message handlers")
     
-    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
         """
         Register a message handler for a specific message type.
         
         Args:
+            message_type (str/int): The message type (e.g., 'COMMAND', 'STATUS')
             comp_type (int): The component type ID.
             comp_id (int): The component ID.
             cmd_id (int): The command ID.
@@ -246,17 +264,22 @@ class CANInterfaceWrapper:
         if isinstance(comp_type, str):
             comp_type = self.protocol_registry.registry['component_types'].get(comp_type.upper(), 0)
 
-        self.logger.info(f"Registering handler for {comp_type}, {comp_id}, {cmd_id}")
+        if comp_type is None or cmd_id is None:
+            self.logger.info(f"Failed to get component type, component id, or value id for {comp_type}, {comp_id}, {cmd_id}")
+            return
 
+        self.logger.info(f"Registering handler for message_type={message_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+
+        message_type = self.protocol_registry.get_message_type(message_type)
         if self.has_can_hardware:
-            # Create a CFFI callback function
+            # Create a CFFI callback function - make sure signature matches C API
             cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
-            lib.can_interface_register_handler(self._can_interface, comp_type, comp_id, cmd_id, cb)
+            lib.can_interface_register_handler(self._can_interface, message_type, comp_type, comp_id, cmd_id, cb)
         else:
-            self._can_interface.register_handler(comp_type, comp_id, cmd_id, handler)
+            self._can_interface.register_handler(message_type, comp_type, comp_id, cmd_id, handler)
     
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """

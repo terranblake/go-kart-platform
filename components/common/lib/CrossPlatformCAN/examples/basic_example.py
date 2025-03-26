@@ -54,9 +54,10 @@ def main():
     
     # Register handler for lights commands
     can.register_handler(
-        ComponentType.LIGHTS,  # Component type
-        0x01,                  # Component ID
-        0x01,                  # Command ID
+        MessageType.COMMAND,     # Message type
+        ComponentType.LIGHTS,    # Component type
+        0x01,                    # Component ID
+        0x01,                    # Command ID
         message_handler        # Handler function
     )
     

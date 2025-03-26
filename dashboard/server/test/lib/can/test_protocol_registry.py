@@ -179,6 +179,14 @@ class TestProtocolRegistry(unittest.TestCase):
                         for val_name, val in cmd_info['values'].items():
                             self.assertIsInstance(val, int)
                             logger.info(f"    {val_name} = {val}")
+        
+        # Verify that components don't have command data
+        if 'components' in self.registry.registry and len(self.registry.registry['components']) > 0:
+            # Verify each component has a direct ID value, not a dictionary
+            for comp_type, components in self.registry.registry['components'].items():
+                for component_name, component_data in components.items():
+                    self.assertIsInstance(component_data, int, 
+                        f"Component data should be an integer ID, not a dictionary. Found {type(component_data)} for {comp_type}.{component_name}")
 
     def test_get_message_type(self):
         """Test that we can get message types by name"""
@@ -209,6 +217,35 @@ class TestProtocolRegistry(unittest.TestCase):
         # Test for a component type that doesn't exist
         value = self.registry.get_component_type("NONEXISTENT_TYPE")
         self.assertIsNone(value)
+
+    def test_get_command_id(self):
+        """Test that we can get command IDs by component type and command name"""
+        # Get a valid component type with commands
+        component_types = list(self.registry.registry['component_types'].keys())
+        
+        if not component_types:
+            logger.warning("Skipping test_get_command_id due to missing component types")
+            return
+            
+        for comp_type in component_types:
+            comp_type_lower = comp_type.lower()
+            if comp_type_lower in self.registry.registry['commands'] and self.registry.registry['commands'][comp_type_lower]:
+                # Get a command for this component type
+                cmd_name = list(self.registry.registry['commands'][comp_type_lower].keys())[0]
+                
+                # Get the command ID
+                cmd_id = self.registry.get_command_id(comp_type_lower, cmd_name)
+                
+                # Check that we got a valid command ID
+                self.assertIsNotNone(cmd_id)
+                self.assertIsInstance(cmd_id, int)
+                logger.info(f"Command {cmd_name} for {comp_type} has ID {cmd_id}")
+                
+                # The new method should get the command ID without needing a component ID
+                expected_id = self.registry.registry['commands'][comp_type_lower][cmd_name]['id']
+                self.assertEqual(cmd_id, expected_id)
+                
+                break
 
     def test_create_message(self):
         """Test that we can create a complete message tuple"""

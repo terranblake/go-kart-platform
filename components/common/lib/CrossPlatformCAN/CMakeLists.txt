@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Option to build shared library (needed for Python CFFI)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static" ON)
+# Option to enable testing
+option(BUILD_TESTS "Build the test suite" ON)
 
 # Platform detection
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -86,6 +88,24 @@ install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/ProtobufCANInterface.h
     DESTINATION include/CrossPlatformCAN
 )
+
+# Testing configuration
+if(BUILD_TESTS AND PLATFORM_LINUX)
+    enable_testing()
+    
+    # Add test source directory
+    add_subdirectory(test)
+    
+    # Add a target to run all tests
+    add_custom_target(run_tests 
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS tests
+        COMMENT "Running all tests"
+    )
+    
+    # Add run_tests as a dependency of the all target
+    add_dependencies(CrossPlatformCAN run_tests)
+endif()
 
 # Install Python module
 if(PLATFORM_LINUX)

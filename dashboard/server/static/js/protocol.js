@@ -106,7 +106,7 @@ function displayProtocolData(data) {
     populateEnumTable('value-types-table', data.value_types);
     
     // Components and Commands
-    displayComponents(data.components);
+    displayComponents(data);
     
     // Update navigation with actual component types
     updateNavigation(data);
@@ -171,7 +171,7 @@ function getEnumDescription(enumKey) {
 }
 
 // Display components and their commands
-function displayComponents(components) {
+function displayComponents(data) {
     const container = document.getElementById('components-container');
     if (!container) return;
     
@@ -179,7 +179,7 @@ function displayComponents(components) {
     container.innerHTML = '';
     
     // Process each component type section
-    for (const componentType in components) {
+    for (const componentType in data.components) {
         const typeSection = document.createElement('div');
         typeSection.className = 'component-type-section';
         typeSection.id = componentType.toLowerCase();
@@ -189,11 +189,20 @@ function displayComponents(components) {
         typeSection.innerHTML = `<h3>${displayComponentType}</h3>`;
         
         // Add each component in this type
-        const componentsOfType = components[componentType];
+        const componentsOfType = data.components[componentType];
         
         for (const componentName in componentsOfType) {
-            const componentData = componentsOfType[componentName];
-            const componentCard = createComponentCard(componentName, componentData);
+            // Get component ID (now stored directly instead of in a dictionary)
+            const componentId = componentsOfType[componentName];
+            
+            // Create component card with component name, ID, and reference to commands
+            const componentCard = createComponentCard(
+                componentName, 
+                componentId, 
+                componentType, 
+                data.commands[componentType]
+            );
+            
             typeSection.appendChild(componentCard);
         }
         
@@ -202,7 +211,7 @@ function displayComponents(components) {
 }
 
 // Create a card for a single component
-function createComponentCard(componentName, componentData) {
+function createComponentCard(componentName, componentId, componentType, commandsForType) {
     const card = document.createElement('div');
     card.className = 'component-card';
     card.id = `component-${componentName.toLowerCase().replace(/\s+/g, '-')}`;
@@ -211,7 +220,7 @@ function createComponentCard(componentName, componentData) {
     header.className = 'component-header';
     header.innerHTML = `
         <span>${componentName}</span>
-        <span>ID: ${componentData.component_id}</span>
+        <span>ID: ${componentId}</span>
     `;
     
     const body = document.createElement('div');
@@ -220,7 +229,7 @@ function createComponentCard(componentName, componentData) {
     // Component description
     const description = document.createElement('div');
     description.className = 'component-description';
-    description.textContent = componentData.description || `${componentName} component`;
+    description.textContent = `${componentName} component`;
     
     // Command table
     const commandTableContainer = document.createElement('div');
@@ -233,7 +242,7 @@ function createComponentCard(componentName, componentData) {
             <tr>
                 <th>Command</th>
                 <th>ID</th>
-                <th>Value Type</th>
+                <th>Values</th>
                 <th>Description</th>
             </tr>
         </thead>
@@ -242,16 +251,21 @@ function createComponentCard(componentName, componentData) {
     
     const tableBody = commandTable.querySelector('tbody');
     
-    // Add each command to the table
-    for (const commandName in componentData.commands) {
-        const command = componentData.commands[commandName];
+    // Add each command to the table - now from the top-level commands structure
+    for (const commandName in commandsForType) {
+        const command = commandsForType[commandName];
         const row = document.createElement('tr');
+        
+        // Get values as a comma-separated list
+        const valuesList = command.values ? 
+            Object.keys(command.values).join(', ') : 
+            'None';
         
         row.innerHTML = `
             <td>${commandName}</td>
-            <td>${command.command_id}</td>
-            <td>${command.value_type}</td>
-            <td>${command.description || 'No description'}</td>
+            <td>${command.id}</td>
+            <td>${valuesList}</td>
+            <td>Command for ${componentType}</td>
         `;
         
         tableBody.appendChild(row);
@@ -464,30 +478,28 @@ function updateCommandOptions(componentName, protocolData) {
     // Clear existing options
     commandSelect.innerHTML = '';
     
-    console.log(`Looking for commands in component type: ${componentType}, component: ${componentName}`);
+    console.log(`Looking for commands in component type: ${componentType}`);
     
-    // Get commands for the selected component
-    const component = protocolData.components[componentType] && 
-                     protocolData.components[componentType][componentName];
+    // Get commands for the selected component type from the top-level commands structure
+    const commands = protocolData.commands[componentType];
     
-    if (!component) {
-        console.error(`Component not found: ${componentType}.${componentName}`);
-        console.log('Available components:', 
-            protocolData.components[componentType] ? 
-            Object.keys(protocolData.components[componentType]) : 
+    if (!commands) {
+        console.error(`Commands not found for component type: ${componentType}`);
+        console.log('Available component types:', 
+            protocolData.commands ? 
+            Object.keys(protocolData.commands) : 
             'None');
         return;
     }
     
-    console.log('Component data:', component);
-    console.log('Commands available:', component.commands ? Object.keys(component.commands) : 'None');
+    console.log('Commands available:', Object.keys(commands));
     
     // Add command options
-    for (const command in component.commands) {
-        console.log(`Adding command option: ${command}`);
+    for (const commandName in commands) {
+        console.log(`Adding command option: ${commandName}`);
         const option = document.createElement('option');
-        option.value = command;
-        option.textContent = command;
+        option.value = commandName;
+        option.textContent = commandName;
         commandSelect.appendChild(option);
     }
     
@@ -518,20 +530,19 @@ function updateValueInput(componentName, commandName, protocolData) {
     // Clear existing options
     valueSelect.innerHTML = '';
     
-    console.log(`Looking for values in component type: ${componentType}, component: ${componentName}, command: ${commandName}`);
+    console.log(`Looking for values in component type: ${componentType}, command: ${commandName}`);
     
-    // Get commands for the selected component
-    const component = protocolData.components[componentType] && 
-                     protocolData.components[componentType][componentName];
+    // Get commands for the selected component type from the top-level structure
+    const commands = protocolData.commands[componentType];
     
-    if (!component) {
-        console.error(`Component not found: ${componentType}.${componentName}`);
+    if (!commands) {
+        console.error(`Commands not found for component type: ${componentType}`);
         return;
     }
     
-    const command = component.commands && component.commands[commandName];
+    const command = commands[commandName];
     if (!command) {
-        console.error(`Command not found: ${componentType}.${componentName}.${commandName}`);
+        console.error(`Command not found: ${componentType}.${commandName}`);
         return;
     }
     
@@ -590,7 +601,6 @@ async function sendTestCommand(componentName, commandName, value, resultDiv) {
                 component_type: componentType,
                 component_name: componentName,
                 command_name: commandName,
-                command_data: {}, // Empty object as default command data
                 value_name: valueName,
                 direct_value: value
             })

@@ -30,6 +30,7 @@ gcc -shared -fPIC -Wall -Wextra \
     -o build/$LIBRARY \
     CANInterface.cpp \
     ProtobufCANInterface.cpp \
+    c_api.cpp \
     -lstdc++
 
 # Restore the header file

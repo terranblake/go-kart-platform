@@ -12,7 +12,7 @@ struct HandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
 };
 
-#define MAX_WRAPPERS 32
+#define MAX_WRAPPERS 128
 static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
@@ -77,13 +77,14 @@ EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const cha
 
 EXPORT void can_interface_register_handler(
     can_interface_t handle,
+    int msg_type,
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
 ) {
-    printf("C API: can_interface_register_handler called with handle=%p, comp_type=%d, component_id=%u, command_id=%u\n", 
-           handle, comp_type, component_id, command_id);
+    printf("C API: can_interface_register_handler called with handle=%p, msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
+           handle, msg_type, comp_type, component_id, command_id);
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_register_handler\n");
         return;
@@ -101,12 +102,14 @@ EXPORT void can_interface_register_handler(
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
     interface->registerHandler(
+        static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
         global_message_handler
     );
-    printf("C API: handler registered successfully\n");
+    printf("C API: handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
+           msg_type, comp_type, component_id, command_id);
 }
 
 EXPORT bool can_interface_send_message(

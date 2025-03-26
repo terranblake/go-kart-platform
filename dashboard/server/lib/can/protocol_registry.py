@@ -13,6 +13,9 @@ It is not responsible for:
 - starting the CANInterface
 - stopping the CANInterface
 
+todo: the structure of the registry puts commands under each component id
+      which duplicates commands for each component id
+
 """
 
 import importlib
@@ -205,20 +208,14 @@ class ProtocolRegistry:
                     if comp_name == 'ALL':
                         continue
                         
-                    self.registry['components'][component_type][comp_name] = {
-                        'id': comp_id,
-                        'commands': {}
-                    }
+                    # Store component ID directly, not in a nested dictionary
+                    self.registry['components'][component_type][comp_name] = comp_id
                     self.logger.debug(f"Added component {comp_name} (ID: {comp_id}) to {component_type}")
             
             # Process command ID enum
             if command_id_enum:
                 command_ids = dict(command_id_enum.items())
                 self.logger.debug(f"Command IDs for {component_type}: {command_ids}")
-                
-                # Map value enums to commands using naming patterns
-                # Expected patterns:
-                # - [ComponentType][CommandName]Value - e.g., LightModeValue for MODE command
                 
                 command_to_value_map = {}
                 component_prefix = component_type.title()  # e.g., "Light" for "lights"
@@ -240,23 +237,23 @@ class ProtocolRegistry:
                                 self.logger.debug(f"Partial match: {cmd_name} -> {enum_name}")
                                 break
                 
-                # Add commands to each component
-                for comp_name in self.registry['components'][component_type]:
-                    for cmd_name, cmd_id in command_ids.items():
-                        self.registry['components'][component_type][comp_name]['commands'][cmd_name] = {
-                            'id': cmd_id,
-                            'values': {}
-                        }
-                        
-                        # If we have a value enum for this command, add the values
-                        if cmd_name in command_to_value_map:
-                            values_dict = dict(command_to_value_map[cmd_name].items())
-                            self.registry['components'][component_type][comp_name]['commands'][cmd_name]['values'] = values_dict
-                            self.logger.debug(f"Added {len(values_dict)} values for {cmd_name}: {list(values_dict.keys())}")
-                        else:
-                            self.logger.debug(f"No value enum found for command {cmd_name}")
+                # Add commands to the top-level commands registry by component type
+                for cmd_name, cmd_id in command_ids.items():
+                    # Create the command entry at the top level instead of per component
+                    self.registry['commands'][component_type][cmd_name] = {
+                        'id': cmd_id,
+                        'values': {}
+                    }
+                    
+                    # If we have a value enum for this command, add the values
+                    if cmd_name in command_to_value_map:
+                        values_dict = dict(command_to_value_map[cmd_name].items())
+                        self.registry['commands'][component_type][cmd_name]['values'] = values_dict
+                        self.logger.debug(f"Added {len(values_dict)} values for {cmd_name}: {list(values_dict.keys())}")
+                    else:
+                        self.logger.debug(f"No value enum found for command {cmd_name}")
                 
-                self.logger.debug(f"Added {len(command_ids)} commands to each component in {component_type}")
+                self.logger.debug(f"Added {len(command_ids)} commands to component type {component_type}")
                 
         except Exception as e:
             self.logger.error(f"Error extracting component enums: {e}", exc_info=True)
@@ -325,28 +322,36 @@ class ProtocolRegistry:
     
     def get_component_type(self, type_name: str) -> Optional[int]:
         """Get component type value by name"""
-        return self.registry['component_types'].get(type_name)
+        return self.registry['component_types'].get(type_name.upper())
     
     def get_value_type(self, type_name: str) -> Optional[int]:
         """Get value type by name"""
-        return self.registry['value_types'].get(type_name)
+        return self.registry['value_types'].get(type_name.upper())
     
     def get_component_id(self, component_type: str, component_name: str) -> Optional[int]:
         """Get component ID by type and name"""
         component_type = component_type.lower()
-        if component_type in self.registry['components']:
-            return self.registry['components'][component_type].get(component_name).get('id')
+        if component_type in self.registry['components'] and component_name in self.registry['components'][component_type]:
+            return self.registry['components'][component_type][component_name]
         return None
     
-    def get_command_id(self, component_type: str, component_name: str, command_name: str) -> Optional[int]:
+    def get_command_id(self, component_type: str, command_name: str) -> Optional[int]:
         """Get command ID by component type and command name"""
         component_type = component_type.lower()
-        return self.registry['components'][component_type][component_name]['commands'][command_name].get('id')
+        if (component_type in self.registry['commands'] and 
+            command_name in self.registry['commands'][component_type]):
+            return self.registry['commands'][component_type][command_name].get('id')
+        return None
     
-    def get_command_value(self, component_type: str, component_name: str, command_name: str, value_name: str) -> Optional[int]:
+    def get_command_value(self, component_type: str, command_name: str, value_name: str) -> Optional[int]:
         """Get command value by component type, command name, and value name"""
         component_type = component_type.lower()
-        return self.registry['components'][component_type][component_name]['commands'][command_name]['values'][value_name]
+        if (component_type in self.registry['commands'] and
+            command_name in self.registry['commands'][component_type] and
+            'values' in self.registry['commands'][component_type][command_name] and
+            value_name in self.registry['commands'][component_type][command_name]['values']):
+            return self.registry['commands'][component_type][command_name]['values'][value_name]
+        return None
     
     def get_component_types(self) -> List[str]:
         """Get all registered component types"""
@@ -355,18 +360,12 @@ class ProtocolRegistry:
     def get_commands(self, component_type: str) -> List[str]:
         """Get all commands for a component type"""
         component_type = component_type.lower()
-        if component_type in self.registry['commands']:
-            return list(self.registry['commands'][component_type].keys())
-        return []
+        return list(self.registry['commands'][component_type].keys())
     
     def get_command_values(self, component_type: str, command_name: str) -> Dict[str, int]:
         """Get all possible values for a command"""
         component_type = component_type.lower()
-        if (component_type in self.registry['commands'] and 
-            command_name in self.registry['commands'][component_type] and 
-            'values' in self.registry['commands'][component_type][command_name]):
-            return self.registry['commands'][component_type][command_name]['values']
-        return {}
+        return self.registry['commands'][component_type][command_name]['values']
     
     def create_message(self, message_type: str, component_type: str, 
                       component_name: str, command_name: str, value_name: str = None, 
@@ -376,14 +375,14 @@ class ProtocolRegistry:
         msg_type = self.get_message_type(message_type)
         comp_type = self.get_component_type(component_type)
         comp_id = self.get_component_id(component_type, component_name)
-        cmd_id = self.get_command_id(component_type, component_name, command_name)
+        cmd_id = self.get_command_id(component_type, command_name)
         
         # Handle value - either named value or direct integer
         val_type = self.get_value_type("INT8")  # Default
         val = 0
         
         if value_name:
-            val = self.get_command_value(component_type, component_name, command_name, value_name)
+            val = self.get_command_value(component_type, command_name, value_name)
         elif value is not None:
             val = value
         
