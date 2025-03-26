@@ -9,7 +9,8 @@
 #ifdef ARDUINO
 #include "protocol/generated/nanopb/lights.pb.h"
 #else
-#include "../../../protocol/generated/nanopb/lights.pb.h"
+// For Linux/Pi build, use a path relative to the workspace root or an absolute path
+#include "/home/pi/go-kart-platform/protocol/generated/nanopb/lights.pb.h"
 #endif
 
 // Debug mode
