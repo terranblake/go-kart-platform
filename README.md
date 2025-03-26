@@ -15,6 +15,10 @@ The Go-Kart Platform creates a high-performance electric vehicle with a data-ric
 - Remote telemetry storage and analysis
 - Cross-device component messaging
 
+## Recent Updates
+
+- Fixed Protocol Buffer enum handling by ensuring proper inclusion of generated files rather than manual definitions
+
 ## Project Structure
 
 - **docs/** - Documentation
