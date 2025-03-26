@@ -48,6 +48,27 @@ The heart of the go-kart platform's communication system is the [ProtobufCANInte
 
 To learn more about the available protocol commands and how to use them, see the [ProtobufCANInterface documentation](components/common/lib/ProtobufCANInterface/README.md).
 
+## Animation Support
+
+The Go-Kart Platform includes support for LED animations through the LED control system. Animations are defined as a series of frames, where each frame contains LED color data.
+
+### Animation Features
+
+- Frame-based animation system for LED control
+- Animation playback over the CAN bus
+- Support for creating and storing animations
+- Animation commands: start, frame-by-frame data transfer, stop
+
+### Animation Implementation
+
+The animation system works through binary data transfer over the CAN bus using the following commands:
+- `ANIMATION_START`: Initiates an animation sequence
+- `ANIMATION_FRAME`: Sends a single frame of animation data
+- `ANIMATION_END`: Marks the end of an animation sequence
+- `ANIMATION_STOP`: Immediately stops the current animation
+
+See [TODO.md](TODO.md) for current issues and planned improvements to the animation system.
+
 <details>
 ```
 go-kart-platform/
