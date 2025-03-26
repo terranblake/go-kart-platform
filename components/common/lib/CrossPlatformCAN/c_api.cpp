@@ -1,44 +1,33 @@
 // C API implementation
+// Skip this entire file for Arduino platform
+#if !defined(PLATFORM_ARDUINO) && !defined(ARDUINO)
+
 #include "c_api.h"
 #include "CANInterface.h"
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
+#include <vector>
 
 // Define EXPORT macro for visibility
 #define EXPORT __attribute__((visibility("default")))
 
-// Helper map to store function pointers for C handlers
+// Helper struct to store function pointers for C handlers
 struct CHandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
 };
 
-// Helper map to store function pointers for C binary handlers
+// Helper struct to store function pointers for C binary handlers
 struct CBinaryHandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, const void*, size_t);
 };
 
-// Global wrapper function for message handlers
-static void global_message_handler(kart_common_MessageType msg_type,
-                               kart_common_ComponentType comp_type,
-                               uint8_t comp_id,
-                               uint8_t cmd_id,
-                               kart_common_ValueType val_type,
-                               int32_t val) {
-    // Find and call the appropriate handler
-    for (int i = 0; i < g_num_handlers; i++) {
-        if (g_handlers[i].handler) {
-            g_handlers[i].handler(
-                static_cast<int>(msg_type),
-                static_cast<int>(comp_type),
-                comp_id,
-                cmd_id,
-                static_cast<int>(val_type),
-                val
-            );
-            break;
-        }
-    }
-}
+// Storage for registered handler wrappers
+std::vector<CHandlerWrapper*> g_handlers;
+int g_num_handlers = 0;
+
+// Storage for registered binary handler wrappers
+std::vector<CBinaryHandlerWrapper*> g_binary_handlers;
+int g_num_binary_handlers = 0;
 
 // Helper function to bridge C++ callbacks to C callbacks
 void cpp_handler_bridge(kart_common_MessageType msg_type, 
@@ -46,7 +35,16 @@ void cpp_handler_bridge(kart_common_MessageType msg_type,
                        uint8_t component_id, uint8_t command_id,
                        kart_common_ValueType value_type, int32_t value, 
                        CHandlerWrapper* wrapper) {
-    wrapper->handler(msg_type, comp_type, component_id, command_id, value_type, value);
+    if (wrapper && wrapper->handler) {
+        wrapper->handler(
+            static_cast<int>(msg_type),
+            static_cast<int>(comp_type),
+            component_id,
+            command_id,
+            static_cast<int>(value_type),
+            value
+        );
+    }
 }
 
 // Helper function to bridge C++ binary callbacks to C binary callbacks
@@ -56,14 +54,24 @@ void cpp_binary_handler_bridge(kart_common_MessageType msg_type,
                              kart_common_ValueType value_type, 
                              const void* data, size_t data_size,
                              CBinaryHandlerWrapper* wrapper) {
-    wrapper->handler(msg_type, comp_type, component_id, command_id, value_type, data, data_size);
+    if (wrapper && wrapper->handler) {
+        wrapper->handler(
+            static_cast<int>(msg_type),
+            static_cast<int>(comp_type),
+            component_id,
+            command_id,
+            static_cast<int>(value_type),
+            data,
+            data_size
+        );
+    }
 }
 
 extern "C" {
 
 // Constructor and destructor wrappers
 EXPORT can_interface_t can_interface_create(uint32_t node_id) {
-    printf("C API: can_interface_create called with node_id=0x%X\n", node_id);
+    printf("C API: can_interface_create called with node_id=0x%lX\n", (unsigned long)node_id);
     ProtobufCANInterface* interface = new ProtobufCANInterface(node_id);
     printf("C API: interface created at address %p\n", interface);
     return interface;
@@ -112,26 +120,25 @@ EXPORT void can_interface_register_handler(
     
     // Create a wrapper to store the C handler
     CHandlerWrapper* wrapper = new CHandlerWrapper{handler};
+    g_handlers.push_back(wrapper);
+    g_num_handlers++;
     
-    // Create a C++ lambda to bridge the C++ callback to the C callback
-    MessageHandler cpp_handler = [wrapper](
-        kart_common_MessageType msg_type, 
-        kart_common_ComponentType comp_type,
-        uint8_t component_id, uint8_t command_id,
-        kart_common_ValueType value_type, int32_t value
-    ) {
-        cpp_handler_bridge(msg_type, comp_type, component_id, command_id, value_type, value, wrapper);
-    };
+    // Create a class method pointer type for the handler
+    void (ProtobufCANInterface::*handler_method)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t);
     
     // Register the C++ handler
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
     interface->registerHandler(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        cpp_handler
+        [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val) {
+            cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, wrapper);
+        }
     );
+    
     printf("C API: handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
            msg_type, comp_type, component_id, command_id);
 }
@@ -153,28 +160,24 @@ EXPORT void can_interface_register_binary_handler(
     
     // Create a wrapper to store the C binary handler
     CBinaryHandlerWrapper* wrapper = new CBinaryHandlerWrapper{handler};
-    
-    // Create a C++ lambda to bridge the C++ callback to the C callback
-    BinaryDataHandler cpp_handler = [wrapper](
-        kart_common_MessageType msg_type, 
-        kart_common_ComponentType comp_type,
-        uint8_t component_id, uint8_t command_id,
-        kart_common_ValueType value_type, 
-        const void* data, size_t data_size
-    ) {
-        cpp_binary_handler_bridge(msg_type, comp_type, component_id, command_id, 
-                                value_type, data, data_size, wrapper);
-    };
+    g_binary_handlers.push_back(wrapper);
+    g_num_binary_handlers++;
     
     // Register the C++ binary handler
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    auto cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, const void* data, size_t data_size) {
+        cpp_binary_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, data, data_size, wrapper);
+    };
+    
     interface->registerBinaryHandler(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        cpp_handler
+        cpp_callback
     );
+    
     printf("C API: binary handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
            msg_type, comp_type, component_id, command_id);
 }
@@ -188,8 +191,8 @@ EXPORT bool can_interface_send_message(
     int value_type,
     int32_t value
 ) {
-    printf("C API: can_interface_send_message called - handle=%p, msg_type=%d, comp_type=%d, component_id=%u, command_id=%u, value_type=%d, value=%d\n", 
-           handle, msg_type, comp_type, component_id, command_id, value_type, value);
+    printf("C API: can_interface_send_message called - handle=%p, msg_type=%d, comp_type=%d, component_id=%u, command_id=%u, value_type=%d, value=%ld\n", 
+           handle, msg_type, comp_type, component_id, command_id, value_type, (long)value);
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_send_message\n");
         return false;
@@ -249,4 +252,6 @@ EXPORT void can_interface_process(can_interface_t handle) {
     interface->process();
 }
 
-}  // extern "C"
+} // extern "C"
+
+#endif // !defined(PLATFORM_ARDUINO) && !defined(ARDUINO)
