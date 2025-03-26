@@ -58,6 +58,8 @@ The Go-Kart Platform includes support for LED animations through the LED control
 - Animation playback over the CAN bus
 - Support for creating and storing animations
 - Animation commands: start, frame-by-frame data transfer, stop
+- Web-based animation editor for creating and managing animations
+- Support for both 1D and 2D LED array animations
 
 ### Animation Implementation
 
@@ -66,6 +68,18 @@ The animation system works through binary data transfer over the CAN bus using t
 - `ANIMATION_FRAME`: Sends a single frame of animation data
 - `ANIMATION_END`: Marks the end of an animation sequence
 - `ANIMATION_STOP`: Immediately stops the current animation
+
+### Using the Animation Editor
+
+The platform includes a web-based animation editor that can be accessed at `/animation-editor`. The editor allows you to:
+
+1. Create new animations with various effects (chase, pulse, rainbow, wipe, or custom patterns)
+2. Preview animations in real-time
+3. Edit existing animations
+4. Export animations to JSON format
+5. Send animations directly to the go-kart lighting system
+
+Animations can be simple (like a chasing light pattern) or complex (custom frame-by-frame animations with full control over each LED).
 
 See [TODO.md](TODO.md) for current issues and planned improvements to the animation system.
 

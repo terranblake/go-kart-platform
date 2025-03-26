@@ -66,6 +66,17 @@ def index():
         logger.debug(f"Error rendering template: {e}")
         return f"Error: {e}", 500
 
+# Animation editor route
+@app.route('/animation-editor')
+def animation_editor():
+    """Render the animation editor."""
+    logger.debug("Animation editor route accessed!")
+    try:
+        return render_template('animation_editor.html')
+    except Exception as e:
+        logger.debug(f"Error rendering animation editor template: {e}")
+        return f"Error: {e}", 500
+
 # Register blueprint
 app.register_blueprint(api)
 

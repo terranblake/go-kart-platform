@@ -8,16 +8,21 @@
   - A temporary workaround was created by implementing the function separately, but a proper fix should be made to the library.
 
 ### Animation Protocol Improvements
-- **Protocol Registry Updates**: Ensure that the animation commands (ANIMATION_START, ANIMATION_FRAME, ANIMATION_END, ANIMATION_STOP) are properly registered in the protocol registry.
-- **Animation Data Implementation**: Improve the binary data sending mechanism for animation frames to ensure proper delivery of animation data to lighting components.
+- **[COMPLETED] Protocol Registry Updates**: Ensure that the animation commands (ANIMATION_START, ANIMATION_FRAME, ANIMATION_END, ANIMATION_STOP) are properly registered in the protocol registry.
+- **[COMPLETED] Animation Data Implementation**: Improve the binary data sending mechanism for animation frames to ensure proper delivery of animation data to lighting components.
 
 ### End-to-End Testing
-- **Animation Playback Test**: Complete end-to-end testing of animation playback from the dashboard server to the LED controllers.
-- **Animation Editor**: Implement a web-based animation editor in the dashboard UI to create and modify animations.
+- **[COMPLETED] Animation Playback Test**: Complete end-to-end testing of animation playback from the dashboard server to the LED controllers.
+- **[COMPLETED] Animation Editor**: Implement a web-based animation editor in the dashboard UI to create and modify animations.
 
 ### Documentation
-- **Animation API Documentation**: Document the animation API endpoints and the format of animation data.
+- **[COMPLETED] Animation API Documentation**: Document the animation API endpoints and the format of animation data.
 - **Protocol Updates**: Update the CAN protocol documentation to include animation-related message types and formats.
+
+### Additional Tasks
+- **Add More Animation Types**: Expand the animation library with more predefined animation types.
+- **Animation Performance Optimization**: Optimize the animation frame transmission for better performance on limited hardware.
+- **Animation Storage**: Implement a more robust storage solution for animations to handle large collections.
 
 ## General Improvements
 
