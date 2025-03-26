@@ -210,6 +210,108 @@ The library uses a consistent 8-byte message format:
 - UINT24 (6)
 - FLOAT16 (7)
 
+## Binary Data Transfer
+
+The library provides support for sending larger binary data payloads that exceed the 8-byte limit of a single CAN frame. This is particularly useful for applications like sending animation frames to LED controllers or firmware updates.
+
+### Binary Data Message Format
+
+Binary data is split across multiple CAN frames with the following structure:
+
+#### First Frame (Start Frame)
+| Byte | Description |
+|------|-------------|
+| 0    | Header byte: Message type (2 bits) + Component type (3 bits) + Reserved (3 bits) |
+| 1    | Flags/Sequence: Start flag (bit 7) + Sequence number (bits 0-3) |
+| 2    | Component ID |
+| 3    | Command ID |
+| 4    | Value type (4 bits) + Frame count or reserved (4 bits) |
+| 5-7  | Up to 3 bytes of data |
+
+#### Subsequent Frames
+| Byte | Description |
+|------|-------------|
+| 0    | Header byte: Message type (2 bits) + Component type (3 bits) + Reserved (3 bits) |
+| 1    | Flags/Sequence: End flag (bit 6) + Sequence number (bits 0-3) |
+| 2    | Component ID |
+| 3    | Command ID |
+| 4    | Bytes remaining in this frame |
+| 5-7  | Up to 3 bytes of data |
+
+### Using Binary Data Transfer
+
+#### C++ Example
+
+```cpp
+// Create binary data to send (e.g., animation frame data)
+uint8_t frameData[32] = { /* ... data ... */ };
+
+// Send the binary data
+canInterface.sendBinaryData(
+  kart_common_MessageType_COMMAND,
+  kart_common_ComponentType_LIGHTS,
+  0x01, // Component ID
+  kart_lights_LightCommandId_ANIMATION_FRAME, // Command ID
+  kart_common_ValueType_UINT8, // Value type
+  frameData,
+  sizeof(frameData)
+);
+
+// Register a handler for binary data
+canInterface.registerBinaryHandler(
+  kart_common_MessageType_COMMAND,
+  kart_common_ComponentType_LIGHTS,
+  0x01, // Component ID
+  kart_lights_LightCommandId_ANIMATION_FRAME, // Command ID,
+  [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type,
+     uint8_t component_id, uint8_t command_id, kart_common_ValueType value_type,
+     const void* data, size_t data_size) {
+    // Process the received binary data
+    const uint8_t* frameData = static_cast<const uint8_t*>(data);
+    // ...
+  }
+);
+```
+
+#### Python Example
+
+```python
+# Create binary data to send
+frame_data = bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+# Send the binary data
+can.send_binary_data(
+    component_type_name="LIGHTS",
+    component_name="FRONT",
+    command_name="ANIMATION_FRAME",
+    value_type="UINT8",
+    data=frame_data
+)
+
+# Register a handler for binary data
+def binary_handler(msg_type, comp_type, comp_id, cmd_id, value_type, data, data_size):
+    # Process the binary data
+    print(f"Received {data_size} bytes of binary data")
+    
+can.register_binary_handler(
+    ComponentType.LIGHTS,
+    component_id=0x01,
+    command_id=LightsCommand.ANIMATION_FRAME,
+    handler=binary_handler
+)
+```
+
+### Implementation Details
+
+The binary data transfer is implemented by:
+
+1. Breaking the data into chunks that fit into CAN frames
+2. Adding metadata to track the sequence and identify start/end frames
+3. Reassembling the data on the receiving end
+4. Calling the appropriate binary data handler when complete
+
+The maximum supported binary data size is defined by `MAX_BINARY_SIZE` (default: 1024 bytes).
+
 ## Build Process Details
 
 ### raspi_build.sh

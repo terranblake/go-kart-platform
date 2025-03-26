@@ -202,12 +202,12 @@ bool ProtobufCANInterface::sendBinaryData(kart_common_MessageType message_type,
         
         // Copy data into frame
         for (size_t i = 0; i < frame_size; i++) {
-            msg.data[3 + i] = bytes[bytes_sent + i];
+            msg.data[5 + i] = bytes[bytes_sent + i];
         }
         
         // Zero-fill any unused bytes
         for (size_t i = frame_size; i < NEXT_FRAME_DATA_SIZE; i++) {
-            msg.data[3 + i] = 0;
+            msg.data[5 + i] = 0;
         }
         
         // Send frame
@@ -304,9 +304,9 @@ void ProtobufCANInterface::process()
             // Extract frame size from byte 4
             size_t frame_size = msg.data[4] & 0xFF;
             
-            // Copy data to buffer (bytes 3-7 have data in continuation frames)
+            // Copy data to buffer (bytes 5-7 have data in continuation frames)
             for (size_t i = 0; i < frame_size && m_binarySize < MAX_BINARY_SIZE; i++) {
-                m_binaryBuffer[m_binarySize++] = msg.data[3 + i];
+                m_binaryBuffer[m_binarySize++] = msg.data[5 + i];
             }
             
             printf("ProtobufCANInterface: Received binary frame %u, %zu bytes so far\n", 
