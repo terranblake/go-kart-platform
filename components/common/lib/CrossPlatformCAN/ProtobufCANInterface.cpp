@@ -93,6 +93,8 @@ void ProtobufCANInterface::process()
     if (!m_canInterface.receiveMessage(msg)) {
         return; // No message available
     }
+
+    printf("ProtobufCANInterface: process - received message with length %d\n", msg.length);
     
     // Message must be 8 bytes for our protocol
     if (msg.length != 8) {
