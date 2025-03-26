@@ -8,21 +8,23 @@
   - A temporary workaround was created by implementing the function separately, but a proper fix should be made to the library.
 
 ### Animation Protocol Improvements
-- **[COMPLETED] Protocol Registry Updates**: Ensure that the animation commands (ANIMATION_START, ANIMATION_FRAME, ANIMATION_END, ANIMATION_STOP) are properly registered in the protocol registry.
-- **[COMPLETED] Animation Data Implementation**: Improve the binary data sending mechanism for animation frames to ensure proper delivery of animation data to lighting components.
+- ✅ **Protocol Registry Updates**: Ensure that the animation commands (ANIMATION_START, ANIMATION_FRAME, ANIMATION_END, ANIMATION_STOP) are properly registered in the protocol registry.
+- ✅ **Animation Data Implementation**: Improve the binary data sending mechanism for animation frames to ensure proper delivery of animation data to lighting components.
 
 ### End-to-End Testing
-- **[COMPLETED] Animation Playback Test**: Complete end-to-end testing of animation playback from the dashboard server to the LED controllers.
-- **[COMPLETED] Animation Editor**: Implement a web-based animation editor in the dashboard UI to create and modify animations.
+- ✅ **Animation Playback Test**: Complete end-to-end testing of animation playback from the dashboard server to the LED controllers.
+- ✅ **Animation Editor**: Implement a web-based animation editor in the dashboard UI to create and modify animations.
 
 ### Documentation
-- **[COMPLETED] Animation API Documentation**: Document the animation API endpoints and the format of animation data.
-- **Protocol Updates**: Update the CAN protocol documentation to include animation-related message types and formats.
+- ✅ **Animation API Documentation**: Document the animation API endpoints and the format of animation data.
+- ✅ **Protocol Updates**: Update the CAN protocol documentation to include animation-related message types and formats.
 
-### Additional Tasks
-- **Add More Animation Types**: Expand the animation library with more predefined animation types.
-- **Animation Performance Optimization**: Optimize the animation frame transmission for better performance on limited hardware.
-- **Animation Storage**: Implement a more robust storage solution for animations to handle large collections.
+## New Animation Tasks
+- **Performance Optimization**: Optimize animation storage and playback for better performance on resource-constrained devices like the Arduino Nano.
+- **Animation Import/Export**: Add support for importing and exporting animations in standard formats (e.g., GIF).
+- **Pattern Generator**: Create pattern generators for common animation effects (e.g., rainbow, chase, pulse).
+- **Timeline Editor**: Implement a timeline-based editor for more complex animations.
+- **Animation Sequencing**: Add support for sequencing multiple animations.
 
 ## General Improvements
 

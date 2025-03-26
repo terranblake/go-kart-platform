@@ -5,10 +5,16 @@ Go-Kart Dashboard Server - Main entry point
 import threading
 import logging
 from api.endpoints import app, socketio, send_updates
+from flask import render_template
 # Configure logging
 logging.basicConfig(level=logging.INFO,
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+@app.route('/animations')
+def animations():
+    """Render the animations editor page."""
+    return render_template('animations.html')
 
 if __name__ == "__main__":
     logger.info("Starting Go-Kart Dashboard Server")
