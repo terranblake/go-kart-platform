@@ -12,7 +12,7 @@ struct HandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
 };
 
-#define MAX_WRAPPERS 32
+#define MAX_WRAPPERS 128
 static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
