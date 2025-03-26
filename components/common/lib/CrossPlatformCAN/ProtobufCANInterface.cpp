@@ -18,6 +18,16 @@
 #define DEBUG_MODE 0
 #endif
 
+// Platform-specific time function
+#ifndef ARDUINO
+#include <sys/time.h>
+unsigned long millis() {
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+#endif
+
 // Constructor
 ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
     : m_nodeId(nodeId), m_numHandlers(0), m_numRGBHandlers(0)
