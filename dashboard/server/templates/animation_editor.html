@@ -46,6 +46,8 @@
             border-radius: 50%;
             background-color: #333;
             transition: background-color 0.2s;
+            display: inline-block;
+            border: 1px solid #222;
         }
         .editor-container {
             display: flex;
@@ -166,6 +168,38 @@
         #send-to-kart-btn:hover {
             background-color: #27ae60;
         }
+        /* Add debug console styles */
+        #debug-console {
+            background-color: #111;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        .debug-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px dotted #333;
+            padding-bottom: 4px;
+        }
+        .toggle-debug {
+            background-color: #333;
+            color: #ddd;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .toggle-debug:hover {
+            background-color: #444;
+        }
     </style>
 </head>
 <body>
@@ -277,6 +311,9 @@
                         <div id="deploy-status" style="margin-top: 10px;"></div>
                     </div>
                 </div>
+                
+                <button class="toggle-debug" id="toggle-debug">Show Debug Console</button>
+                <div id="debug-console"></div>
             </div>
         </div>
     </div>
@@ -343,6 +380,50 @@
                     document.getElementById(`${tabId}-tab`).style.display = 'block';
                 });
             });
+            
+            // Setup debug console
+            const debugConsole = document.getElementById('debug-console');
+            const toggleDebug = document.getElementById('toggle-debug');
+            
+            toggleDebug.addEventListener('click', function() {
+                if (debugConsole.style.display === 'none' || !debugConsole.style.display) {
+                    debugConsole.style.display = 'block';
+                    toggleDebug.textContent = 'Hide Debug Console';
+                } else {
+                    debugConsole.style.display = 'none';
+                    toggleDebug.textContent = 'Show Debug Console';
+                }
+            });
+            
+            // Override console.log to show in debug console
+            const originalConsoleLog = console.log;
+            console.log = function() {
+                // Call original console.log
+                originalConsoleLog.apply(console, arguments);
+                
+                // Add to debug console
+                const debugEntry = document.createElement('div');
+                debugEntry.className = 'debug-entry';
+                
+                // Convert arguments to string
+                let message = Array.from(arguments).map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                debugEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                debugConsole.appendChild(debugEntry);
+                debugConsole.scrollTop = debugConsole.scrollHeight;
+            };
+            
+            // Log initial page load
+            console.log('Animation editor initialized');
             
             // Load animations from server
             loadAnimations();
@@ -447,6 +528,14 @@
             
             animation.isPlaying = true;
             
+            // Log animation parameters for debugging
+            console.log(`Starting animation ${id}:`, {
+                type: animation.type,
+                dimensions: animation.dimensions,
+                colors: animation.colors,
+                frames: animation.frames ? animation.frames.length + ' frames' : 'No frames'
+            });
+            
             animation.interval = setInterval(() => {
                 // Clear all LEDs
                 ledStrips.forEach(strip => {
@@ -503,8 +592,14 @@
                                 
                                 if (frame.leds) {
                                     frame.leds.forEach(ledData => {
-                                        if (ledData.x >= 0 && ledData.x < leds.length) {
-                                            leds[ledData.x].style.backgroundColor = ledData.color || '#ff0000';
+                                        const x = parseInt(ledData.x);
+                                        if (x >= 0 && x < leds.length) {
+                                            let color = ledData.color || '#ff0000';
+                                            // Handle RGB object format if present
+                                            if (typeof color === 'object' && color.r !== undefined) {
+                                                color = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                                            }
+                                            leds[x].style.backgroundColor = color;
                                         }
                                     });
                                 }
@@ -519,13 +614,18 @@
                         
                         if (frame.leds) {
                             frame.leds.forEach(ledData => {
-                                const x = ledData.x || 0;
-                                const y = ledData.y || 0;
+                                const x = parseInt(ledData.x || 0);
+                                const y = parseInt(ledData.y || 0);
                                 
                                 if (y >= 0 && y < ledStrips.length && x >= 0) {
                                     const leds = ledStrips[y].querySelectorAll('.led');
                                     if (x < leds.length) {
-                                        leds[x].style.backgroundColor = ledData.color || '#ff0000';
+                                        let color = ledData.color || '#ff0000';
+                                        // Handle RGB object format if present
+                                        if (typeof color === 'object' && color.r !== undefined) {
+                                            color = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                                        }
+                                        leds[x].style.backgroundColor = color;
                                     }
                                 }
                             });
@@ -925,10 +1025,12 @@
         }
         
         function loadAnimations() {
+            console.log('Loading animations from server...');
             fetch('/api/animation/list')
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
+                        console.log(`Loaded ${data.animations.length} animations`);
                         // Clear any existing animations
                         document.getElementById('animation-container').innerHTML = '';
                         animations = [];
@@ -941,6 +1043,8 @@
                         
                         // Update deploy dropdown
                         updateDeployDropdown();
+                    } else {
+                        console.log('Error loading animations:', data.message);
                     }
                 })
                 .catch(error => {
@@ -1055,6 +1159,8 @@
             deployStatus.innerHTML = '<p>Sending animation to go-kart...</p>';
             deployStatus.style.color = 'orange';
             
+            console.log('Preparing to send animation to go-kart:', animation.name);
+            
             // Prepare animation data for upload
             const animationData = {
                 id: `anim_${Date.now()}`,
@@ -1078,6 +1184,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
+                    console.log('Animation uploaded successfully, ID:', data.id);
                     // If upload succeeded, play the animation
                     return fetch('/api/animation/play', {
                         method: 'POST',
@@ -1096,6 +1203,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
+                    console.log('Animation playback started successfully');
                     deployStatus.innerHTML = '<p>Animation sent successfully!</p>';
                     deployStatus.style.color = 'green';
                 } else {

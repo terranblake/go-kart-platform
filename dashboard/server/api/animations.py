@@ -238,46 +238,63 @@ def prepare_animation_frame(frame, frame_index):
     elif 'frameIndex' in frame:
         leds = frame.get('leds', [])
     
+    # Log frame data for debugging
+    logger.debug(f"Preparing frame {frame_index} with {len(leds)} LEDs")
+    
     # Create binary packet for this frame
     packet = bytearray([frame_index, len(leds)])  # Frame index and LED count
     
     # Add LED data
     for led in leds:
-        # Support both index-based and coordinate-based formats
-        if 'index' in led:
-            # Convert linear index to x,y
-            width = 60  # Default width
-            index = led['index']
-            x = index % width
-            y = index // width
-        else:
-            x = led.get('x', 0)
-            y = led.get('y', 0)
-        
-        # Get RGB color
-        if 'r' in led and 'g' in led and 'b' in led:
-            # Direct RGB values
-            r = led.get('r', 0)
-            g = led.get('g', 0)
-            b = led.get('b', 0)
-        else:
-            color = led.get('color', '#ff0000')
-            if isinstance(color, str) and color.startswith('#'):
-                # Parse hex color
-                color = color.lstrip('#')
-                if len(color) == 6:
-                    r = int(color[0:2], 16)
-                    g = int(color[2:4], 16)
-                    b = int(color[4:6], 16)
-                else:
-                    # Default red for invalid colors
-                    r, g, b = 255, 0, 0
+        try:
+            # Support both index-based and coordinate-based formats
+            if 'index' in led:
+                # Convert linear index to x,y
+                width = 60  # Default width
+                index = int(led['index'])
+                x = index % width
+                y = index // width
             else:
-                # Default red
-                r, g, b = 255, 0, 0
-        
-        # Add to packet
-        packet.extend([x, y, r, g, b])
+                x = int(led.get('x', 0))
+                y = int(led.get('y', 0))
+            
+            # Get RGB color
+            if 'r' in led and 'g' in led and 'b' in led:
+                # Direct RGB values
+                r = int(led.get('r', 0))
+                g = int(led.get('g', 0))
+                b = int(led.get('b', 0))
+            else:
+                color = led.get('color', '#ff0000')
+                if isinstance(color, dict) and 'r' in color:
+                    # Handle object format: {r: 255, g: 0, b: 0}
+                    r = int(color.get('r', 0))
+                    g = int(color.get('g', 0))
+                    b = int(color.get('b', 0))
+                elif isinstance(color, str) and color.startswith('#'):
+                    # Parse hex color
+                    color = color.lstrip('#')
+                    if len(color) == 6:
+                        r = int(color[0:2], 16)
+                        g = int(color[2:4], 16)
+                        b = int(color[4:6], 16)
+                    else:
+                        # Default red for invalid colors
+                        r, g, b = 255, 0, 0
+                else:
+                    # Default red
+                    r, g, b = 255, 0, 0
+            
+            # Clamp RGB values to 0-255 range
+            r = max(0, min(255, r))
+            g = max(0, min(255, g))
+            b = max(0, min(255, b))
+            
+            # Add to packet
+            packet.extend([x, y, r, g, b])
+        except Exception as e:
+            logger.warning(f"Error processing LED data: {e}, LED data: {led}")
+            # Skip this LED and continue with the next one
     
     return bytes(packet)
 
