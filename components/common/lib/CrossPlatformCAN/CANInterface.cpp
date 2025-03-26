@@ -177,7 +177,6 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   if (nbytes < 0) {
     // No data available or error
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      printf("Debug: No data available\n");
       return false; // No data available
     }
     perror("CAN read error");
