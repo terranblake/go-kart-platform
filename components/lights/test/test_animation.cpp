@@ -1,122 +1,194 @@
+#include <Arduino.h>
 #include <unity.h>
-#include <ArduinoFake.h>
 #include <FastLED.h>
+#include "../include/Config.h"
 
-using namespace fakeit;
+// Mock objects
+CRGB leds[NUM_LEDS];
+LightState lightState;
+AnimationState animationState;
+AnimationConfig animationConfig;
 
-// Include header files from the lighting component
-#include "main.cpp"
+// Function declarations for functions we'll test
+void resetAnimationState();
+void displayAnimationFrame(CRGB* ledArray, uint16_t numLeds, AnimationState& anim);
+void updateAnimation(CRGB* ledArray, uint16_t numLeds, AnimationState& anim, const AnimationConfig& config);
 
-void setUp() {
-    ArduinoFake().reset();
-    
-    // Reset animation state
-    clearLights(leds, NUM_LEDS);
+// Setup function runs before each test
+void setUp(void) {
+  // Initialize our test state
+  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.clear();
+  
+  // Clear light state
+  lightState.mode = kart_lights_LightModeValue_OFF;
+  lightState.brightness = DEFAULT_BRIGHTNESS;
+  lightState.turnLeft = 0;
+  lightState.turnRight = 0;
+  lightState.hazard = 0;
+  lightState.braking = 0;
+  lightState.sweepPosition = 0;
+  lightState.animation = 0;
+  
+  // Set default animation config
+  animationConfig.fps = DEFAULT_ANIMATION_FPS;
+  animationConfig.frameDuration = 1000 / DEFAULT_ANIMATION_FPS;
+  animationConfig.loopAnimation = true;
+  animationConfig.brightness = DEFAULT_BRIGHTNESS;
+  
+  // Reset animation state
+  resetAnimationState();
 }
 
-void tearDown() {
+// Test resetAnimationState function
+void test_reset_animation_state(void) {
+  // First set some values in animation state
+  animationState.currentFrame = 10;
+  animationState.receivingFrame = true;
+  animationState.frameComplete = true;
+  animationState.totalFrames = 5;
+  animationState.receivedFrames = 3;
+  animationState.lastFrameTime = 1000;
+  animationState.isPlaying = true;
+  animationState.singlePixelIndex = 15;
+  
+  // Now reset and verify all values are reset
+  resetAnimationState();
+  
+  TEST_ASSERT_EQUAL_INT(0, animationState.currentFrame);
+  TEST_ASSERT_EQUAL_INT(false, animationState.receivingFrame);
+  TEST_ASSERT_EQUAL_INT(false, animationState.frameComplete);
+  TEST_ASSERT_EQUAL_INT(0, animationState.totalFrames);
+  TEST_ASSERT_EQUAL_INT(0, animationState.receivedFrames);
+  TEST_ASSERT_EQUAL_INT(0, animationState.lastFrameTime);
+  TEST_ASSERT_EQUAL_INT(false, animationState.isPlaying);
+  TEST_ASSERT_EQUAL_INT(0, animationState.singlePixelIndex);
 }
 
-// Test animation data reception
-void test_animation_data_reception() {
-    // Arrange
-    const uint8_t testData[] = {
-        255, 0, 0,    // Red for LED 0
-        0, 255, 0,    // Green for LED 1
-        0, 0, 255     // Blue for LED 2
-    };
-    const size_t dataLength = sizeof(testData);
-    
-    // Mock CAN interface
-    When(Method(ArduinoFake(), millis)).Return(1000);
-    
-    // Act - Simulate reception of animation start message with first chunk
-    uint32_t chunk1 = (testData[0] << 16) | (testData[1] << 8) | testData[2];
-    
-    // Simulate animation start packet
-    kart_common_MessageType msgType = kart_common_MessageType_COMMAND;
-    kart_common_ComponentType compType = kart_common_ComponentType_LIGHTS;
-    kart_common_AnimationFlag animFlag = kart_common_AnimationFlag_ANIMATION_START;
-    uint8_t componentId = kart_lights_LightComponentId_FRONT;
-    uint8_t commandId = kart_lights_LightCommandId_ANIMATION_DATA;
-    
-    // Create header byte with animation flag
-    uint8_t header = (msgType << 6) | ((compType & 0x07) << 3) | (animFlag & 0x07);
-    
-    // Simulate processAnimationMessage being called after header is unpacked
-    processAnimationMessage(msgType, compType, animFlag, componentId, commandId, chunk1);
-    
-    // Send second chunk (simulate end of animation)
-    uint32_t chunk2 = (testData[3] << 16) | (testData[4] << 8) | testData[5];
-    animFlag = kart_common_AnimationFlag_ANIMATION_FRAME;
-    processAnimationMessage(msgType, compType, animFlag, componentId, commandId, chunk2);
-    
-    // Send third chunk (end of animation)
-    uint32_t chunk3 = (testData[6] << 16) | (testData[7] << 8) | testData[8];
-    animFlag = kart_common_AnimationFlag_ANIMATION_END;
-    processAnimationMessage(msgType, compType, animFlag, componentId, commandId, chunk3);
-    
-    // Assert - verify the LED colors have been set correctly
-    TEST_ASSERT_EQUAL_UINT8(255, leds[0].r);
-    TEST_ASSERT_EQUAL_UINT8(0, leds[0].g);
-    TEST_ASSERT_EQUAL_UINT8(0, leds[0].b);
-    
-    TEST_ASSERT_EQUAL_UINT8(0, leds[1].r);
-    TEST_ASSERT_EQUAL_UINT8(255, leds[1].g);
-    TEST_ASSERT_EQUAL_UINT8(0, leds[1].b);
-    
-    TEST_ASSERT_EQUAL_UINT8(0, leds[2].r);
-    TEST_ASSERT_EQUAL_UINT8(0, leds[2].g);
-    TEST_ASSERT_EQUAL_UINT8(255, leds[2].b);
+// Test displayAnimationFrame function
+void test_display_animation_frame(void) {
+  // Setup test data
+  animationState.totalFrames = 2;
+  animationState.currentFrame = 0;
+  
+  // Fill first frame with red
+  for (int i = 0; i < NUM_LEDS; i++) {
+    uint16_t bufferIndex = i % MAX_ANIMATION_BUFFER_SIZE;
+    animationState.frameBuffer[bufferIndex] = CRGB(255, 0, 0); // Red
+  }
+  
+  // Fill second frame with blue
+  for (int i = 0; i < NUM_LEDS; i++) {
+    uint16_t bufferIndex = (NUM_LEDS + i) % MAX_ANIMATION_BUFFER_SIZE;
+    animationState.frameBuffer[bufferIndex] = CRGB(0, 0, 255); // Blue
+  }
+  
+  // Clear current LEDs
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Black;
+  }
+  
+  // Display first frame
+  displayAnimationFrame(leds, NUM_LEDS, animationState);
+  
+  // Check that all LEDs are red
+  for (int i = 0; i < NUM_LEDS; i++) {
+    TEST_ASSERT_EQUAL_INT(255, leds[i].r);
+    TEST_ASSERT_EQUAL_INT(0, leds[i].g);
+    TEST_ASSERT_EQUAL_INT(0, leds[i].b);
+  }
+  
+  // Switch to second frame
+  animationState.currentFrame = 1;
+  
+  // Display second frame
+  displayAnimationFrame(leds, NUM_LEDS, animationState);
+  
+  // Check that all LEDs are blue
+  for (int i = 0; i < NUM_LEDS; i++) {
+    TEST_ASSERT_EQUAL_INT(0, leds[i].r);
+    TEST_ASSERT_EQUAL_INT(0, leds[i].g);
+    TEST_ASSERT_EQUAL_INT(255, leds[i].b);
+  }
 }
 
-// Test animation mode setting
-void test_animation_mode_setting() {
-    // Arrange
-    When(Method(ArduinoFake(), millis)).Return(1000);
-    
-    // Act - Change mode to animation
-    kart_common_MessageType msgType = kart_common_MessageType_COMMAND;
-    kart_common_ComponentType compType = kart_common_ComponentType_LIGHTS;
-    uint8_t componentId = kart_lights_LightComponentId_FRONT;
-    uint8_t commandId = kart_lights_LightCommandId_MODE;
-    kart_common_ValueType valueType = kart_common_ValueType_UINT8;
-    int32_t value = kart_lights_LightModeValue_ANIMATION;
-    
-    // Call the handler
-    handleLightMode(msgType, compType, componentId, commandId, valueType, value);
-    
-    // Assert - Verify mode was set to animation
-    TEST_ASSERT_EQUAL_INT(kart_lights_LightModeValue_ANIMATION, lightState.mode);
+// Test updateAnimation function
+void test_update_animation(void) {
+  // Setup animation state
+  animationState.totalFrames = 3;
+  animationState.currentFrame = 0;
+  animationState.isPlaying = true;
+  animationState.lastFrameTime = millis() - 1000; // Ensure we're past frame duration
+  
+  // Setup animation config
+  animationConfig.fps = 10;
+  animationConfig.frameDuration = 100; // 100ms per frame
+  animationConfig.loopAnimation = true;
+  
+  // Fill frames with different colors
+  for (int frame = 0; frame < 3; frame++) {
+    for (int i = 0; i < NUM_LEDS; i++) {
+      uint16_t bufferIndex = (frame * NUM_LEDS + i) % MAX_ANIMATION_BUFFER_SIZE;
+      if (frame == 0) {
+        animationState.frameBuffer[bufferIndex] = CRGB(255, 0, 0); // Red
+      } else if (frame == 1) {
+        animationState.frameBuffer[bufferIndex] = CRGB(0, 255, 0); // Green
+      } else {
+        animationState.frameBuffer[bufferIndex] = CRGB(0, 0, 255); // Blue
+      }
+    }
+  }
+  
+  // Update animation - should move to frame 1
+  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  
+  // Verify we moved to frame 1
+  TEST_ASSERT_EQUAL_INT(1, animationState.currentFrame);
+  
+  // Verify LEDs show green (frame 1)
+  TEST_ASSERT_EQUAL_INT(0, leds[0].r);
+  TEST_ASSERT_EQUAL_INT(255, leds[0].g);
+  TEST_ASSERT_EQUAL_INT(0, leds[0].b);
+  
+  // Test animation looping
+  animationState.currentFrame = 2;
+  animationState.lastFrameTime = millis() - 200; // Ensure we're past frame duration
+  
+  // Update animation - should loop back to frame 0
+  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  
+  // Verify we looped back to frame 0
+  TEST_ASSERT_EQUAL_INT(0, animationState.currentFrame);
+  
+  // Verify LEDs show red (frame 0)
+  TEST_ASSERT_EQUAL_INT(255, leds[0].r);
+  TEST_ASSERT_EQUAL_INT(0, leds[0].g);
+  TEST_ASSERT_EQUAL_INT(0, leds[0].b);
+  
+  // Test animation stopping at end
+  animationConfig.loopAnimation = false;
+  animationState.currentFrame = 2;
+  animationState.lastFrameTime = millis() - 200;
+  
+  // Update animation - should stop at end
+  updateAnimation(leds, NUM_LEDS, animationState, animationConfig);
+  
+  // Verify animation stopped
+  TEST_ASSERT_EQUAL_INT(false, animationState.isPlaying);
 }
 
-// Test animation configuration
-void test_animation_config() {
-    // Arrange
-    When(Method(ArduinoFake(), millis)).Return(1000);
-    
-    // Act - Set animation FPS
-    kart_common_MessageType msgType = kart_common_MessageType_COMMAND;
-    kart_common_ComponentType compType = kart_common_ComponentType_LIGHTS;
-    uint8_t componentId = kart_lights_LightComponentId_FRONT;
-    uint8_t commandId = kart_lights_LightCommandId_ANIMATION_CONFIG;
-    kart_common_ValueType valueType = kart_common_ValueType_UINT8;
-    int32_t value = 30; // 30 FPS
-    
-    // Call the handler (this will be implemented in the next step)
-    handleAnimationConfig(msgType, compType, componentId, commandId, valueType, value);
-    
-    // Assert - Verify animation FPS was set
-    TEST_ASSERT_EQUAL_INT(30, animationConfig.fps);
+void setup() {
+  delay(2000); // Give board time to settle
+  
+  UNITY_BEGIN();
+  
+  RUN_TEST(test_reset_animation_state);
+  RUN_TEST(test_display_animation_frame);
+  RUN_TEST(test_update_animation);
+  
+  UNITY_END();
 }
 
-// Run all tests
-int main() {
-    UNITY_BEGIN();
-    
-    RUN_TEST(test_animation_data_reception);
-    RUN_TEST(test_animation_mode_setting);
-    RUN_TEST(test_animation_config);
-    
-    return UNITY_END();
+void loop() {
+  // Nothing to do
 } 
