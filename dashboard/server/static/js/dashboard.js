@@ -47,6 +47,38 @@ brakeControl.addEventListener('input', () => {
     brakeDisplay.textContent = brakeControl.value;
 });
 
+// Helper function for sending commands
+function sendCommand(componentType, componentName, commandName, value) {
+    // Validate value is an integer
+    if (!Number.isInteger(value)) {
+        console.error(`Invalid value for ${componentName}.${commandName}: ${value}`);
+        return Promise.reject(new Error('Value must be an integer'));
+    }
+    
+    return fetch('/api/command', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            component_type: componentType,
+            component_name: componentName,
+            command_name: commandName,
+            direct_value: value
+        }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .catch(error => {
+        console.error(`Error sending ${componentName} command:`, error);
+        throw error; // Re-throw for handling by caller
+    });
+}
+
 // Emergency stop button
 let emergencyActive = false;
 emergencyStopBtn.addEventListener('click', () => {
@@ -60,30 +92,16 @@ emergencyStopBtn.addEventListener('click', () => {
         emergencyStopBtn.style.backgroundColor = '#ff4a4a';
     }
     
-    fetch('/api/command', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            emergency_stop: emergencyActive
-        }),
-    });
+    // Send command using the correct format
+    sendCommand('CONTROLS', 'EMERGENCY', 'STOP', emergencyActive ? 1 : 0);
 });
 
 // Send commands button
 sendCommandsBtn.addEventListener('click', () => {
-    fetch('/api/command', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            speed: parseInt(speedControl.value),
-            steering: parseInt(steeringControl.value),
-            brake: parseInt(brakeControl.value)
-        }),
-    });
+    // Send multiple commands - speed, steering, and brake
+    sendCommand('CONTROLS', 'THROTTLE', 'SPEED', parseInt(speedControl.value));
+    sendCommand('CONTROLS', 'STEERING', 'ANGLE', parseInt(steeringControl.value));
+    sendCommand('CONTROLS', 'BRAKE', 'PRESSURE', parseInt(brakeControl.value));
 });
 
 // Setup Chart.js
