@@ -36,6 +36,13 @@ class ProtocolRegistry:
         self._load_modules()
         self._build_registry()
         
+        # Ensure animation commands are added to the registry
+        if 'lights' in self.registry['components']:
+            self._ensure_animation_commands_exist('lights')
+            self.logger.info("Checked and ensured animation commands are registered")
+        else:
+            self.logger.warning("No lights component found in registry, cannot add animation commands")
+        
     def _resolve_protocol_path(self, pb_path: str = None) -> str:
         """Intelligently find the protocol directory"""
         
@@ -44,73 +51,30 @@ class ProtocolRegistry:
             self.logger.debug(f"Using provided protocol path: {pb_path}")
             return pb_path
             
-        # Project root detection - look for common markers
-        def find_project_root():
-            # Start from the current directory and go up until we find a marker file
-            current_dir = os.path.abspath(os.getcwd())
-            # Keep track of searched directories to avoid infinite loops
-            searched_dirs = set()
-            
-            while current_dir not in searched_dirs:
-                searched_dirs.add(current_dir)
-                # Check for common project root markers
-                if (os.path.exists(os.path.join(current_dir, "README.md")) and 
-                    (os.path.exists(os.path.join(current_dir, "protocol")) or 
-                     os.path.exists(os.path.join(current_dir, "dashboard")))):
-                    return current_dir
-                
-                # Move up one directory
-                parent = os.path.dirname(current_dir)
-                if parent == current_dir:  # We've reached the filesystem root
-                    break
-                current_dir = parent
-            
-            return None
-        
-        # Try to find project root
-        project_root = find_project_root()
-        self.logger.debug(f"Detected project root: {project_root}")
-        
         # Try common locations based on project structure
         possible_paths = [
             # Provided path or default
             pb_path or "./protocol/generated/python",
             
-            # Protocol at project root
-            os.path.join(project_root, "protocol", "generated", "python") if project_root else None,
-            
-            # Relative to current working directory
+            # Relative to current directory
             os.path.join(os.getcwd(), "protocol", "generated", "python"),
             
-            # Relative to server directory
+            # Relative to server directory 
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
                          "protocol", "generated", "python"),
             
-            # One level up from server directory (possible project root)
+            # One level up from server directory (project root)
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 
                          "protocol", "generated", "python"),
-            
-            # Two levels up (in case we're in a deeper nested directory)
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), 
-                         "protocol", "generated", "python"),
-            
+                         
             # Raspberry Pi specific path
             "/home/pi/go-kart-platform/protocol/generated/python",
-            
-            # Direct protocol directory (no generated/python)
-            os.path.join(project_root, "protocol") if project_root else None,
         ]
-        
-        # Filter out None values
-        possible_paths = [path for path in possible_paths if path is not None]
-        
-        # Log all paths we're checking
-        self.logger.debug(f"Checking the following paths for protocol directory: {possible_paths}")
         
         # Try each path
         for path in possible_paths:
             if os.path.exists(path):
-                self.logger.info(f"Found protocol directory at: {path}")
+                self.logger.debug(f"Found protocol directory at: {path}")
                 return path
                 
         # If we get here, just return the provided path or default

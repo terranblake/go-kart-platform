@@ -123,20 +123,20 @@ EXPORT void can_interface_register_handler(
     g_handlers.push_back(wrapper);
     g_num_handlers++;
     
-    // Create a class method pointer type for the handler
-    void (ProtobufCANInterface::*handler_method)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t);
-    
     // Register the C++ handler
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    // Use a compatible lambda signature for the handler function
+    auto cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val) {
+        cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, wrapper);
+    };
     
     interface->registerHandler(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
         command_id,
-        [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, int32_t val) {
-            cpp_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, val, wrapper);
-        }
+        cpp_callback
     );
     
     printf("C API: handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
@@ -163,10 +163,14 @@ EXPORT void can_interface_register_binary_handler(
     g_binary_handlers.push_back(wrapper);
     g_num_binary_handlers++;
     
-    // Register the C++ binary handler
+    // Register the C++ binary handler with explicit type conversion
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
-    auto cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, const void* data, size_t data_size) {
+    // Define handler type that matches the expected signature in ProtobufCANInterface::registerBinaryHandler
+    typedef void (*BinaryDataHandlerType)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, const void*, size_t);
+    
+    // Create a compatible callback function that will match the expected BinaryDataHandler type
+    BinaryDataHandlerType cpp_callback = [wrapper](kart_common_MessageType msg_t, kart_common_ComponentType comp_t, uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType val_t, const void* data, size_t data_size) {
         cpp_binary_handler_bridge(msg_t, comp_t, comp_id, cmd_id, val_t, data, data_size, wrapper);
     };
     
