@@ -56,15 +56,15 @@ message KartMessage {
   // (Not represented in proto)
 
   // Byte 2: Component ID
-  uint32 component_id = 3;           // 8 bits (0-255)
+  uint32 component_id = 4;           // 8 bits (0-255)
 
   // Byte 3: Command/Value ID
-  uint32 command_id = 4;             // 8 bits (0-255)
+  uint32 command_id = 5;             // 8 bits (0-255)
 
   // Byte 4: [4 bits ValueType][4 bits reserved]
-  ValueType value_type = 5;          // 4 bits
+  ValueType value_type = 6;          // 4 bits
   // 4 bits reserved in byte 4
 
   // Bytes 5-7: Value
-  int32 value = 6;                  // 24 bits
+  int32 value = 7;                  // 24 bits
 }

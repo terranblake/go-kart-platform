@@ -31,9 +31,10 @@ enum LightCommandId {
   SEQUENCE = 7;
   BRAKE = 8;
   LOCATION = 9; // lights that share code can set this to determine where on the kart they are
-  ANIMATION = 10; // Animation control command
-  ANIMATION_DATA = 11; // Animation frame data
-  ANIMATION_CONFIG = 12; // Animation configuration
+  TEST = 10; // For testing light functions
+  ANIMATION_CONTROL = 11; // Animation control command (start/stop/pause)
+  ANIMATION_DATA = 12; // Animation frame data
+  ANIMATION_CONFIG = 13; // Animation configuration (FPS, loop, etc)
 }
 
 // Light mode values
@@ -47,7 +48,7 @@ enum LightModeValue {
   PULSE = 6;
   FADE = 7;
   HAZARD = 8;
-  ANIMATION = 9; // New animation mode
+  ANIMATION = 9; // Animation mode (for playing animation frames)
 }
 
 enum LightSignalValue {

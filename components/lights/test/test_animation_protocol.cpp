@@ -2,6 +2,8 @@
 #include <unity.h>
 #include <FastLED.h>
 #include "../include/Config.h"
+#include "lights.pb.h"
+#include "common.pb.h"
 
 // Mock objects
 CRGB leds[NUM_LEDS];
