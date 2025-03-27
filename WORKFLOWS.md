@@ -186,7 +186,7 @@ python app.py
 **Terminal 1: Edit Protocol Files**
 ```bash
 cd protocol
-# Edit kart_protocol.proto or component-specific proto files
+# Edit common.proto or component-specific proto files
 ```
 
 ### Development Cycle
