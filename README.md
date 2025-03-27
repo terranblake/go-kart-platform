@@ -41,7 +41,7 @@ Modular electric go-kart with standardized communication, component control, and
 | Telemetry | Data storage | Python, sqlite | telemetry/collector/ |
 | Lights | Lighting control | Arduino, C++ | components/lights/ |
 | Motors | Motor control | Arduino, C++ | components/motors/ |
-| Protocol | Message definitions | Protobuf | protocol/kart_protocol.proto |
+| Protocol | Message definitions | Protobuf | protocol/*.proto |
 | CrossPlatformCAN | CAN interface | C++, Python | components/common/lib/CrossPlatformCAN/ |
 
 ## Protocol Summary
@@ -97,7 +97,7 @@ go-kart-platform/
    - Access UI at `http://localhost:5000`
 
 3. **Protocol Changes**:
-   - Edit `protocol/kart_protocol.proto`
+   - Edit `protocol/*.proto`
    - Generate code with `./protocol/build.sh`
    - Update implementations in affected components
 <!-- LLM_CODE_MARKER_END -->

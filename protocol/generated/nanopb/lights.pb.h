@@ -37,7 +37,11 @@ typedef enum _kart_lights_LightCommandId {
     kart_lights_LightCommandId_TOGGLE = 6,
     kart_lights_LightCommandId_SEQUENCE = 7,
     kart_lights_LightCommandId_BRAKE = 8,
-    kart_lights_LightCommandId_LOCATION = 9 /* lights that share code can set this to determine where on the kart they are */
+    kart_lights_LightCommandId_LOCATION = 9, /* lights that share code can set this to determine where on the kart they are */
+    kart_lights_LightCommandId_TEST = 10, /* For testing light functions */
+    kart_lights_LightCommandId_ANIMATION_CONTROL = 11, /* Animation control command (start/stop/pause) */
+    kart_lights_LightCommandId_ANIMATION_DATA = 12, /* Animation frame data */
+    kart_lights_LightCommandId_ANIMATION_CONFIG = 13 /* Animation configuration (FPS, loop, etc) */
 } kart_lights_LightCommandId;
 
 /* Light mode values */
@@ -50,7 +54,8 @@ typedef enum _kart_lights_LightModeValue {
     kart_lights_LightModeValue_FLASH = 5,
     kart_lights_LightModeValue_PULSE = 6,
     kart_lights_LightModeValue_FADE = 7,
-    kart_lights_LightModeValue_HAZARD = 8
+    kart_lights_LightModeValue_HAZARD = 8,
+    kart_lights_LightModeValue_ANIMATION = 9 /* Animation mode (for playing animation frames) */
 } kart_lights_LightModeValue;
 
 typedef enum _kart_lights_LightSignalValue {
@@ -91,6 +96,24 @@ typedef enum _kart_lights_LightSequenceValue {
     kart_lights_LightSequenceValue_RANDOM = 4
 } kart_lights_LightSequenceValue;
 
+/* Animation command values */
+typedef enum _kart_lights_AnimationCommandValue {
+    kart_lights_AnimationCommandValue_ANIM_STOP = 0,
+    kart_lights_AnimationCommandValue_ANIM_PLAY = 1,
+    kart_lights_AnimationCommandValue_ANIM_PAUSE = 2,
+    kart_lights_AnimationCommandValue_ANIM_RESET = 3,
+    kart_lights_AnimationCommandValue_ANIM_NEXT_FRAME = 4,
+    kart_lights_AnimationCommandValue_ANIM_PREV_FRAME = 5
+} kart_lights_AnimationCommandValue;
+
+/* Animation config options */
+typedef enum _kart_lights_AnimationConfigValue {
+    kart_lights_AnimationConfigValue_ANIM_CONFIG_FPS = 0,
+    kart_lights_AnimationConfigValue_ANIM_CONFIG_LOOP = 1,
+    kart_lights_AnimationConfigValue_ANIM_CONFIG_BRIGHTNESS = 2,
+    kart_lights_AnimationConfigValue_ANIM_CONFIG_LED_COUNT = 3
+} kart_lights_AnimationConfigValue;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -101,12 +124,12 @@ extern "C" {
 #define _kart_lights_LightComponentId_ARRAYSIZE ((kart_lights_LightComponentId)(kart_lights_LightComponentId_ALL+1))
 
 #define _kart_lights_LightCommandId_MIN kart_lights_LightCommandId_MODE
-#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_LOCATION
-#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_LOCATION+1))
+#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_ANIMATION_CONFIG
+#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_ANIMATION_CONFIG+1))
 
 #define _kart_lights_LightModeValue_MIN kart_lights_LightModeValue_OFF
-#define _kart_lights_LightModeValue_MAX kart_lights_LightModeValue_HAZARD
-#define _kart_lights_LightModeValue_ARRAYSIZE ((kart_lights_LightModeValue)(kart_lights_LightModeValue_HAZARD+1))
+#define _kart_lights_LightModeValue_MAX kart_lights_LightModeValue_ANIMATION
+#define _kart_lights_LightModeValue_ARRAYSIZE ((kart_lights_LightModeValue)(kart_lights_LightModeValue_ANIMATION+1))
 
 #define _kart_lights_LightSignalValue_MIN kart_lights_LightSignalValue_NONE
 #define _kart_lights_LightSignalValue_MAX kart_lights_LightSignalValue_RIGHT
@@ -123,6 +146,14 @@ extern "C" {
 #define _kart_lights_LightSequenceValue_MIN kart_lights_LightSequenceValue_SEQ1
 #define _kart_lights_LightSequenceValue_MAX kart_lights_LightSequenceValue_RANDOM
 #define _kart_lights_LightSequenceValue_ARRAYSIZE ((kart_lights_LightSequenceValue)(kart_lights_LightSequenceValue_RANDOM+1))
+
+#define _kart_lights_AnimationCommandValue_MIN kart_lights_AnimationCommandValue_ANIM_STOP
+#define _kart_lights_AnimationCommandValue_MAX kart_lights_AnimationCommandValue_ANIM_PREV_FRAME
+#define _kart_lights_AnimationCommandValue_ARRAYSIZE ((kart_lights_AnimationCommandValue)(kart_lights_AnimationCommandValue_ANIM_PREV_FRAME+1))
+
+#define _kart_lights_AnimationConfigValue_MIN kart_lights_AnimationConfigValue_ANIM_CONFIG_FPS
+#define _kart_lights_AnimationConfigValue_MAX kart_lights_AnimationConfigValue_ANIM_CONFIG_LED_COUNT
+#define _kart_lights_AnimationConfigValue_ARRAYSIZE ((kart_lights_AnimationConfigValue)(kart_lights_AnimationConfigValue_ANIM_CONFIG_LED_COUNT+1))
 
 
 #ifdef __cplusplus

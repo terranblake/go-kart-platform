@@ -85,15 +85,15 @@ void handleLightTest(const void* data, size_t length, kart_common_ComponentType 
 void handleLightLocation(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
 void handleAnimationControl(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
 void handleAnimationConfig(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
-void processAnimationMessage(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id);
+void processAnimationMessage(uint8_t component_id, uint8_t command_id, const uint8_t* data, size_t length, bool isLastChunk);
 void resetAnimationState();
 void displayAnimationFrame(uint32_t frameIndex);
 void updateAnimation();
-void updateLights();
-void updateTurnSignals();
-void updateBrake();
-void setSolidColor(CRGB color);
-void runTest();
+void updateLights(CRGB* leds, int numLeds, LightState& lightState);
+void updateTurnSignals(CRGB* leds, int numLeds, LightState& lightState);
+void updateBrake(CRGB* leds, int numLeds, LightState& lightState);
+void setSolidColor(CRGB* leds, int numLeds, CRGB color);
+void runTestSequence();
 void setupLightsForTesting();
 
 #endif

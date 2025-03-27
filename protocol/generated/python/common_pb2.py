@@ -24,19 +24,21 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x63ommon.proto\x12\x0bkart.common\"\xd6\x01\n\x0bKartMessage\x12.\n\x0cmessage_type\x18\x01 \x01(\x0e\x32\x18.kart.common.MessageType\x12\x32\n\x0e\x63omponent_type\x18\x02 \x01(\x0e\x32\x1a.kart.common.ComponentType\x12\x14\n\x0c\x63omponent_id\x18\x03 \x01(\r\x12\x12\n\ncommand_id\x18\x04 \x01(\r\x12*\n\nvalue_type\x18\x05 \x01(\x0e\x32\x16.kart.common.ValueType\x12\r\n\x05value\x18\x06 \x01(\x05*:\n\x0bMessageType\x12\x0b\n\x07\x43OMMAND\x10\x00\x12\n\n\x06STATUS\x10\x01\x12\x07\n\x03\x41\x43K\x10\x02\x12\t\n\x05\x45RROR\x10\x03*O\n\rComponentType\x12\n\n\x06LIGHTS\x10\x00\x12\n\n\x06MOTORS\x10\x01\x12\x0b\n\x07SENSORS\x10\x02\x12\x0b\n\x07\x42\x41TTERY\x10\x03\x12\x0c\n\x08\x43ONTROLS\x10\x04*h\n\tValueType\x12\x0b\n\x07\x42OOLEAN\x10\x00\x12\x08\n\x04INT8\x10\x01\x12\t\n\x05UINT8\x10\x02\x12\t\n\x05INT16\x10\x03\x12\n\n\x06UINT16\x10\x04\x12\t\n\x05INT24\x10\x05\x12\n\n\x06UINT24\x10\x06\x12\x0b\n\x07\x46LOAT16\x10\x07\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x63ommon.proto\x12\x0bkart.common\"\x8a\x02\n\x0bKartMessage\x12.\n\x0cmessage_type\x18\x01 \x01(\x0e\x32\x18.kart.common.MessageType\x12\x32\n\x0e\x63omponent_type\x18\x02 \x01(\x0e\x32\x1a.kart.common.ComponentType\x12\x32\n\x0e\x61nimation_flag\x18\x03 \x01(\x0e\x32\x1a.kart.common.AnimationFlag\x12\x14\n\x0c\x63omponent_id\x18\x04 \x01(\r\x12\x12\n\ncommand_id\x18\x05 \x01(\r\x12*\n\nvalue_type\x18\x06 \x01(\x0e\x32\x16.kart.common.ValueType\x12\r\n\x05value\x18\x07 \x01(\x05*:\n\x0bMessageType\x12\x0b\n\x07\x43OMMAND\x10\x00\x12\n\n\x06STATUS\x10\x01\x12\x07\n\x03\x41\x43K\x10\x02\x12\t\n\x05\x45RROR\x10\x03*O\n\rComponentType\x12\n\n\x06LIGHTS\x10\x00\x12\n\n\x06MOTORS\x10\x01\x12\x0b\n\x07SENSORS\x10\x02\x12\x0b\n\x07\x42\x41TTERY\x10\x03\x12\x0c\n\x08\x43ONTROLS\x10\x04*`\n\rAnimationFlag\x12\x12\n\x0e\x41NIMATION_NONE\x10\x00\x12\x13\n\x0f\x41NIMATION_START\x10\x01\x12\x13\n\x0f\x41NIMATION_FRAME\x10\x02\x12\x11\n\rANIMATION_END\x10\x03*t\n\tValueType\x12\x0b\n\x07\x42OOLEAN\x10\x00\x12\x08\n\x04INT8\x10\x01\x12\t\n\x05UINT8\x10\x02\x12\t\n\x05INT16\x10\x03\x12\n\n\x06UINT16\x10\x04\x12\t\n\x05INT24\x10\x05\x12\n\n\x06UINT24\x10\x06\x12\x0b\n\x07\x46LOAT16\x10\x07\x12\n\n\x06\x42INARY\x10\x08\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'common_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_MESSAGETYPE']._serialized_start=246
-  _globals['_MESSAGETYPE']._serialized_end=304
-  _globals['_COMPONENTTYPE']._serialized_start=306
-  _globals['_COMPONENTTYPE']._serialized_end=385
-  _globals['_VALUETYPE']._serialized_start=387
-  _globals['_VALUETYPE']._serialized_end=491
+  _globals['_MESSAGETYPE']._serialized_start=298
+  _globals['_MESSAGETYPE']._serialized_end=356
+  _globals['_COMPONENTTYPE']._serialized_start=358
+  _globals['_COMPONENTTYPE']._serialized_end=437
+  _globals['_ANIMATIONFLAG']._serialized_start=439
+  _globals['_ANIMATIONFLAG']._serialized_end=535
+  _globals['_VALUETYPE']._serialized_start=537
+  _globals['_VALUETYPE']._serialized_end=653
   _globals['_KARTMESSAGE']._serialized_start=30
-  _globals['_KARTMESSAGE']._serialized_end=244
+  _globals['_KARTMESSAGE']._serialized_end=296
 # @@protoc_insertion_point(module_scope)

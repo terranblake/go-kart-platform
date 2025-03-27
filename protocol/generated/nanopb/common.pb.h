@@ -27,6 +27,14 @@ typedef enum _kart_common_ComponentType {
     kart_common_ComponentType_CONTROLS = 4 /* Reserved space for 3 more types */
 } kart_common_ComponentType;
 
+/* Animation flags (3 bits - previously reserved in header byte) */
+typedef enum _kart_common_AnimationFlag {
+    kart_common_AnimationFlag_ANIMATION_NONE = 0,
+    kart_common_AnimationFlag_ANIMATION_START = 1, /* First message in animation frame */
+    kart_common_AnimationFlag_ANIMATION_FRAME = 2, /* Continuation message for a frame */
+    kart_common_AnimationFlag_ANIMATION_END = 3 /* Final message in animation frame */
+} kart_common_AnimationFlag;
+
 /* Value types (4 bits - allows 16 types) */
 typedef enum _kart_common_ValueType {
     kart_common_ValueType_BOOLEAN = 0,
@@ -36,15 +44,17 @@ typedef enum _kart_common_ValueType {
     kart_common_ValueType_UINT16 = 4,
     kart_common_ValueType_INT24 = 5,
     kart_common_ValueType_UINT24 = 6,
-    kart_common_ValueType_FLOAT16 = 7 /* Reserved space for 8 more types */
+    kart_common_ValueType_FLOAT16 = 7,
+    kart_common_ValueType_BINARY = 8 /* Binary data for animations */
 } kart_common_ValueType;
 
 /* Struct definitions */
 /* Main message structure (8 bytes total) */
 typedef struct _kart_common_KartMessage {
-    /* Byte 0: [2 bits MessageType][3 bits ComponentType][3 bits reserved] */
+    /* Byte 0: [2 bits MessageType][3 bits ComponentType][3 bits AnimationFlag] */
     kart_common_MessageType message_type; /* 2 bits */
     kart_common_ComponentType component_type; /* 3 bits */
+    kart_common_AnimationFlag animation_flag; /* 3 bits (previously reserved) */
     /* Byte 2: Component ID */
     uint32_t component_id; /* 8 bits (0-255) */
     /* Byte 3: Command/Value ID */
@@ -69,35 +79,42 @@ extern "C" {
 #define _kart_common_ComponentType_MAX kart_common_ComponentType_CONTROLS
 #define _kart_common_ComponentType_ARRAYSIZE ((kart_common_ComponentType)(kart_common_ComponentType_CONTROLS+1))
 
+#define _kart_common_AnimationFlag_MIN kart_common_AnimationFlag_ANIMATION_NONE
+#define _kart_common_AnimationFlag_MAX kart_common_AnimationFlag_ANIMATION_END
+#define _kart_common_AnimationFlag_ARRAYSIZE ((kart_common_AnimationFlag)(kart_common_AnimationFlag_ANIMATION_END+1))
+
 #define _kart_common_ValueType_MIN kart_common_ValueType_BOOLEAN
-#define _kart_common_ValueType_MAX kart_common_ValueType_FLOAT16
-#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_FLOAT16+1))
+#define _kart_common_ValueType_MAX kart_common_ValueType_BINARY
+#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_BINARY+1))
 
 #define kart_common_KartMessage_message_type_ENUMTYPE kart_common_MessageType
 #define kart_common_KartMessage_component_type_ENUMTYPE kart_common_ComponentType
+#define kart_common_KartMessage_animation_flag_ENUMTYPE kart_common_AnimationFlag
 #define kart_common_KartMessage_value_type_ENUMTYPE kart_common_ValueType
 
 
 /* Initializer values for message structs */
-#define kart_common_KartMessage_init_default     {_kart_common_MessageType_MIN, _kart_common_ComponentType_MIN, 0, 0, _kart_common_ValueType_MIN, 0}
-#define kart_common_KartMessage_init_zero        {_kart_common_MessageType_MIN, _kart_common_ComponentType_MIN, 0, 0, _kart_common_ValueType_MIN, 0}
+#define kart_common_KartMessage_init_default     {_kart_common_MessageType_MIN, _kart_common_ComponentType_MIN, _kart_common_AnimationFlag_MIN, 0, 0, _kart_common_ValueType_MIN, 0}
+#define kart_common_KartMessage_init_zero        {_kart_common_MessageType_MIN, _kart_common_ComponentType_MIN, _kart_common_AnimationFlag_MIN, 0, 0, _kart_common_ValueType_MIN, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define kart_common_KartMessage_message_type_tag 1
 #define kart_common_KartMessage_component_type_tag 2
-#define kart_common_KartMessage_component_id_tag 3
-#define kart_common_KartMessage_command_id_tag   4
-#define kart_common_KartMessage_value_type_tag   5
-#define kart_common_KartMessage_value_tag        6
+#define kart_common_KartMessage_animation_flag_tag 3
+#define kart_common_KartMessage_component_id_tag 4
+#define kart_common_KartMessage_command_id_tag   5
+#define kart_common_KartMessage_value_type_tag   6
+#define kart_common_KartMessage_value_tag        7
 
 /* Struct field encoding specification for nanopb */
 #define kart_common_KartMessage_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UENUM,    message_type,      1) \
 X(a, STATIC,   SINGULAR, UENUM,    component_type,    2) \
-X(a, STATIC,   SINGULAR, UINT32,   component_id,      3) \
-X(a, STATIC,   SINGULAR, UINT32,   command_id,        4) \
-X(a, STATIC,   SINGULAR, UENUM,    value_type,        5) \
-X(a, STATIC,   SINGULAR, INT32,    value,             6)
+X(a, STATIC,   SINGULAR, UENUM,    animation_flag,    3) \
+X(a, STATIC,   SINGULAR, UINT32,   component_id,      4) \
+X(a, STATIC,   SINGULAR, UINT32,   command_id,        5) \
+X(a, STATIC,   SINGULAR, UENUM,    value_type,        6) \
+X(a, STATIC,   SINGULAR, INT32,    value,             7)
 #define kart_common_KartMessage_CALLBACK NULL
 #define kart_common_KartMessage_DEFAULT NULL
 
@@ -108,7 +125,7 @@ extern const pb_msgdesc_t kart_common_KartMessage_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define KART_COMMON_COMMON_PB_H_MAX_SIZE         kart_common_KartMessage_size
-#define kart_common_KartMessage_size             29
+#define kart_common_KartMessage_size             31
 
 #ifdef __cplusplus
 } /* extern "C" */

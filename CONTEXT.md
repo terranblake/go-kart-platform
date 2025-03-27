@@ -156,7 +156,7 @@ fi
 | CAN Interface | dashboard/server/lib/can/interface.py | Dashboard CAN implementation |
 | Protocol Registry | dashboard/server/lib/can/protocol_registry.py | Protocol message mapping |
 | Lights Controller | components/lights/src/main.cpp | Lights component implementation |
-| Protocol Definitions | protocol/kart_protocol.proto | Main protocol definitions |
+| Protocol Definitions | protocol/*.proto | Protocol definitions |
 | CrossPlatformCAN | components/common/lib/CrossPlatformCAN | CAN communication library |
 | Component Config | components/lights/include/Config.h | Component configuration |
 <!-- LLM_CODE_MARKER_END -->

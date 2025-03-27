@@ -1,8 +1,9 @@
 #include <Arduino.h>
 #include <FastLED.h>
-
+#include <SPI.h>
 #include "ProtobufCANInterface.h"
 #include "../include/Config.h"
+#include "../include/LightConstants.h"
 #include "common.pb.h"
 #include "lights.pb.h"
 #include "controls.pb.h"
@@ -39,6 +40,153 @@ char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
 
 #endif
 
+// Utility functions
+void clearLights(CRGB* leds, int numLeds) {
+  for (int i = 0; i < numLeds; i++) {
+    leds[i] = CRGB::Black;
+  }
+  FastLED.show();
+}
+
+void updateStartupShutdownAnimation(CRGB* leds, int numLeds, LightState& lightState) {
+  static uint8_t startupStep = 0;
+  static uint8_t shutdownStep = 0;
+  static unsigned long lastAnimationTime = 0;
+  
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - lastAnimationTime < ANIMATION_STEP_DELAY) {
+    return;
+  }
+  
+  lastAnimationTime = currentMillis;
+  
+  if (lightState.animation == 1) { // Startup animation
+    clearLights(leds, numLeds);
+    
+    if (startupStep <= 100) {
+      int brightness = map(startupStep, 0, 100, 0, lightState.brightness);
+      
+      // For startup, gradually increase brightness from center outward
+      int centerLed = numLeds / 2;
+      int range = map(startupStep, 0, 100, 0, centerLed);
+      
+      for (int i = centerLed - range; i <= centerLed + range; i++) {
+        if (i >= 0 && i < numLeds) {
+          leds[i] = CRGB::White;
+          leds[i].fadeToBlackBy(255 - brightness);
+        }
+      }
+      
+      startupStep += 2;
+      if (startupStep > 100) {
+        lightState.animation = 0; // Animation complete
+        startupStep = 0;
+      }
+    }
+    
+    FastLED.show();
+  } 
+  else if (lightState.animation == 2) { // Shutdown animation
+    if (shutdownStep <= 100) {
+      int brightness = map(shutdownStep, 0, 100, lightState.brightness, 0);
+      
+      // For shutdown, gradually decrease brightness from outside inward
+      int centerLed = numLeds / 2;
+      int range = map(shutdownStep, 0, 100, centerLed, 0);
+      
+      for (int i = 0; i < numLeds; i++) {
+        if (i < centerLed - range || i > centerLed + range) {
+          leds[i] = CRGB::Black;
+        } else {
+          leds[i].fadeToBlackBy(255 - brightness);
+        }
+      }
+      
+      shutdownStep += 2;
+      if (shutdownStep > 100) {
+        lightState.animation = 0; // Animation complete
+        clearLights(leds, numLeds);
+        shutdownStep = 0;
+      }
+    }
+    
+    FastLED.show();
+  }
+}
+
+void executeSerialCommand() {
+  // Check if any serial data is available
+  if (Serial.available()) {
+    // Read the command
+    char command[32];
+    int idx = 0;
+    
+    // Read until newline or end of buffer
+    while (Serial.available() && idx < 31) {
+      char c = Serial.read();
+      if (c == '\n' || c == '\r') break;
+      command[idx++] = c;
+    }
+    command[idx] = '\0';
+    
+    // Basic command parsing
+    if (strncmp(command, "mode:", 5) == 0) {
+      int mode = atoi(command + 5);
+      if (mode >= 0 && mode <= kart_lights_LightModeValue_ANIMATION) {
+        lightState.mode = (kart_lights_LightModeValue)mode;
+        Serial.print("Mode set to: ");
+        Serial.println(mode);
+      }
+    }
+    else if (strncmp(command, "brightness:", 11) == 0) {
+      int brightness = atoi(command + 11);
+      if (brightness >= MIN_BRIGHTNESS && brightness <= MAX_BRIGHTNESS) {
+        lightState.brightness = brightness;
+        Serial.print("Brightness set to: ");
+        Serial.println(brightness);
+      }
+    }
+    else if (strncmp(command, "signal:", 7) == 0) {
+      int signal = atoi(command + 7);
+      if (signal == 0) {
+        lightState.turnLeft = 0;
+        lightState.turnRight = 0;
+        lightState.hazard = 0;
+        Serial.println("Signals cleared");
+      } 
+      else if (signal == 1) {
+        lightState.turnLeft = 1;
+        lightState.turnRight = 0;
+        lightState.hazard = 0;
+        Serial.println("Left signal activated");
+      } 
+      else if (signal == 2) {
+        lightState.turnLeft = 0;
+        lightState.turnRight = 1;
+        lightState.hazard = 0;
+        Serial.println("Right signal activated");
+      } 
+      else if (signal == 3) {
+        lightState.turnLeft = 1;
+        lightState.turnRight = 1;
+        lightState.hazard = 1;
+        Serial.println("Hazard activated");
+      }
+    }
+    else if (strncmp(command, "brake:", 6) == 0) {
+      int brake = atoi(command + 6);
+      lightState.braking = brake > 0 ? 1 : 0;
+      Serial.print("Brake set to: ");
+      Serial.println(lightState.braking);
+    }
+    else if (strcmp(command, "test") == 0) {
+    runTestSequence();
+      Serial.println("Running test sequence");
+    }
+  }
+}
+
 void setup()
 {
   // Initialize serial for debugging
@@ -52,7 +200,9 @@ void setup()
   FastLED.show();
 
   // Initialize CAN interface
-  canInterface.begin(500000);
+  if (!canInterface.begin(500000, "can0")) {
+    Serial.println("Failed to initialize CAN interface");
+  }
 
   // Initialize light state
   lightState.mode = kart_lights_LightModeValue_OFF;
@@ -61,7 +211,7 @@ void setup()
   lightState.turnRight = 0;
   lightState.hazard = 0;
   lightState.braking = 0;
-  lightState.sweepPosition = 0;
+    lightState.sweepPosition = 0;
   lightState.animation = 0;
 
   // Initialize animation config
@@ -73,64 +223,95 @@ void setup()
   // Reset animation state
   resetAnimationState();
 
-  // Register regular message handlers
+  // Register message handlers for various light commands
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_MODE,
-    handleLightMode);
-
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleLightMode(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_SIGNAL,
-    handleLightSignal);
-
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleLightSignal(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_BRAKE,
-    handleLightBrake);
-
-  canInterface.registerHandler(
-    kart_common_MessageType_COMMAND,
-    kart_common_ComponentType_CONTROLS,
-    kart_controls_ControlComponentId_DIAGNOSTIC,
-    kart_controls_ControlCommandId_MODE,
-    handleLightTest);
-
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleLightBrake(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
+    kart_lights_LightCommandId_TEST,
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleLightTest(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
+  canInterface.registerHandler(
+    kart_common_MessageType_COMMAND,
+    kart_common_ComponentType_LIGHTS,
+    NODE_ID,
     kart_lights_LightCommandId_LOCATION,
-    handleLightLocation);
-
-  // Register animation handlers
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleLightLocation(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
+  // Register animation control handler
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_ANIMATION_CONTROL,
-    handleAnimationControl);
-
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleAnimationControl(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
+  // Register animation config handler
   canInterface.registerHandler(
     kart_common_MessageType_COMMAND,
     kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_ANIMATION_CONFIG,
-    handleAnimationConfig);
-
+    [](kart_common_MessageType msg_type, kart_common_ComponentType comp_type, 
+       uint8_t comp_id, uint8_t cmd_id, kart_common_ValueType value_type, int32_t value) {
+      handleAnimationConfig(&value, sizeof(value), comp_type, comp_id, cmd_id);
+    }
+  );
+  
   // Register animation data handler
   canInterface.registerAnimationHandler(
-    kart_common_ComponentType_LIGHTS,
-    kart_lights_LightComponentId_ALL,
+    NODE_ID,
     kart_lights_LightCommandId_ANIMATION_DATA,
-    processAnimationMessage);
-
+    [](uint8_t component_id, uint8_t command_id, const uint8_t* data, size_t length, bool isLastChunk) {
+      processAnimationMessage(component_id, command_id, data, length, isLastChunk);
+    }
+  );
+  
   // Set default location (front)
   updateFrontLights = true;
 
@@ -144,182 +325,184 @@ void setup()
 void loop()
 {
   // Process incoming CAN messages
-  canInterface.processIncoming();
-
-  // Update the lights based on current state
+  canInterface.process();
+  
+  // Process any incoming serial commands
+  executeSerialCommand();
+  
+  // Check if we need to update animation playback
   if (animationState.active && lightState.mode == kart_lights_LightModeValue_ANIMATION) {
-    // When animation mode is active and an animation is loaded, run it
     updateAnimation();
   } else {
-    // Otherwise update regular light modes
-    updateLights();
+    // Update regular light patterns based on current mode
+    updateLights(leds, NUM_LEDS, lightState);
   }
-
-  // Run test sequence if test mode is active
-  if (testModeActive) {
-    runTest();
-    testModeActive = false;
+  
+  // Run test sequence if enabled
+  if (RUN_TEST_SEQUENCE) {
+    runTestSequence();
   }
 }
 
-void updateLights(CRGB *leds, int numLeds, LightState &lightState)
-{
-  // Store previous mode to detect transitions
-  // todo: topo tired to check this but looks bad that we're initing previous state to off every time
-  static uint8_t previousStateMode = kart_lights_LightModeValue_OFF;
-
-  // Check for state transitions that should trigger animations
-  if (previousStateMode == kart_lights_LightModeValue_OFF && lightState.mode != kart_lights_LightModeValue_OFF)
-  {
-    // Transition from OFF to any ON mode - start forward animation
-    lightState.animation = 1;
-    lightState.sweepPosition = 0;
+void updateLights(CRGB* leds, int numLeds, LightState& lightState) {
+  static unsigned long lastUpdateTime = 0;
+  unsigned long currentMillis = millis();
+  
+  // No need to update too frequently
+  if (currentMillis - lastUpdateTime < 20) {
+    return;
   }
-  else if (previousStateMode != kart_lights_LightModeValue_OFF && lightState.mode == kart_lights_LightModeValue_OFF)
-  {
-    // Transition from any ON mode to OFF - start reverse animation
-    lightState.animation = 2;               // 2 indicates reverse animation
-    lightState.sweepPosition = numLeds / 2; // Start from fully extended
-  }
-
-  // Update the previous mode for next time
-  previousStateMode = lightState.mode;
-
-  // Handle animation if it's active (takes precedence over normal display)
-  if (lightState.animation > 0)
-  {
-    // Forward or reverse startup animation
+  lastUpdateTime = currentMillis;
+  
+  // Startup/shutdown animations take precedence
+  if (lightState.animation > 0) {
     updateStartupShutdownAnimation(leds, numLeds, lightState);
     return;
   }
 
-  // Only proceed with normal lighting if mode is not OFF
-  if (lightState.mode == kart_lights_LightModeValue_OFF)
-  {
-    clearLights(leds, numLeds);
-    return;
-  }
-
-  // Clear LEDs first to ensure clean state
+  // Handle different lighting modes
+  switch (lightState.mode) {
+    case kart_lights_LightModeValue_OFF:
   clearLights(leds, numLeds);
-
-  // Calculate brightness based on mode and braking
-  uint8_t brightness = DEFAULT_BRIGHTNESS;
-  if (lightState.mode == kart_lights_LightModeValue_BRIGHT)
-  {
+      break;
+      
+    case kart_lights_LightModeValue_ON:
+    case kart_lights_LightModeValue_AUTO:
+    case kart_lights_LightModeValue_DIM:
+      // Set base lighting
+      uint8_t brightness = lightState.brightness;
+      if (lightState.mode == kart_lights_LightModeValue_DIM) {
+        brightness = MIN_BRIGHTNESS;
+      } else if (lightState.mode == kart_lights_LightModeValue_BRIGHT) {
     brightness = BRIGHT_BRIGHTNESS;
-  }
-  if (!updateFrontLights && lightState.braking)
-  {
+      } else if (lightState.braking) {
     brightness = BRAKE_BRIGHTNESS;
   }
-  FastLED.setBrightness(brightness);
 
-  // Standard lighting (for non-hazard modes) - main lights
-  if (lightState.mode != kart_lights_LightModeValue_HAZARD)
-  {
-    CRGB baseColor = updateFrontLights ? CRGB::White : CRGB::Red;
+      // Configure the main LED area
     int mainStart = TURN_SIGNAL_COUNT;
     int mainEnd = numLeds - TURN_SIGNAL_COUNT;
 
-    for (int i = mainStart; i < mainEnd; i++)
-    {
-      leds[i] = baseColor;
-    }
-  }
-
-  // Handle turn signals
+      for (int i = mainStart; i < mainEnd; i++) {
+        // Different color for front/rear
+        if (i < numLeds/2) {
+          // Front lights are white
+          leds[i] = CRGB::White;
+        } else {
+          // Rear lights are red
+          leds[i] = CRGB::Red;
+        }
+        
+        // Apply brightness
+        leds[i].fadeToBlackBy(255 - brightness);
+      }
+      
+      // Update turn signals on top of base lighting
   updateTurnSignals(leds, numLeds, lightState);
+      break;
+      
+    // Other modes as needed
+  }
+  
+  // Update brake lights if needed
+  if (lightState.braking) {
+    updateBrake(leds, numLeds, lightState);
+  }
+  
+  // Show the updated LEDs
+  FastLED.show();
 }
 
-void updateTurnSignals(CRGB *leds, int numLeds, LightState &lightState)
-{
+void updateTurnSignals(CRGB* leds, int numLeds, LightState& lightState) {
+  static unsigned long lastTurnToggle = 0;
+  static unsigned long lastSweepUpdate = 0;
+  static bool turnSignalState = false;
   unsigned long currentMillis = millis();
 
-  // Handle hazard mode by setting both turn signals
-  if (lightState.mode == kart_lights_LightModeValue_HAZARD)
-  {
-    // First set the middle section lights (same as regular mode)
-    CRGB baseColor = updateFrontLights ? CRGB::White : CRGB::Red;
+  // If no signals active, early exit
+  if (!lightState.turnLeft && !lightState.turnRight && !lightState.hazard) {
+    return;
+  }
+  
+  // Main section start/end
     int mainStart = TURN_SIGNAL_COUNT;
     int mainEnd = numLeds - TURN_SIGNAL_COUNT;
 
-    for (int i = mainStart; i < mainEnd; i++)
-    {
-      leds[i] = baseColor;
-    }
-
-    // In hazard mode, both turn signals blink together
-    if (currentMillis - lastTurnToggle > TURN_SIGNAL_BLINK_RATE)
-    {
-      turnSignalState = !turnSignalState;
+  // Hazard lights blink both turn signals
+  if (lightState.hazard) {
+    // Blink rate control
+    if (currentMillis - lastTurnToggle > TURN_SIGNAL_BLINK_RATE) {
       lastTurnToggle = currentMillis;
+      turnSignalState = !turnSignalState;
     }
-
-    if (turnSignalState)
-    {
-      // Left side (first TURN_SIGNAL_COUNT LEDs)
-      for (int i = 0; i < TURN_SIGNAL_COUNT; i++)
-      {
+    
+    if (turnSignalState) {
+      // Left and right signals
+      for (int i = 0; i < mainStart; i++) {
         leds[i] = CRGB::Orange;
       }
-
-      // Right side (last TURN_SIGNAL_COUNT LEDs)
-      for (int i = 0; i < TURN_SIGNAL_COUNT; i++)
-      {
-        leds[numLeds - 1 - i] = CRGB::Orange;
+      for (int i = mainEnd; i < numLeds; i++) {
+        leds[i] = CRGB::Orange;
+      }
+    } else {
+      // Off phase
+      for (int i = 0; i < mainStart; i++) {
+        leds[i] = CRGB::Black;
+      }
+      for (int i = mainEnd; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
       }
     }
     return;
   }
 
-  // Only process regular turn signals if there's a signal active
-  if (!lightState.turnLeft && !lightState.turnRight)
-    return;
-
-  // Update blink state based on timing
-  if (currentMillis - lastTurnToggle > TURN_SIGNAL_BLINK_RATE)
-  {
-    turnSignalState = !turnSignalState;
+  // Normal turn signal blinking
+  if (currentMillis - lastTurnToggle > TURN_SIGNAL_BLINK_RATE) {
     lastTurnToggle = currentMillis;
-
-    // Reset sweep position when starting a new blink cycle
-    if (turnSignalState)
-    {
-      lightState.sweepPosition = 0;
-      lastSweepUpdate = currentMillis;
+    turnSignalState = !turnSignalState;
+  }
+  
+  // Left signal
+  if (lightState.turnLeft && turnSignalState) {
+    for (int i = 0; i < mainStart; i++) {
+      leds[i] = CRGB::Orange;
+    }
+  } else if (lightState.turnLeft && !turnSignalState) {
+    for (int i = 0; i < mainStart; i++) {
+      leds[i] = CRGB::Black;
     }
   }
-
-  // Process turn signals only if they're in the ON phase of blinking
-  if (turnSignalState)
-  {
-    // Update sweep position based on timing
-    if (currentMillis - lastSweepUpdate > TURN_SIGNAL_SWEEP_STEP && lightState.sweepPosition < TURN_SIGNAL_COUNT)
-    {
-      lightState.sweepPosition++;
-      lastSweepUpdate = currentMillis;
+  
+  // Right signal
+  if (lightState.turnRight && turnSignalState) {
+    for (int i = mainEnd; i < numLeds; i++) {
+      leds[i] = CRGB::Orange;
     }
-
-    // Left turn signal - sweeping right to left
-    if (lightState.turnLeft)
-    {
-      for (int i = 0; i < TURN_SIGNAL_COUNT; i++)
-      {
-        if (i <= lightState.sweepPosition)
-        {
+  } else if (lightState.turnRight && !turnSignalState) {
+    for (int i = mainEnd; i < numLeds; i++) {
+      leds[i] = CRGB::Black;
+    }
+  }
+  
+  // Animated sweep for turn signals if needed
+  if (currentMillis - lastSweepUpdate > TURN_SIGNAL_SWEEP_STEP && lightState.sweepPosition < TURN_SIGNAL_COUNT) {
+    lastSweepUpdate = currentMillis;
+    
+    // Update sweep position
+    lightState.sweepPosition++;
+    
+    // Apply sweep effect to turn signals
+    if (lightState.turnLeft) {
+      for (int i = 0; i < TURN_SIGNAL_COUNT; i++) {
+        if (i < lightState.sweepPosition) {
           leds[TURN_SIGNAL_COUNT - 1 - i] = CRGB::Orange;
         }
       }
     }
 
-    // Right turn signal - sweeping left to right
-    if (lightState.turnRight)
-    {
-      for (int i = 0; i < TURN_SIGNAL_COUNT; i++)
-      {
-        if (i <= lightState.sweepPosition)
-        {
+    if (lightState.turnRight) {
+      for (int i = 0; i < TURN_SIGNAL_COUNT; i++) {
+        if (i < lightState.sweepPosition) {
           leds[numLeds - TURN_SIGNAL_COUNT + i] = CRGB::Orange;
         }
       }
@@ -327,123 +510,53 @@ void updateTurnSignals(CRGB *leds, int numLeds, LightState &lightState)
   }
 }
 
-void updateStartupShutdownAnimation(CRGB *leds, int numLeds, LightState &lightState)
-{
-  // Determine the color based on front/rear
-  CRGB color = updateFrontLights ? CRGB::White : CRGB::Red;
-
-  // Get middle position for animation
-  int middle = numLeds / 2;
-
-  // Forward animation speed control
+void updateBrake(CRGB* leds, int numLeds, LightState& lightState) {
+  static unsigned long lastPulseTime = 0;
+  static uint8_t pulseDir = 0;  // 0 = up, 1 = down
+  static uint8_t pulseValue = 0;
   unsigned long currentMillis = millis();
-  static unsigned long lastStepTime = 0;
-
-  if (currentMillis - lastStepTime < ANIMATION_STEP_DELAY)
-  {
-    return;
-  }
-  lastStepTime = currentMillis;
-
-  // Clear all LEDs first to ensure clean animation
-  clearLights(leds, numLeds);
-
-  if (lightState.animation == 1)
-  {
-    // STARTUP ANIMATION
-    // Fill from middle to current position in both directions
-    for (int i = middle - lightState.sweepPosition; i <= middle + lightState.sweepPosition; i++)
-    {
-      if (i >= 0 && i < numLeds)
-      {
-        leds[i] = color;
-      }
-    }
-
-    // Increment position with accelerating speed
-    int speedMultiplier = 1 + (lightState.sweepPosition / 10);
-    lightState.sweepPosition += speedMultiplier;
-
-    // End animation when it reaches edges
-    if (lightState.sweepPosition >= middle)
-    {
-      lightState.animation = 0;
-      lightState.sweepPosition = 0;
-
-      // Fill in the regular lighting pattern
-      if (lightState.mode != kart_lights_LightModeValue_OFF)
-      {
-        if (updateFrontLights)
-        {
-          for (int i = TURN_SIGNAL_COUNT; i < numLeds - TURN_SIGNAL_COUNT; i++)
-          {
-            leds[i] = CRGB::White;
-          }
+  
+  // Only apply to rear lights
+  int rearStart = numLeds / 2;
+  
+  if (lightState.braking) {
+    // Determine if we want a solid brake light or pulsing effect
+    if (lightState.mode == kart_lights_LightModeValue_PULSE) {
+      // Pulse effect timing
+      if (currentMillis - lastPulseTime > BRAKE_PULSE_INTERVAL) {
+        lastPulseTime = currentMillis;
+        
+        // Update pulse value
+        if (pulseDir == 0) {
+          pulseValue += 5;
+          if (pulseValue >= 250) pulseDir = 1;
+        } else {
+          pulseValue -= 5;
+          if (pulseValue <= 50) pulseDir = 0;
         }
-        else
-        {
-          for (int i = TURN_SIGNAL_COUNT; i < numLeds - TURN_SIGNAL_COUNT; i++)
-          {
+      }
+      
+      // Apply pulse effect to rear lights
+      for (int i = rearStart; i < numLeds; i++) {
+        // Skip turn signal area
+        if (i >= numLeds - TURN_SIGNAL_COUNT) continue;
+        
+        // Apply pulsing red
+        leds[i] = CRGB::Red;
+        leds[i].fadeToBlackBy(255 - pulseValue);
+      }
+    } else {
+      // Solid bright brake lights
+      for (int i = rearStart; i < numLeds; i++) {
+        // Skip turn signal area
+        if (i >= numLeds - TURN_SIGNAL_COUNT) continue;
+        
+        // Full brightness red
             leds[i] = CRGB::Red;
           }
         }
       }
     }
-  }
-  else if (lightState.animation == 2)
-  {
-    // SHUTDOWN ANIMATION
-    // Ensure lightState.sweepPosition stays within valid range (signed int)
-    if (lightState.sweepPosition > 200)
-    { // This catches overflow to large values
-      lightState.sweepPosition = middle;
-    }
-
-    // Animation starts with full strip lit, then contracts to middle
-    int currentWidth = lightState.sweepPosition;
-
-    // Fill all LEDs from middle-width to middle+width
-    for (int i = middle - currentWidth; i <= middle + currentWidth; i++)
-    {
-      if (i >= 0 && i < numLeds)
-      {
-        leds[i] = color;
-      }
-    }
-
-    // Decrement position with accelerating speed
-    int speedMultiplier = 1 + ((middle - lightState.sweepPosition) / 10);
-    if (speedMultiplier <= 0)
-      speedMultiplier = 1; // Ensure positive multiplier
-
-    // Fix for overflow - check bounds before subtraction
-    if (lightState.sweepPosition <= speedMultiplier)
-    {
-      lightState.sweepPosition = 0; // About to reach 0
-    }
-    else
-    {
-      lightState.sweepPosition -= speedMultiplier;
-    }
-
-    // End animation when it reaches the middle
-    if (lightState.sweepPosition <= 0)
-    {
-      lightState.animation = 0;
-      lightState.sweepPosition = 0;
-      clearLights(leds, numLeds);
-    }
-  }
-
-  // Force update the display
-  FastLED.show();
-}
-
-void clearLights(CRGB *leds, int numLeds)
-{
-  // Turn off all LEDs
-  fill_solid(leds, numLeds, CRGB::Black);
-}
 
 void handleLightMode(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id) {
   // Only process if this message is for us (based on component ID)
@@ -483,7 +596,7 @@ void handleLightMode(const void* data, size_t length, kart_common_ComponentType 
     // Set the light mode
     lightState.mode = (kart_lights_LightModeValue)value;
     
-    Serial.print(F("Light mode: "));
+  Serial.print(F("Light mode: "));
     Serial.println(value);
   }
 }
@@ -581,686 +694,355 @@ void setupLightsForTesting()
   Serial.println("Lights set up for testing");
 }
 
-void runTestSequence()
-{
-  static unsigned long lastStateChange = 0;
-  static uint8_t testState = 0;
-  const uint8_t numTestStates = 14; // Increased to add animation test states
-  const unsigned long testInterval = 3000; // 3 seconds per state
+void runTestSequence() {
+  static unsigned long lastTestStep = 0;
+  static uint8_t testStep = 0;
+  static bool testActive = false;
+  static const unsigned long TEST_STEP_DELAY = 1000;
 
   unsigned long currentMillis = millis();
 
-  // Check if it's time to change state
-  if (currentMillis - lastStateChange > testInterval)
-  {
-    lastStateChange = currentMillis;
-    testState = (testState + 1) % numTestStates;
-
-    // Reset all states before each test
-    updateFrontLights = true;
+  // Start a new test sequence
+  if (!testActive) {
+    testActive = true;
+    testStep = 0;
+    lastTestStep = currentMillis;
+    Serial.println("Starting test sequence");
+  }
+  
+  // Only advance to next step after delay
+  if (currentMillis - lastTestStep < TEST_STEP_DELAY) {
+    return;
+  }
+  
+  lastTestStep = currentMillis;
+  
+  // Run through various test steps
+  switch (testStep) {
+    case 0:
+      // Test basic light modes
+      lightState.mode = kart_lights_LightModeValue_ON;
+      lightState.brightness = DEFAULT_BRIGHTNESS;
     lightState.turnLeft = 0;
     lightState.turnRight = 0;
+      lightState.hazard = 0;
     lightState.braking = 0;
-    lightState.sweepPosition = 0;
-    lightState.animation = 0;
-
-    switch (testState)
-    {
-    case 0:
-      // Startup front - lights on
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
+      Serial.println("Test: Lights ON");
       break;
 
     case 1:
-      // Shutdown front
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_OFF);
+      // Test turn signals - left
+      lightState.turnLeft = 1;
+      lightState.turnRight = 0;
+      Serial.println("Test: Left turn signal");
       break;
 
     case 2:
-      // Low mode with left turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal value
+      // Test turn signals - right
+      lightState.turnLeft = 0;
+      lightState.turnRight = 1;
+      Serial.println("Test: Right turn signal");
       break;
 
     case 3:
-      // Low mode with right turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal value
+      // Test hazard lights
+      lightState.turnLeft = 1;
+      lightState.turnRight = 1;
+      lightState.hazard = 1;
+      Serial.println("Test: Hazard lights");
       break;
 
     case 4:
-      // High mode with left turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_BRIGHT);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal value
+      // Test brake lights
+      lightState.turnLeft = 0;
+      lightState.turnRight = 0;
+      lightState.hazard = 0;
+      lightState.braking = 1;
+      Serial.println("Test: Brake lights");
       break;
 
     case 5:
-      // High mode with right turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_BRIGHT);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal value
+      // Test animation mode (if we have animation data)
+      if (animationState.dataSize > 0) {
+        lightState.mode = kart_lights_LightModeValue_ANIMATION;
+        animationState.active = true;
+        animationState.currentFrame = 0;
+        animationState.lastFrameTime = millis();
+        Serial.println("Test: Animation playback");
+      } else {
+        Serial.println("Test: No animation data available");
+      }
       break;
 
     case 6:
-      // Hazard lights (both turn signals)
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_HAZARD);
+      // End test sequence
+      lightState.mode = kart_lights_LightModeValue_OFF;
+      lightState.turnLeft = 0;
+      lightState.turnRight = 0;
+      lightState.hazard = 0;
+      lightState.braking = 0;
+      animationState.active = false;
+      clearLights(leds, NUM_LEDS);
+      Serial.println("Test sequence complete");
+      testActive = false;
       break;
-
-    case 7:
-      // Set to rear lights and hazard
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_HAZARD); // Using FLASH as equivalent to HAZARD
-      break;
-
-    case 8:
-      // Brake lights test
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          true); // Brake ON
-      break;
-
-    case 9:
-      // Brake lights with left turn signals
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          1); // Brake ON
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal
-      break;
-
-    case 10:
-      // Brake lights with right turn signals
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          1); // Brake ON
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal
-      break;
-
-    case 11:
-      // Shutdown rear animation
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_OFF);
-      break;
-      
-    case 12:
-      // Front animation mode test
-      updateFrontLights = true;
-      // First set mode to animation
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ANIM_MODE);
-      
-      // Set animation config - 10 FPS, loop enabled
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_ANIMATION_CONFIG,
-          kart_common_ValueType_UINT8,
-          10); // 10 FPS
-      
-      // Set total frames to 3
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_ANIMATION,
-          kart_common_ValueType_UINT8,
-          103); // 100 + totalFrames (3)
-      
-      // Start animation playback
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_ANIMATION,
-          kart_common_ValueType_UINT8,
-          kart_lights_AnimationCommandValue_ANIM_PLAY);
-          
-      // Send test animation frame 1 (all red)
-      for (int i = 0; i < 20; i++) {
-        uint8_t ledData[] = {255, 0, 0}; // RGB: pure red
-        uint32_t value = (ledData[0] << 16) | (ledData[1] << 8) | ledData[2];
-        
-        // Process as if received from CAN
-        processAnimationMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          (i == 0) ? kart_common_AnimationFlag_ANIMATION_START : 
-                     (i == 19) ? kart_common_AnimationFlag_ANIMATION_END : 
-                                 kart_common_AnimationFlag_ANIMATION_FRAME,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_ANIMATION_DATA,
-          value
-        );
-      }
-      break;
-      
-    case 13:
-      // Turn off animation mode
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_OFF);
-      break;
-    }
-
-    Serial.print(F("TS:"));
-    Serial.println(testState);
-  }
-
-  // For animation mode, we need to process more frequently
-  if (lightState.mode == kart_lights_LightModeValue_ANIM_MODE && 
-      animationState.active && 
-      !animationState.receivingFrame) {
-    updateAnimation();
-  } else {
-    updateLights(leds, NUM_LEDS, lightState);
   }
   
-  FastLED.show();
-}
-
-// Process commands received over Serial
-void processSerialCommands()
-{
-  static int bufferIndex = 0;
-
-  // Check if data is available
-  while (Serial.available() > 0)
-  {
-    char c = Serial.read();
-
-    // Handle newline as command terminator
-    if (c == '\n' || c == '\r')
-    {
-      if (bufferIndex > 0)
-      {
-        // Null-terminate the buffer
-        serialCommandBuffer[bufferIndex] = '\0';
-
-        // Process the command
-        executeSerialCommand(serialCommandBuffer);
-
-        // Reset buffer index
-        bufferIndex = 0;
-      }
-    }
-    // Add character to buffer if there's room
-    else if (bufferIndex < SERIAL_COMMAND_BUFFER_SIZE - 1)
-    {
-      serialCommandBuffer[bufferIndex++] = c;
-    }
-  }
-}
-
-void executeSerialCommand(const char *command)
-{
-  // Process CAN message simulation with Protocol Buffer format
-  if (strncmp(command, "CAN:", 4) == 0)
-  {
-    char *ptr = (char *)command + 4;
-
-    // Parse component type
-    uint8_t componentType = strtoul(ptr, &ptr, 10);
-    if (*ptr == ':')
-    {
-      ptr++;
-
-      // Parse component ID
-      uint8_t componentId = strtoul(ptr, &ptr, 10);
-      if (*ptr == ':')
-      {
-        ptr++;
-
-        // Parse command ID
-        uint8_t commandId = strtoul(ptr, &ptr, 10);
-
-        // Parse optional value (default to 0)
-        int16_t value = 0;
-        if (*ptr == ':')
-        {
-          ptr++;
-          value = strtol(ptr, NULL, 10);
-        }
-
-        // Send the message using our new overload
-        bool success = canInterface.sendMessage(
-            kart_common_MessageType_COMMAND,
-            (kart_common_ComponentType)componentType,
-            componentId,
-            commandId,
-            kart_common_ValueType_INT8,
-            value);
-
-        if (success)
-        {
-          Serial.print(F("Serial->CAN: "));
-          Serial.print(componentType);
-          Serial.print(F(":"));
-          Serial.print(componentId);
-          Serial.print(F(":"));
-          Serial.print(commandId);
-          Serial.print(F("="));
-          Serial.println(value);
-        }
-        else
-        {
-          Serial.println(F("Failed to send message"));
-        }
-      }
-    }
-  }
-  // Toggle test sequence
-  else if (strcmp(command, "TEST:START") == 0)
-  {
-    testModeActive = true;
-    Serial.println(F("Test sequence started"));
-  }
-  else if (strcmp(command, "TEST:STOP") == 0)
-  {
-    testModeActive = false;
-    Serial.println(F("Test sequence stopped"));
-  }
-  // Simple ping command to test serial connectivity
-  else if (strcmp(command, "PING") == 0)
-  {
-    Serial.println(F("PONG"));
-  }
-  else
-  {
-    Serial.println(F("Unsupported command"));
-  }
+  // Move to next test step
+  testStep++;
 }
 
 // Animation-related functions
 
-void resetAnimationState()
-{
-  animationState.active = false;
-  animationState.frameCount = 0;
-  animationState.currentFrame = 0;
-  animationState.lastFrameTime = 0;
-  animationState.dataSize = 0;
-  animationState.frameSize = 0;
-  
-  // Clear animation buffer
-  memset(animationState.animationData, 0, MAX_ANIMATION_BUFFER_SIZE);
-}
-
-void handleAnimationControl(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id)
-{
-  // Only process if this message is for us (based on component ID)
-  if (component_id != kart_lights_LightComponentId_ALL && 
-      (component_id != kart_lights_LightComponentId_FRONT && updateFrontLights) && 
-      (component_id != kart_lights_LightComponentId_REAR && !updateFrontLights)) {
-    return;
-  }
-  
-  // Parse command value
-  uint8_t* raw_data = (uint8_t*)data;
-  uint8_t value = raw_data[0];
-  
-  // Animation control: 0 = Stop, 1 = Start, 2 = Pause, 3 = Resume
-  switch (value) {
-    case 0: // Stop
-      animationState.active = false;
-      lightState.mode = kart_lights_LightModeValue_OFF;
-      updateLights(leds, NUM_LEDS, lightState);
-      Serial.println(F("Animation stopped"));
-      break;
-    
-    case 1: // Start
-      if (animationState.frameCount > 0) {
-        animationState.active = true;
-        animationState.currentFrame = 0;
-        animationState.lastFrameTime = millis();
-        lightState.mode = kart_lights_LightModeValue_ANIMATION;
-        Serial.println(F("Animation started"));
-      } else {
-        Serial.println(F("No animation loaded"));
-      }
-      break;
-    
-    case 2: // Pause
-      animationState.active = false;
-      Serial.println(F("Animation paused"));
-      break;
-    
-    case 3: // Resume
-      if (animationState.frameCount > 0) {
-        animationState.active = true;
-        animationState.lastFrameTime = millis();
-        lightState.mode = kart_lights_LightModeValue_ANIMATION;
-        Serial.println(F("Animation resumed"));
-      }
-      break;
-      
-    default:
-      Serial.println(F("Unknown animation control command"));
-      break;
-  }
-}
-
-void handleAnimationConfig(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id)
-{
-  // Only process if this message is for us (based on component ID)
-  if (component_id != kart_lights_LightComponentId_ALL && 
-      (component_id != kart_lights_LightComponentId_FRONT && updateFrontLights) && 
-      (component_id != kart_lights_LightComponentId_REAR && !updateFrontLights)) {
-    return;
-  }
-  
-  // Parse command data
-  if (length < 3) {
-    Serial.println(F("Invalid animation config data"));
-    return;
-  }
-  
-  uint8_t* raw_data = (uint8_t*)data;
-  uint8_t config_type = raw_data[0];
-  uint8_t config_value = raw_data[1];
-  
-  switch (config_type) {
-    case 0: // FPS
-      animationConfig.fps = config_value;
-      animationConfig.frameDuration = 1000 / config_value;
-      Serial.print(F("Animation FPS set to: "));
-      Serial.println(config_value);
-      break;
-      
-    case 1: // Loop setting
-      animationConfig.loopAnimation = (config_value > 0);
-      Serial.print(F("Animation loop set to: "));
-      Serial.println(animationConfig.loopAnimation ? F("Enabled") : F("Disabled"));
-      break;
-      
-    case 2: // Brightness
-      if (config_value >= MIN_BRIGHTNESS && config_value <= MAX_BRIGHTNESS) {
-        animationConfig.brightness = config_value;
-        Serial.print(F("Animation brightness set to: "));
-        Serial.println(config_value);
-      } else {
-        Serial.println(F("Brightness out of range"));
-      }
-      break;
-      
-    default:
-      Serial.println(F("Unknown animation config type"));
-      break;
-  }
-}
-
-void processAnimationMessage(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id)
-{
-  // Only process if this message is for us (based on component ID)
-  if (component_id != kart_lights_LightComponentId_ALL && 
-      (component_id != kart_lights_LightComponentId_FRONT && updateFrontLights) && 
-      (component_id != kart_lights_LightComponentId_REAR && !updateFrontLights)) {
-    return;
-  }
-  
-  // Check for header packet (first packet in the animation data stream)
-  uint8_t* raw_data = (uint8_t*)data;
-  
-  if (length >= 8 && raw_data[0] == 0xFF && raw_data[1] == 0xAA) {
-    // This is a header packet, format:
-    // [0xFF, 0xAA, frameCount(2), frameSize(2), totalSize(2), ...]
-    uint16_t frameCount = (raw_data[2] << 8) | raw_data[3];
-    uint16_t frameSize = (raw_data[4] << 8) | raw_data[5];
-    uint16_t totalSize = (raw_data[6] << 8) | raw_data[7];
-    
-    // Reset animation state for new data
-    resetAnimationState();
-    
-    // Store animation parameters
-    animationState.frameCount = frameCount;
-    animationState.frameSize = frameSize;
-    
-    Serial.print(F("New animation: "));
-    Serial.print(frameCount);
-    Serial.print(F(" frames, "));
-    Serial.print(frameSize);
-    Serial.print(F(" bytes/frame, "));
-    Serial.print(totalSize);
-    Serial.println(F(" total bytes"));
-    
-    // Check if the animation will fit in our buffer
-    if (totalSize > MAX_ANIMATION_BUFFER_SIZE) {
-      Serial.println(F("Animation too large for buffer"));
-      resetAnimationState();
-      return;
-    }
-    
-    // Copy data payload (after header) to animation buffer
-    if (length > 8) {
-      uint16_t dataSize = length - 8;
-      memcpy(animationState.animationData, raw_data + 8, dataSize);
-      animationState.dataSize = dataSize;
-      
-      Serial.print(F("Received "));
-      Serial.print(dataSize);
-      Serial.println(F(" bytes of animation data"));
-    }
-  } else {
-    // This is a continuation packet, just append to buffer
-    if (animationState.dataSize + length <= MAX_ANIMATION_BUFFER_SIZE) {
-      memcpy(animationState.animationData + animationState.dataSize, raw_data, length);
-      animationState.dataSize += length;
-      
-      Serial.print(F("Received additional "));
-      Serial.print(length);
-      Serial.println(F(" bytes of animation data"));
-      
-      // Check if we've received the complete animation
-      uint32_t expectedSize = animationState.frameCount * animationState.frameSize;
-      if (animationState.dataSize >= expectedSize) {
-        Serial.println(F("Animation data complete"));
-        animationState.active = true;
-        animationState.currentFrame = 0;
-        animationState.lastFrameTime = millis();
-      }
-    } else {
-      Serial.println(F("Animation buffer overflow"));
-    }
-  }
-}
-
-void updateAnimation()
-{
+void updateAnimation() {
+  // Only proceed if animation is active and we have frames
   if (!animationState.active || animationState.frameCount == 0) {
     return;
   }
   
-  uint32_t currentTime = millis();
-  if (currentTime - animationState.lastFrameTime >= animationConfig.frameDuration) {
-    // Time to display the next frame
+  unsigned long currentMillis = millis();
+  unsigned long frameDuration = 1000 / animationConfig.fps;
+  
+  // Check if it's time to show the next frame
+  if (currentMillis - animationState.lastFrameTime >= frameDuration) {
+    animationState.lastFrameTime = currentMillis;
+    
+    // Display the current frame
     displayAnimationFrame(animationState.currentFrame);
     
-    // Update timing and frame counter
-    animationState.lastFrameTime = currentTime;
+    // Advance to next frame
     animationState.currentFrame++;
     
-    // Loop back to the beginning if needed
+    // Check if we've reached the end of animation
     if (animationState.currentFrame >= animationState.frameCount) {
       if (animationConfig.loopAnimation) {
+        // Loop back to start
         animationState.currentFrame = 0;
       } else {
-        // Stop animation playback if not looping
+        // End animation playback
         animationState.active = false;
-        
-        // Go back to the previous light mode
-        lightState.mode = kart_lights_LightModeValue_OFF;
-        updateLights(leds, NUM_LEDS, lightState);
+        // Fall back to regular light mode
+        lightState.mode = kart_lights_LightModeValue_ON;
+        clearLights(leds, NUM_LEDS);
       }
     }
   }
 }
 
-void displayAnimationFrame(uint32_t frameIndex)
-{
+void displayAnimationFrame(uint32_t frameIndex) {
   if (!animationState.active || frameIndex >= animationState.frameCount) {
     return;
   }
-
-  // Calculate the start position in the animation buffer for this frame
-  uint32_t startPos = frameIndex * animationState.frameSize;
   
-  // Check if we're updating front or rear
-  uint16_t startLed = updateFrontLights ? FRONT_START_LED : REAR_START_LED;
-  uint16_t endLed = updateFrontLights ? FRONT_END_LED : REAR_END_LED;
-  uint16_t ledCount = endLed - startLed + 1;
+  // Calculate the offset for this frame in the buffer
+  uint32_t frameOffset = frameIndex * animationState.frameSize;
   
-  // Make sure we don't exceed the LED count
-  if (animationState.frameSize / 3 > ledCount) {
+  // Ensure we don't read past the buffer
+  if (frameOffset + animationState.frameSize > animationState.dataSize) {
     return;
   }
   
-  // Copy RGB data to the LED buffer
-  for (uint16_t i = 0; i < ledCount; i++) {
-    uint32_t pixelPos = startPos + (i * 3);
-    if (pixelPos + 2 < MAX_ANIMATION_BUFFER_SIZE) {
-      leds[startLed + i] = CRGB(
-        animationState.animationData[pixelPos],
-        animationState.animationData[pixelPos + 1],
-        animationState.animationData[pixelPos + 2]
-      );
+  // Assuming RGB data format (3 bytes per LED)
+  uint8_t* frameData = animationState.animationData + frameOffset;
+  
+  // Update LEDs with frame data
+  for (int i = 0; i < NUM_LEDS && i * 3 < animationState.frameSize; i++) {
+    uint8_t r = frameData[i * 3];
+    uint8_t g = frameData[i * 3 + 1];
+    uint8_t b = frameData[i * 3 + 2];
+    
+    leds[i] = CRGB(r, g, b);
+    
+    // Apply brightness scaling if configured
+    if (animationConfig.brightness < MAX_BRIGHTNESS) {
+      uint8_t scale = map(animationConfig.brightness, 0, MAX_BRIGHTNESS, 0, 255);
+      leds[i].fadeToBlackBy(255 - scale);
     }
   }
   
-  FastLED.setBrightness(animationConfig.brightness);
+  // Show the updated frame
   FastLED.show();
+}
+
+void resetAnimationState() {
+  animationState.active = false;
+  animationState.frameCount = 0;
+  animationState.currentFrame = 0;
+  animationState.dataSize = 0;
+  animationState.frameSize = 0;
+  animationState.lastFrameTime = 0;
+  
+  // Clear animation data buffer
+  memset(animationState.animationData, 0, MAX_ANIMATION_BUFFER_SIZE);
+}
+
+void handleAnimationControl(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id) {
+  // Only process if this message is for us
+  if (component_id != NODE_ID && component_id != kart_lights_LightComponentId_ALL) {
+    return;
+  }
+  
+  // Extract the animation command value
+  int32_t value = 0;
+  if (data && length >= sizeof(value)) {
+    memcpy(&value, data, sizeof(value));
+  }
+  
+  Serial.print("Animation control: ");
+  Serial.println(value);
+  
+  switch (value) {
+    case kart_lights_AnimationCommandValue_ANIM_PLAY:
+      // Start animation playback
+      if (animationState.dataSize > 0) {
+        lightState.mode = kart_lights_LightModeValue_ANIMATION;
+        animationState.active = true;
+        animationState.currentFrame = 0;
+        animationState.lastFrameTime = millis();
+        Serial.println("Animation playback started");
+      }
+      break;
+      
+    case kart_lights_AnimationCommandValue_ANIM_STOP:
+      // Stop animation playback
+      animationState.active = false;
+      lightState.mode = kart_lights_LightModeValue_ON;
+      clearLights(leds, NUM_LEDS);
+      Serial.println("Animation stopped");
+      break;
+      
+    case kart_lights_AnimationCommandValue_ANIM_PAUSE:
+      // Pause animation
+      animationState.active = false;
+      Serial.println("Animation paused");
+      break;
+      
+    case kart_lights_AnimationCommandValue_ANIM_RESET:
+      // Reset animation state
+      resetAnimationState();
+      lightState.mode = kart_lights_LightModeValue_ON;
+      Serial.println("Animation reset");
+      break;
+      
+    case kart_lights_AnimationCommandValue_ANIM_NEXT_FRAME:
+      // Advance to next frame
+      if (animationState.frameCount > 0) {
+        animationState.currentFrame = (animationState.currentFrame + 1) % animationState.frameCount;
+        displayAnimationFrame(animationState.currentFrame);
+        Serial.print("Showing frame: ");
+        Serial.println(animationState.currentFrame);
+      }
+      break;
+      
+    case kart_lights_AnimationCommandValue_ANIM_PREV_FRAME:
+      // Go to previous frame
+      if (animationState.frameCount > 0) {
+        if (animationState.currentFrame > 0) {
+          animationState.currentFrame--;
+        } else {
+          animationState.currentFrame = animationState.frameCount - 1;
+        }
+        displayAnimationFrame(animationState.currentFrame);
+        Serial.print("Showing frame: ");
+        Serial.println(animationState.currentFrame);
+      }
+      break;
+  }
+}
+
+void handleAnimationConfig(const void* data, size_t length, kart_common_ComponentType component, uint8_t component_id, uint8_t command_id) {
+  // Only process if this message is for us
+  if (component_id != NODE_ID && component_id != kart_lights_LightComponentId_ALL) {
+    return;
+  }
+  
+  // Need at least type and value
+  if (!data || length < 2) {
+    return;
+  }
+  
+  uint8_t* configData = (uint8_t*)data;
+  uint8_t configType = configData[0];
+  uint8_t configValue = configData[1];
+  
+  switch (configType) {
+    case kart_lights_AnimationConfigValue_ANIM_CONFIG_FPS:
+      // Set animation FPS
+      if (configValue > 0 && configValue <= 60) {
+        animationConfig.fps = configValue;
+        animationConfig.frameDuration = 1000 / configValue;
+        Serial.print("Animation FPS set to: ");
+        Serial.println(configValue);
+      }
+      break;
+      
+    case kart_lights_AnimationConfigValue_ANIM_CONFIG_LOOP:
+      // Set loop mode
+      animationConfig.loopAnimation = (configValue > 0);
+      Serial.print("Animation loop: ");
+      Serial.println(animationConfig.loopAnimation ? "ON" : "OFF");
+      break;
+      
+    case kart_lights_AnimationConfigValue_ANIM_CONFIG_BRIGHTNESS:
+      // Set animation brightness
+      if (configValue >= MIN_BRIGHTNESS && configValue <= MAX_BRIGHTNESS) {
+        animationConfig.brightness = configValue;
+        Serial.print("Animation brightness: ");
+        Serial.println(configValue);
+      }
+      break;
+      
+    case kart_lights_AnimationConfigValue_ANIM_CONFIG_LED_COUNT:
+      // Set LED count (for animations that need to know the LED count)
+      if (configValue > 0 && configValue <= NUM_LEDS) {
+        // Currently not used directly, but could be useful for partial animations
+        Serial.print("Animation LED count: ");
+        Serial.println(configValue);
+      }
+      break;
+  }
+}
+
+// Function for processing animation data
+void processAnimationMessage(uint8_t component_id, uint8_t command_id, const uint8_t* data, size_t length, bool isLastChunk) {
+  if (lightState.mode != kart_lights_LightModeValue_ANIMATION) {
+    // Auto-switch to animation mode when receiving animation data
+    lightState.mode = kart_lights_LightModeValue_ANIMATION;
+    resetAnimationState(); // Reset animation state when switching modes
+  }
+
+  // Process the animation data
+  if (data && length > 0) {
+    // Calculate position where this chunk should be stored
+    uint32_t position = animationState.dataSize;
+    
+    // Check if we can fit this chunk
+    if (position + length <= MAX_ANIMATION_BUFFER_SIZE) {
+      // Copy data to our buffer
+      memcpy(animationState.animationData + position, data, length);
+      animationState.dataSize += length;
+      
+      // If this is the last chunk, prepare animation for playback
+      if (isLastChunk) {
+        // Assuming RGB data format - 3 bytes per LED
+        animationState.frameSize = NUM_LEDS * 3;
+        animationState.frameCount = animationState.dataSize / animationState.frameSize;
+        
+        // Activate animation
+        animationState.active = true;
+        animationState.currentFrame = 0;
+        animationState.lastFrameTime = millis();
+        
+        Serial.print("Animation loaded: ");
+        Serial.print(animationState.frameCount);
+        Serial.print(" frames, ");
+        Serial.print(animationState.frameSize);
+        Serial.println(" bytes per frame");
+      }
+    } else {
+      Serial.println("Animation buffer overflow - discarding data");
+    }
+  }
 }
 
 #endif
