@@ -1662,7 +1662,8 @@ function notifyParentFrameUpdate() {
     // Check if running inside an iframe before posting
     if (window.self !== window.top) {
          console.log("Animator: Notifying parent of frame update");
-         window.parent.postMessage({ type: 'animatorFrameUpdate' }, '*'); // Use specific origin in production
+         // Use specific origin for better security
+         window.parent.postMessage({ type: 'animatorFrameUpdate' }, window.location.origin);
     } else {
          console.log("Animator: Not running in iframe, skipping parent notification.");
     }
