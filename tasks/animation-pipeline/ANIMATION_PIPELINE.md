@@ -43,17 +43,7 @@ Integrate the LED animator tool into the existing server architecture to enable 
 
 ## Design
 <!-- LLM_CONTEXT: design -->
-✅ **Design Complete**: See the detailed [Animation Pipeline Design Document](DESIGN.md).
-
-The design outlines:
-- Binary protocol extension with animation flags
-- LED data packing for efficient transmission
-- Memory-optimized Arduino implementation
-- Frame-based animation transmission approach
-- Performance considerations and optimizations
-
-The design has been reviewed and approved, balancing performance requirements (30 FPS target) with hardware constraints (2KB RAM limit on Arduino, 1Mbps CAN bus).
-<!-- LLM_CONTEXT_END -->
+**⚠️ DESIGN REVIEW CHECKPOINT**
 
 ## Implementation Plan
 <!-- LLM_CONTEXT: implementation_plan -->

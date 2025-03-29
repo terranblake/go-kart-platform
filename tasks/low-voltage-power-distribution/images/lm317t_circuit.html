@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LM317T 5V to 3.3V Regulator Circuit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .circuit-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .component-list {
+            margin-top: 30px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            max-width: 600px;
+        }
+        .component-list h2 {
+            margin-top: 0;
+            color: #444;
+        }
+        .component-list ul {
+            padding-left: 20px;
+        }
+        .component-list li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>LM317T 5V to 3.3V Regulator Circuit</h1>
+    
+    <div class="circuit-container">
+        <svg width="600" height="400" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+            <!-- Grid (optional, for reference) -->
+            <defs>
+                <pattern id="smallGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#eee" stroke-width="0.5"/>
+                </pattern>
+                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                    <rect width="100" height="100" fill="url(#smallGrid)"/>
+                    <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#ddd" stroke-width="1"/>
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" opacity="0.5"/>
+
+            <!-- Power Input -->
+            <line x1="50" y1="80" x2="150" y2="80" stroke="red" stroke-width="3"/>
+            <text x="30" y="85" font-size="14" text-anchor="end">5V</text>
+            
+            <!-- Ground Line -->
+            <line x1="50" y1="320" x2="550" y2="320" stroke="black" stroke-width="2"/>
+            <text x="30" y="325" font-size="14" text-anchor="end">GND</text>
+            
+            <!-- Input Capacitors -->
+            <!-- 0.1μF Ceramic -->
+            <line x1="150" y1="80" x2="150" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="140" y1="120" x2="160" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="140" y1="130" x2="160" y2="130" stroke="black" stroke-width="2"/>
+            <line x1="150" y1="130" x2="150" y2="320" stroke="black" stroke-width="2"/>
+            <text x="150" y="150" font-size="12" text-anchor="middle">0.1μF</text>
+            
+            <!-- 10μF Electrolytic -->
+            <line x1="200" y1="80" x2="200" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="180" y1="120" x2="190" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="200" y1="150" x2="200" y2="320" stroke="black" stroke-width="2"/>
+            <path d="M 180,120 Q 200,170 220,120" fill="none" stroke="black" stroke-width="2"/>
+            <text x="220" y="140" font-size="12">10μF</text>
+            <text x="210" y="130" font-size="14">+</text>
+            
+            <!-- LM317T -->
+            <rect x="270" y="60" width="100" height="80" fill="#ddd" stroke="black" stroke-width="2" rx="5" ry="5"/>
+            <text x="320" y="95" font-size="16" text-anchor="middle" font-weight="bold">LM317T</text>
+            <text x="280" y="75" font-size="12">IN</text>
+            <text x="360" y="75" font-size="12">OUT</text>
+            <text x="318" y="130" font-size="12" text-anchor="middle">ADJ</text>
+            
+            <!-- Connections to LM317T -->
+            <line x1="150" y1="80" x2="270" y2="80" stroke="red" stroke-width="3"/>
+            <line x1="200" y1="80" x2="270" y2="80" stroke="red" stroke-width="3"/>
+            <line x1="370" y1="80" x2="500" y2="80" stroke="blue" stroke-width="3"/>
+            <line x1="320" y1="140" x2="320" y2="180" stroke="black" stroke-width="2"/>
+            
+            <!-- Output Capacitor -->
+            <line x1="450" y1="80" x2="450" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="430" y1="120" x2="440" y2="120" stroke="black" stroke-width="2"/>
+            <line x1="450" y1="150" x2="450" y2="320" stroke="black" stroke-width="2"/>
+            <path d="M 430,120 Q 450,170 470,120" fill="none" stroke="black" stroke-width="2"/>
+            <text x="470" y="140" font-size="12">100μF</text>
+            <text x="460" y="130" font-size="14">+</text>
+            
+            <!-- Output -->
+            <text x="550" y="85" font-size="14">3.3V Out</text>
+            <polygon points="530,80 540,75 540,85" fill="blue"/>
+            
+            <!-- R1: 3 x 10Ω Resistors -->
+            <line x1="320" y1="180" x2="320" y2="210" stroke="black" stroke-width="2"/>
+            <rect x="310" y="210" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="320" y="235" font-size="12" text-anchor="middle">10Ω</text>
+            
+            <line x1="320" y1="250" x2="320" y2="270" stroke="black" stroke-width="2"/>
+            <rect x="310" y="270" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="320" y="295" font-size="12" text-anchor="middle">10Ω</text>
+            
+            <line x1="320" y1="310" x2="320" y2="320" stroke="black" stroke-width="2"/>
+            
+            <!-- R2: 2 x 20Ω + 10Ω Resistors -->
+            <line x1="370" y1="80" x2="400" y2="80" stroke="blue" stroke-width="3"/>
+            <line x1="400" y1="80" x2="400" y2="120" stroke="black" stroke-width="2"/>
+            <rect x="390" y="120" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="400" y="145" font-size="12" text-anchor="middle">20Ω</text>
+            
+            <line x1="400" y1="160" x2="400" y2="180" stroke="black" stroke-width="2"/>
+            <rect x="390" y="180" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="400" y="205" font-size="12" text-anchor="middle">20Ω</text>
+            
+            <line x1="400" y1="220" x2="400" y2="240" stroke="black" stroke-width="2"/>
+            <rect x="390" y="240" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="400" y="265" font-size="12" text-anchor="middle">10Ω</text>
+            
+            <line x1="400" y1="280" x2="400" y2="320" stroke="black" stroke-width="2"/>
+            <line x1="320" y1="180" x2="390" y2="240" stroke="black" stroke-width="2" stroke-dasharray="5,5"/>
+            <text x="350" y="220" font-size="12" text-anchor="middle">connect</text>
+            
+            <!-- Power Indicator LED (optional) -->
+            <line x1="500" y1="80" x2="500" y2="200" stroke="black" stroke-width="2"/>
+            <polygon points="490,200 510,200 500,230" fill="#8f8" stroke="black" stroke-width="1"/>
+            <line x1="490" y1="230" x2="510" y2="230" stroke="black" stroke-width="2"/>
+            <line x1="495" y1="235" x2="505" y2="235" stroke="black" stroke-width="2"/>
+            <text x="520" y="220" font-size="12">LED</text>
+            
+            <line x1="500" y1="235" x2="500" y2="250" stroke="black" stroke-width="2"/>
+            <rect x="490" y="250" width="20" height="40" fill="#f9f9f9" stroke="black" stroke-width="2"/>
+            <text x="500" y="275" font-size="12" text-anchor="middle">470Ω</text>
+            <line x1="500" y1="290" x2="500" y2="320" stroke="black" stroke-width="2"/>
+        </svg>
+    </div>
+    
+    <div class="component-list">
+        <h2>Component List</h2>
+        <ul>
+            <li><strong>U1:</strong> LM317T adjustable voltage regulator</li>
+            <li><strong>R1:</strong> 30Ω (three 10Ω resistors in series)</li>
+            <li><strong>R2:</strong> 50Ω (two 20Ω resistors and one 10Ω in series)</li>
+            <li><strong>C1:</strong> 0.1μF ceramic capacitor (input filtering)</li>
+            <li><strong>C2:</strong> 10μF electrolytic capacitor (input stability)</li>
+            <li><strong>C3:</strong> 100μF electrolytic capacitor (output stability)</li>
+            <li><strong>LED:</strong> Optional power indicator</li>
+            <li><strong>R3:</strong> 470Ω current limiting resistor for LED</li>
+        </ul>
+        
+        <h2>Technical Notes</h2>
+        <ul>
+            <li>Output voltage: 3.33V (Vout = 1.25V × (1 + 50Ω/30Ω))</li>
+            <li>Safe for powering Raspberry Pi Zero W</li>
+            <li>Input voltage: ~5V (requires at least 1.5V above output voltage)</li>
+            <li>Keep all components close together for best performance</li>
+            <li>Ensure good grounding</li>
+        </ul>
+    </div>
+</body>
+</html> 
