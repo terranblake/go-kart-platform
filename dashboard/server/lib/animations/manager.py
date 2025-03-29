@@ -207,7 +207,7 @@ class AnimationManager:
         self.default_brightness = default_brightness
         
         # Ensure animation directory exists
-        os.makedirs(self.animation_dir, exist_ok=True)
+        # os.makedirs(self.animation_dir, exist_ok=True)
         
         # Collections
         self.animations: Dict[str, Animation] = {}
@@ -240,7 +240,8 @@ class AnimationManager:
         if not os.path.exists(self.animation_dir):
             logger.warning(f"Animation directory not found: {self.animation_dir}")
             return
-            
+        
+        print(f"Loading animations from {self.animation_dir}")
         # Find animation files
         animation_files = []
         for root, _, files in os.walk(self.animation_dir):

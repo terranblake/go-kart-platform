@@ -74,7 +74,7 @@ register_telemetry_routes(app, telemetry_store, can_interface)
 register_command_routes(app, can_interface)
 register_direct_command_routes(app, can_interface)
 register_protocol_routes(app, protocol_registry)
-register_animation_routes(app, can_interface, socketio, os.path.join(os.getcwd(), 'animations'))
+register_animation_routes(app, can_interface, socketio, os.path.join(os.getcwd(), './tools/animations'))
 
 # Socket.IO handlers
 @socketio.on('connect')
