@@ -6,94 +6,55 @@ Simple script to test the animation API by sending a test animation.
 import requests
 import json
 import time
+import sys
 
-# Server configuration
+# Server configuration - Default with command line override option
 BASE_URL = "http://localhost:5000/api/animations"
+if len(sys.argv) > 1:
+    BASE_URL = f"http://{sys.argv[1]}:5000/api/animations"
 
-# Create a basic animation
-def create_test_animation():
-    # Define a simple chase animation with 3 colors
-    animation = {
-        "name": "Test Rainbow Chase",
-        "type": "chase",
-        "speed": 100,  # Lower is faster
-        "dimensions": {
-            "length": 60,
-            "height": 1
-        },
-        "colors": ["#ff0000", "#00ff00", "#0000ff"],  # Red, Green, Blue
-        "frames": []
-    }
-    
-    # Create 30 frames for a simple chase animation
-    for i in range(30):
-        frame = {"leds": []}
-        # Light up 3 consecutive LEDs with different colors, moving forward
-        for j in range(3):
-            position = (i + j) % animation["dimensions"]["length"]
-            color_idx = j % len(animation["colors"])
-            frame["leds"].append({
-                "index": position,
-                "color": animation["colors"][color_idx]
-            })
-        animation["frames"].append(frame)
-    
-    return animation
+print(f"Using server: {BASE_URL}")
 
-def send_test_animation(animation, loop=True):
-    """Send the animation to the test endpoint."""
-    
-    data = {
-        "animation_data": animation,
-        "loop": loop
-    }
-    
+def list_animations():
+    """List all available animations."""
     try:
-        response = requests.post(f"{BASE_URL}/test", json=data)
-        
+        response = requests.get(BASE_URL)
         if response.status_code == 200:
-            print("Animation sent successfully!")
-            print(response.json())
-            return response.json().get("temp_id")
+            animations = response.json()
+            print(f"Found {len(animations)} animations:")
+            for anim in animations:
+                print(f"  - {anim.get('name', 'Unnamed')} (ID: {anim.get('id', 'unknown')})")
+            return animations
         else:
-            print(f"Error: {response.status_code}")
-            print(response.text)
-            return None
-            
+            print(f"Failed to list animations: {response.status_code}")
+            return []
     except Exception as e:
-        print(f"Request failed: {str(e)}")
-        return None
-
-def stop_animation():
-    """Stop any currently playing animation."""
-    try:
-        response = requests.post(f"{BASE_URL}/stop")
-        
-        if response.status_code == 200:
-            print("Animation stopped successfully!")
-            print(response.json())
-            return True
-        else:
-            print(f"Error stopping animation: {response.status_code}")
-            print(response.text)
-            return False
-            
-    except Exception as e:
-        print(f"Stop request failed: {str(e)}")
-        return False
+        print(f"Error listing animations: {str(e)}")
+        return []
 
 if __name__ == "__main__":
-    print("Creating test animation...")
+    print("Checking server status...")
+    if not check_server_status():
+        print("Server may not be running correctly.")
+        print("Continuing anyway for testing...")
+    
+    # List existing animations
+    list_animations()
+    
+    print("\nCreating test animation...")
     animation = create_test_animation()
     
-    print("Sending animation to server...")
+    # Print first frame for debugging
+    print(f"First frame sample: {animation['frames'][0]}")
+    
+    print("\nSending animation to server...")
     temp_id = send_test_animation(animation, loop=True)
     
     if temp_id:
         print(f"Animation playing with ID: {temp_id}")
-        print("Animation will play for 10 seconds...")
+        print("Animation will play for 3 seconds...")
         try:
-            time.sleep(10)  # Let the animation play for 10 seconds
+            time.sleep(3)  # Let the animation play for just 3 seconds
         except KeyboardInterrupt:
             print("Playback interrupted by user")
             
