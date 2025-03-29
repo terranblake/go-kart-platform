@@ -261,7 +261,7 @@ class AnimationManager:
                             animation = Animation(anim_data['name'], anim_data)
                             self.animations[animation.id] = animation
                             self.animation_files[animation.id] = file_path
-                            logger.info(f"Loaded animation: {animation.name} from {file_path}")
+                            logger.info(f"Loaded animation: {animation.name} with id {animation.id} from {file_path}")
                 else:
                     logger.warning(f"Invalid animation file format: {file_path}")
             except Exception as e:
