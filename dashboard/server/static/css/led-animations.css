@@ -1,0 +1,78 @@
+/* LED Animation Controls CSS */
+.led-strip-container {
+  background-color: #121212;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 10px;
+  overflow: auto;
+  max-height: 200px;
+}
+
+.led-strip {
+  display: flex;
+  margin-bottom: 4px;
+  height: 40px;
+  justify-content: center;
+}
+
+.led {
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background-color: #333;
+  transition: background-color 0.2s;
+}
+
+.animation-preview {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #2a2a2a;
+}
+
+.animation-item {
+  transition: background-color 0.2s;
+}
+
+.animation-item:hover {
+  background-color: rgba(97, 218, 251, 0.1);
+}
+
+.animation-item.active {
+  background-color: rgba(97, 218, 251, 0.2);
+  border-color: #61dafb;
+}
+
+/* Animation Modal Styles */
+#animator-modal .modal-content {
+  background-color: #2a2a2a;
+  color: #f0f0f0;
+}
+
+#animator-modal .modal-header,
+#animator-modal .modal-footer {
+  border-color: #444;
+}
+
+#animator-modal .close {
+  color: #f0f0f0;
+}
+
+/* Animation Status Styles */
+#animation-status {
+  margin-bottom: 0;
+}
+
+/* For small screens */
+@media (max-width: 767px) {
+  .led {
+    width: 15px;
+    height: 15px;
+    margin: 0 1px;
+  }
+  
+  .led-strip {
+    height: 30px;
+  }
+}

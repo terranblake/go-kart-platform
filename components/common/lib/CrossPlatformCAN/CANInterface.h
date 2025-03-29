@@ -31,8 +31,12 @@
   #include <linux/can.h>
   #include <linux/can/raw.h>
   #define PLATFORM_LINUX
+#elif defined(__APPLE__) && defined(__MACH__)
+  // macOS platform
+  #include <stdio.h> // For printf in stubs
+  #define PLATFORM_MACOS
 #else
-  #error "Unsupported platform - must be either Arduino or Linux"
+  #error "Unsupported platform - must be Arduino, Linux, or macOS"
 #endif
 
 // Common CAN message structure
@@ -83,10 +87,12 @@ public:
 
 private:
 #ifdef PLATFORM_LINUX
-  int m_socket;
-  struct sockaddr_can m_addr;
-  struct ifreq m_ifr;
+  int m_socket; // Used for Linux SocketCAN
+  struct sockaddr_can m_addr; // Used for Linux SocketCAN
+  struct ifreq m_ifr; // Used for Linux SocketCAN
+#elif defined(PLATFORM_MACOS)
+  // No specific members needed for macOS stubs yet
 #endif
 };
 
-#endif // CAN_INTERFACE_H 
+#endif // CAN_INTERFACE_H

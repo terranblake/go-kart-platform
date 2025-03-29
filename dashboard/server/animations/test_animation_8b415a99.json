@@ -1,0 +1,20 @@
+{
+  "animations": [
+    {
+      "id": "test-animation-1",
+      "name": "Test Animation",
+      "type": "chase",
+      "speed": 100,
+      "direction": "forward",
+      "dimensions": {
+        "length": 60,
+        "height": 1
+      },
+      "colors": [
+        "#ff0000",
+        "#00ff00",
+        "#0000ff"
+      ]
+    }
+  ]
+}

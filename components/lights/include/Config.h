@@ -1,4 +1,8 @@
+#pragma once // Add include guard
+
 #include <stdint.h>  // For uint8_t type
+#include <FastLED.h> // For CRGB type
+#include "common.pb.h" // For kart_common_* types
 
 // Pin definitions
 #define DATA_PIN 6 // LED data pin for lights

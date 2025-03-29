@@ -1,0 +1,17 @@
+{
+  "animations": [
+    {
+      "id": "temp_12345678",
+      "name": "Temporary Animation",
+      "type": "chase",
+      "temp": true,
+      "dimensions": {
+        "length": 60,
+        "height": 1
+      },
+      "colors": [
+        "#ff0000"
+      ]
+    }
+  ]
+}

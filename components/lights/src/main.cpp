@@ -3,6 +3,7 @@
 
 #include "ProtobufCANInterface.h"
 #include "../include/Config.h"
+#include "../include/AnimationProtocol.h"
 #include "common.pb.h"
 #include "lights.pb.h"
 #include "controls.pb.h"
@@ -13,6 +14,24 @@ bool testModeActive = false;
 CRGB leds[NUM_LEDS];
 bool updateFrontLights = true; // Default to updating front lights
 bool locationSelected = false; // whether the primary controller has told this secondary which lights it controls
+
+// Animation protocol handler
+AnimationProtocol animationProtocol;
+bool animationMode = false; // Whether we're currently in structured animation stream mode OR real-time mode
+
+// Buffer for reassembling raw frame data chunks
+const size_t frameTotalSize = NUM_LEDS * 3;
+uint8_t frameBuffer[frameTotalSize];
+size_t frameBufferIndex = 0;
+
+// Define CAN IDs if not already included (matching protocol.py)
+#ifndef ANIMATION_CTRL_ID
+#define ANIMATION_CTRL_ID 0x700
+#endif
+#ifndef ANIMATION_DATA_ID
+#define ANIMATION_DATA_ID 0x701
+#endif
+
 
 // Animation and turn signal timing variables
 unsigned long lastTurnUpdate = 0;
@@ -32,36 +51,128 @@ char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
 
 #endif
 
+// Function to handle raw CAN messages for animations (structured stream or real-time frames)
+// Add 'const' to data parameter to match RawMessageHandler type
+void handleRawMessage(uint32_t canId, const uint8_t* data, uint8_t length) {
+  // Check if it's a structured animation stream control/data message
+  // Use the public isAnimationActive() method as intended
+  if (canId == ANIM_CTRL_ID || (canId == ANIMATION_DATA_ID && animationProtocol.isAnimationActive())) {
+      // Let the AnimationProtocol library handle structured stream messages
+      if (animationProtocol.processMessage(canId, data, length)) {
+          // If processing indicates a stream just started, ensure we're in animationMode
+          if (!animationMode && animationProtocol.isAnimationActive()) {
+              animationMode = true;
+#if DEBUG_MODE
+              Serial.println(F("Switched to structured animation mode"));
+#endif
+          }
+          // If processing indicates a stream just ended, switch back
+          else if (animationMode && !animationProtocol.isAnimationActive()) {
+              animationMode = false;
+              frameBufferIndex = 0; // Reset buffer index when stream ends
+#if DEBUG_MODE
+              Serial.println(F("Switched back to normal mode (stream ended)"));
+#endif
+          }
+      }
+  }
+  // Check if it's a raw real-time frame data message (and not part of an active structured stream)
+  else if (canId == ANIMATION_DATA_ID) {
+      // Assume we should be in animationMode if receiving raw data directly
+      // (Server should send CONFIG_MODE=MODE_ANIMATION first)
+      if (!animationMode) {
+          animationMode = true; // Enter animation mode if not already in it
+          frameBufferIndex = 0; // Reset buffer index when starting
+#if DEBUG_MODE
+          Serial.println(F("Switched to real-time animation mode"));
+#endif
+      }
+
+      // Append data to buffer if there's space
+      if (frameBufferIndex + length <= frameTotalSize) {
+          // Cast away const for memcpy destination, buffer is writable
+          memcpy(&frameBuffer[frameBufferIndex], (const void*)data, length);
+          frameBufferIndex += length;
+
+          // Check if a full frame has been received
+          if (frameBufferIndex >= frameTotalSize) {
+              // Process the complete frame: Copy buffer to leds array
+              for (int i = 0; i < NUM_LEDS; ++i) {
+                  size_t bufferPos = i * 3;
+                  if (bufferPos + 2 < frameTotalSize) { // Check bounds
+                     leds[i].setRGB(frameBuffer[bufferPos], frameBuffer[bufferPos + 1], frameBuffer[bufferPos + 2]);
+                  }
+              }
+              #ifndef UNIT_TEST
+              FastLED.show(); // Update the physical LEDs
+              #endif
+              frameBufferIndex = 0; // Reset for next frame
+          }
+      } else {
+          // Buffer overflow or unexpected data length, reset buffer
+          frameBufferIndex = 0;
+#if DEBUG_MODE
+          Serial.println(F("WARN: Frame buffer overflow or unexpected length, resetting."));
+#endif
+      }
+  }
+  // --- The original logic below is now handled above ---
+  /*
+    // If we're not already in animation mode, switch to it
+    if (!animationMode && animationProtocol.isAnimationActive()) {
+      animationMode = true;
+    }
+  */
+}
+
 void setup()
 {
 #if DEBUG_MODE
   Serial.begin(115200);
 #endif
 
+#ifndef UNIT_TEST // Prevent hardware init during unit tests
   if (!canInterface.begin(500E3))
   {
-    while (1)
-      ;
+    // Handle CAN init failure (e.g., log error, halt)
+    // In a real scenario, you might want robust error handling here.
+    // For now, we'll just loop indefinitely on failure.
+    #if DEBUG_MODE
+    Serial.println(F("CAN Initialization Failed!"));
+    #endif
+    while (1);
   }
 
   // Initialize LED strips
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+#endif // UNIT_TEST
+
+  // Initialize animation protocol with our LED array
+  // This might be okay in tests if it doesn't directly touch hardware,
+  // but review AnimationProtocol if issues persist.
+  animationProtocol.begin(leds, NUM_LEDS);
 
   // Initialize all light states to default
   lightState.mode = 0; // Lights disabled by default
   clearLights(leds, NUM_LEDS);
 
+  // Register message handlers
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_CONTROLS, kart_controls_ControlComponentId_DIAGNOSTIC, kart_controls_ControlCommandId_MODE, handleLightTest);
 
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_MODE, handleLightMode);
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_SIGNAL, handleLightSignal);
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_BRAKE, handleLightBrake);
 
+  // Register raw message handler for animation control and data IDs
+  // Use registerRawHandler instead of non-existent setRawMessageHandler
+  canInterface.registerRawHandler(ANIM_CTRL_ID, handleRawMessage);
+  canInterface.registerRawHandler(ANIMATION_DATA_ID, handleRawMessage);
+
   // todo: remove these in favor of EEPROM-supported node identification
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
 
-  Serial.println(F("Go-Kart Lights"));
+  Serial.println(F("Go-Kart Lights with Animation Support"));
 
 #if DEBUG_MODE
   setupLightsForTesting();
@@ -72,22 +183,43 @@ void loop()
 {
   if (!testModeActive)
   {
-    // Update light states based on current settings
-    updateLights(leds, NUM_LEDS, lightState);
-
-    // Show the updated lights
-    FastLED.show();
+    if (animationMode) {
+      // Update the animation protocol if we're in animation mode
+      // The protocol handles displaying frames itself
+      animationProtocol.update();
+    } else {
+      // Otherwise run the normal light patterns
+      updateLights(leds, NUM_LEDS, lightState);
+    }
   }
+
+  // Process incoming CAN messages
+  canInterface.process();
 
   // Small delay to prevent flickering
   delay(10);
-  canInterface.process();
 
 #if DEBUG_MODE
   if (testModeActive)
   {
     // Run the test sequence if in test mode
     runTestSequence();
+  }
+#endif
+
+  // Add diagnostics for memory usage when in debug mode
+#if DEBUG_MODE
+  static unsigned long lastMemReport = 0;
+  if (millis() - lastMemReport > 10000) { // Report every 10 seconds
+    lastMemReport = millis();
+    if (animationMode) {
+      Serial.print(F("Animation memory usage: "));
+      Serial.print(animationProtocol.getMemoryUsage());
+      Serial.print(F(" bytes, frames: "));
+      Serial.print(animationProtocol.getReceivedFrames());
+      Serial.print(F(", dropped: "));
+      Serial.println(animationProtocol.getDroppedFrames());
+    }
   }
 #endif
 }

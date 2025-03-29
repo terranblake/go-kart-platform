@@ -37,7 +37,11 @@ typedef enum _kart_lights_LightCommandId {
     kart_lights_LightCommandId_TOGGLE = 6,
     kart_lights_LightCommandId_SEQUENCE = 7,
     kart_lights_LightCommandId_BRAKE = 8,
-    kart_lights_LightCommandId_LOCATION = 9 /* lights that share code can set this to determine where on the kart they are */
+    kart_lights_LightCommandId_LOCATION = 9, /* lights that share code can set this to determine where on the kart they are */
+    /* Animation Stream Commands */
+    kart_lights_LightCommandId_ANIMATION_STREAM_START = 10, /* Value: uint24 total_bytes (Total size of the animation frame) */
+    kart_lights_LightCommandId_ANIMATION_STREAM_END = 11, /* Value: uint24 checksum/status (Optional metadata) */
+    kart_lights_LightCommandId_ANIMATION_SET_CONFIG = 12 /* Value: Encoded config (e.g., buffer size, target FPS) */
 } kart_lights_LightCommandId;
 
 /* Light mode values */
@@ -101,8 +105,8 @@ extern "C" {
 #define _kart_lights_LightComponentId_ARRAYSIZE ((kart_lights_LightComponentId)(kart_lights_LightComponentId_ALL+1))
 
 #define _kart_lights_LightCommandId_MIN kart_lights_LightCommandId_MODE
-#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_LOCATION
-#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_LOCATION+1))
+#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_ANIMATION_SET_CONFIG
+#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_ANIMATION_SET_CONFIG+1))
 
 #define _kart_lights_LightModeValue_MIN kart_lights_LightModeValue_OFF
 #define _kart_lights_LightModeValue_MAX kart_lights_LightModeValue_HAZARD

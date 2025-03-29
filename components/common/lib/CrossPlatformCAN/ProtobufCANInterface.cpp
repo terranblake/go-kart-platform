@@ -11,7 +11,7 @@
 
 // Constructor
 ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
-    : m_nodeId(nodeId), m_numHandlers(0)
+    : m_nodeId(nodeId), m_numHandlers(0), m_numRawHandlers(0)
 {
     // Constructor implementation
 }
@@ -85,6 +85,45 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     return result;
 }
 
+void ProtobufCANInterface::registerRawHandler(uint32_t can_id, RawMessageHandler handler)
+{
+    if (m_numRawHandlers < MAX_RAW_HANDLERS) {
+        m_rawHandlers[m_numRawHandlers].can_id = can_id;
+        m_rawHandlers[m_numRawHandlers].handler = handler;
+        m_numRawHandlers++;
+        
+        printf("Registered raw handler for CAN ID: 0x%X\n", can_id);
+    } else {
+        printf("ERROR: Maximum number of raw handlers reached\n");
+    }
+}
+
+bool ProtobufCANInterface::sendRawMessage(uint32_t can_id, const uint8_t* data, uint8_t length)
+{
+    if (length > 8) {
+        printf("ERROR: Raw CAN message length cannot exceed 8 bytes\n");
+        return false;
+    }
+    
+    CANMessage msg;
+    msg.id = can_id;
+    msg.length = length;
+    
+    // Copy data bytes
+    for (uint8_t i = 0; i < length; i++) {
+        msg.data[i] = data[i];
+    }
+    
+    printf("Sending raw CAN frame - ID: 0x%X, Length: %u, Data:", can_id, length);
+    for (int i = 0; i < length; i++) {
+        printf(" %02X", msg.data[i]);
+    }
+    printf("\n");
+    
+    // Send using base class
+    return m_canInterface.sendMessage(msg);
+}
+
 void ProtobufCANInterface::process()
 {
     CANMessage msg;
@@ -92,6 +131,15 @@ void ProtobufCANInterface::process()
     // Try to receive a message
     if (!m_canInterface.receiveMessage(msg)) {
         return; // No message available
+    }
+    
+    // Check if this message matches any registered raw handlers first
+    for (int i = 0; i < m_numRawHandlers; i++) {
+        if (m_rawHandlers[i].can_id == msg.id) {
+            // Call the raw handler with the raw data
+            m_rawHandlers[i].handler(msg.id, msg.data, msg.length);
+            return; // Skip normal message processing
+        }
     }
     
     // Message must be 8 bytes for our protocol
@@ -206,12 +254,14 @@ void ProtobufCANInterface::logMessage(const char* prefix, kart_common_MessageTyp
     char buffer[128];
     snprintf(buffer, sizeof(buffer), 
              "%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%ld", 
-             prefix, (int)message_type, (int)component_type, 
+             prefix, (int)message_type, (int)component_type,
              component_id, command_id, (int)value_type, (long)value);
+#if !defined(UNIT_TEST) // Don't use Serial in native unit tests
     Serial.println(buffer);
+#endif
 #else
-    printf("%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%d\n", 
+    printf("%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%d\n",
            prefix, (int)message_type, (int)component_type, 
            component_id, command_id, (int)value_type, value);
 #endif
-} 
+}

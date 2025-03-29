@@ -7,6 +7,7 @@
     <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/led-animations.css">
 </head>
 <body>
     <header>
@@ -141,6 +142,16 @@
     
     <div class="dashboard">
         <div class="panel">
+            <h2>LED Animation</h2>
+            <div id="animation-dashboard-btn" class="controls">
+                <button id="show-animation-panel" class="btn btn-primary">Show Animation Panel</button>
+            </div>
+            <div id="animation-dashboard" style="display: none;">
+                {% include 'components/animations.html' %}
+            </div>
+        </div>
+        
+        <div class="panel">
             <h2>Settings</h2>
             <div class="controls">
                 <div class="control-group">
@@ -165,5 +176,21 @@
     </div>
 
     <script src="/static/js/dashboard.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        // Animation Panel Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const showAnimationBtn = document.getElementById('show-animation-panel');
+            const animationDashboard = document.getElementById('animation-dashboard');
+            const animationDashboardBtn = document.getElementById('animation-dashboard-btn');
+            
+            if (showAnimationBtn && animationDashboard) {
+                showAnimationBtn.addEventListener('click', function() {
+                    animationDashboard.style.display = 'block';
+                    animationDashboardBtn.style.display = 'none';
+                });
+            }
+        });
+    </script>
 </body>
-</html> 
+</html>

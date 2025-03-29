@@ -49,6 +49,10 @@ bool CANInterface::begin(long baudRate, const char* canDevice) {
   printf("Debug: Socket set to non-blocking mode\n");
   
   return true;
+#elif defined PLATFORM_MACOS
+  // macOS stub implementation
+  printf("Debug: CANInterface::begin() called on macOS (stub)\n");
+  return true; // Assume success for stub
 #endif
 }
 
@@ -61,6 +65,9 @@ void CANInterface::end() {
     m_socket = -1;
     printf("Debug: Socket closed\n");
   }
+#elif defined PLATFORM_MACOS
+  // macOS stub implementation
+  printf("Debug: CANInterface::end() called on macOS (stub)\n");
 #endif
 }
 
@@ -134,9 +141,13 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   
   printf("Debug: Successfully wrote %d bytes to socket\n", nbytes);
   return true;
+#elif defined PLATFORM_MACOS
+  // macOS stub implementation
+  printf("Debug: CANInterface::sendMessage() called on macOS (stub) - ID: 0x%X, DLC: %d\n", msg.id, msg.length);
+  return true; // Assume success for stub
 #endif
   
-  return false;
+  return false; // Should not be reached if platform is defined
 }
 
 bool CANInterface::messageAvailable() {
@@ -182,7 +193,7 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
     perror("CAN read error");
     return false;
   }
-  
+
   if (nbytes < (int)sizeof(struct can_frame)) {
     // Incomplete frame
     printf("Debug: Incomplete CAN frame received (%d bytes)\n", nbytes);
@@ -221,7 +232,11 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   }
   
   return true;
+#elif defined PLATFORM_MACOS
+  // macOS stub implementation
+  // printf("Debug: CANInterface::receiveMessage() called on macOS (stub)\n");
+  return false; // Always return false for stub
 #endif
   
-  return false;
-} 
+  return false; // Should not be reached if platform is defined
+}

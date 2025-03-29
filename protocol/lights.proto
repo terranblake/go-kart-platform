@@ -32,6 +32,11 @@ enum LightCommandId {
   SEQUENCE = 7;
   BRAKE = 8;
   LOCATION = 9; // lights that share code can set this to determine where on the kart they are
+  
+  // Animation Stream Commands
+  ANIMATION_STREAM_START = 10; // Value: uint24 total_bytes (Total size of the animation frame)
+  ANIMATION_STREAM_END = 11;   // Value: uint24 checksum/status (Optional metadata)
+  ANIMATION_SET_CONFIG = 12;   // Value: Encoded config (e.g., buffer size, target FPS)
 }
 
 // Light mode values

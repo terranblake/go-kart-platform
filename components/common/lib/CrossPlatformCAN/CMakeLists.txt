@@ -13,16 +13,20 @@ option(BUILD_TESTS "Build the test suite" ON)
 # Platform detection
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "Building for Linux/Raspberry Pi")
-    add_definitions(-D__linux__)
+    add_definitions(-DPLATFORM_LINUX)
     set(PLATFORM_LINUX TRUE)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    message(STATUS "Building for macOS")
+    set(PLATFORM_MACOS TRUE)
+    # No specific definitions needed for macOS CAN yet, 
+    # but we prevent PLATFORM_LINUX from being defined.
 elseif(DEFINED ARDUINO)
     message(STATUS "Building for Arduino")
-    add_definitions(-DARDUINO)
+    add_definitions(-DPLATFORM_ARDUINO)
     set(PLATFORM_ARDUINO TRUE)
 else()
-    message(WARNING "Unknown platform, defaulting to Linux build")
-    add_definitions(-D__linux__)
-    set(PLATFORM_LINUX TRUE)
+    message(WARNING "Unknown platform: ${CMAKE_SYSTEM_NAME}. Build might fail.")
+    # Do not default to Linux here
 endif()
 
 # Include directories
@@ -103,8 +107,8 @@ if(BUILD_TESTS AND PLATFORM_LINUX)
         COMMENT "Running all tests"
     )
     
-    # Add run_tests as a dependency of the all target
-    add_dependencies(CrossPlatformCAN run_tests)
+    # Remove dependency of CrossPlatformCAN on run_tests to avoid cyclic dependency
+    # Instead, we'll let the parent project decide when to run tests
 endif()
 
 # Install Python module
@@ -112,4 +116,4 @@ if(PLATFORM_LINUX)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/
             DESTINATION lib/python3/dist-packages/CrossPlatformCAN
             FILES_MATCHING PATTERN "*.py")
-endif() 
+endif()

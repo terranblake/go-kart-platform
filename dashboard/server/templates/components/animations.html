@@ -1,0 +1,519 @@
+<!-- Animation Control Panel Component -->
+<div id="animation-panel" class="card">
+  <h2>LED Animation Control</h2>
+
+  <div class="animation-controls">
+    <div class="top-controls mb-3">
+      <button id="show-animator-btn" class="btn btn-primary">Open Animation Editor</button>
+      <button id="load-animation-btn" class="btn btn-success">Load Animation</button>
+      <input type="file" id="animation-file-input" style="display:none" accept=".json">
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Animation Library
+          </div>
+          <div class="card-body">
+            <div id="animation-list" class="list-group">
+              <!-- Animation list will be populated here -->
+              <div class="text-center text-muted" id="no-animations">
+                No animations available
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Playback Controls & Real-time Sync
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="animation-name">Current Animation:</label>
+              <input type="text" id="animation-name" class="form-control" readonly>
+            </div>
+            
+            <div class="row mt-3">
+              <div class="col">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="loop-animation">
+                  <label class="form-check-label" for="loop-animation">Loop Animation</label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="realtime-sync-toggle">
+                  <label class="form-check-label" for="realtime-sync-toggle">Send Real-time Updates</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-3">
+              <div class="col text-center">
+                <button id="play-animation-btn" class="btn btn-success" disabled>Play</button>
+                <button id="stop-animation-btn" class="btn btn-danger" disabled>Stop</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-3">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            Preview
+          </div>
+          <div class="card-body">
+            <div id="led-preview" class="led-strip-container">
+              <div class="led-strip">
+                <!-- Will be dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-3">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            Status
+          </div>
+          <div class="card-body">
+            <div id="animation-status" class="alert alert-info">
+              Ready to play animations
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Animation Editor Modal -->
+<div class="modal fade" id="animator-modal" tabindex="-1" role="dialog" aria-labelledby="animator-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="animator-modal-label">LED Animation Editor</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <iframe id="animator-frame" src="/static/animator/animator.html" width="100%" height="800px" frameborder="0"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="save-from-animator">Save Animation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Animation panel JavaScript
+  $(document).ready(function() {
+    // Initialize WebSocket connection for real-time updates
+    const animationSocket = io('/animations');
+    
+    // Initialize variables
+    let currentAnimation = null;
+    let isPlaying = false;
+    let ledCount = 60;
+    let animationInterval = null;
+    let frameIndex = 0;
+    let realtimeSyncEnabled = false; // Track real-time sync state
+
+    // Initialize the preview
+    initializePreview(60);
+    
+    // Load animations list on start
+    loadAnimationsList();
+    
+    // Connect socket handlers
+    animationSocket.on('connect', function() {
+      console.log('Connected to animation socket');
+      updateStatus('Connected to animation server');
+    });
+    
+    animationSocket.on('disconnect', function() {
+      console.log('Disconnected from animation socket');
+      updateStatus('Disconnected from animation server', 'warning');
+    });
+    
+    animationSocket.on('animation_status', function(data) {
+      console.log('Animation status update:', data);
+      updateStatus(data.message, data.status);
+      
+      if (data.status === 'success' && data.action === 'play') {
+        $('#play-animation-btn').prop('disabled', true);
+        $('#stop-animation-btn').prop('disabled', false);
+        isPlaying = true;
+      } else if (data.status === 'success' && data.action === 'stop') {
+        $('#play-animation-btn').prop('disabled', false);
+        $('#stop-animation-btn').prop('disabled', true);
+        isPlaying = false;
+      }
+    });
+    
+    animationSocket.on('frame_update', function(data) {
+      // Update the LED preview with received frame data
+      if (data.frame_data && $('#sync-preview').is(':checked')) {
+        updatePreviewFromFrameData(data.frame_data);
+      }
+    });
+
+    // Listen for messages from the animator iframe
+    window.addEventListener('message', function(event) {
+        // Optional: Check event.origin for security if animator is hosted elsewhere
+        // if (event.origin !== 'expected-origin') return;
+
+        if (event.data && event.data.type === 'animatorFrameUpdate') {
+            console.log('Received frame update notification from animator');
+            if (realtimeSyncEnabled) {
+                sendCurrentAnimatorFrame();
+            }
+        }
+    });
+
+    // Toggle real-time sync
+    $('#realtime-sync-toggle').change(function() {
+        realtimeSyncEnabled = $(this).is(':checked');
+        updateStatus(realtimeSyncEnabled ? 'Real-time updates ENABLED' : 'Real-time updates DISABLED');
+        if (realtimeSyncEnabled) {
+            // Optionally send the current frame immediately when enabled
+            sendCurrentAnimatorFrame();
+        }
+    });
+
+    // Button event handlers
+    $('#show-animator-btn').click(function() {
+      $('#animator-modal').modal('show');
+    });
+    
+    $('#load-animation-btn').click(function() {
+      $('#animation-file-input').click();
+    });
+    
+    $('#animation-file-input').change(function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const animationData = JSON.parse(e.target.result);
+          uploadAnimation(animationData);
+        } catch (error) {
+          console.error('Error parsing animation JSON:', error);
+          updateStatus('Error loading animation file: ' + error.message, 'danger');
+        }
+      };
+      reader.readAsText(file);
+    });
+    
+    $('#save-from-animator').click(function() {
+      const animatorFrame = document.getElementById('animator-frame');
+      if (!animatorFrame.contentWindow) {
+        updateStatus('Cannot access animation editor', 'danger');
+        return;
+      }
+      
+      try {
+        // Get the animation JSON from the iframe
+        const animationJson = animatorFrame.contentWindow.document.getElementById('json-export').value;
+        const animationData = JSON.parse(animationJson);
+        uploadAnimation(animationData);
+        $('#animator-modal').modal('hide');
+      } catch (error) {
+        console.error('Error saving animation:', error);
+        updateStatus('Error saving animation: ' + error.message, 'danger');
+      }
+    });
+    
+    $('#play-animation-btn').click(function() {
+      if (!currentAnimation) {
+        updateStatus('No animation selected', 'warning');
+        return;
+      }
+      
+      const loopAnimation = $('#loop-animation').is(':checked');
+      
+      // Request to play the animation on hardware
+      $.ajax({
+        url: '/api/animations/play',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          animation_id: currentAnimation.id,
+          loop: loopAnimation
+        }),
+        success: function(response) {
+          console.log('Play response:', response);
+          if (response.status === 'success') {
+            updateStatus('Animation started on LED hardware');
+            
+            // Start local preview if not syncing with hardware
+            if (!$('#sync-preview').is(':checked')) {
+              startLocalPreview(currentAnimation);
+            }
+          } else {
+            updateStatus('Failed to start animation: ' + response.message, 'danger');
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Error playing animation:', error);
+          updateStatus('Error playing animation: ' + error, 'danger');
+        }
+      });
+    });
+    
+    $('#stop-animation-btn').click(function() {
+      // Request to stop the animation on hardware
+      $.ajax({
+        url: '/api/animations/stop',
+        method: 'POST',
+        success: function(response) {
+          console.log('Stop response:', response);
+          if (response.status === 'success') {
+            updateStatus('Animation stopped on LED hardware');
+            
+            // Stop local preview
+            stopLocalPreview();
+          } else {
+            updateStatus('Failed to stop animation: ' + response.message, 'danger');
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Error stopping animation:', error);
+          updateStatus('Error stopping animation: ' + error, 'danger');
+        }
+      });
+    });
+    
+    // Functions
+    function loadAnimationsList() {
+      $.ajax({
+        url: '/api/animations',
+        method: 'GET',
+        success: function(response) {
+          if (response.animations && response.animations.length > 0) {
+            $('#no-animations').hide();
+            const animationList = $('#animation-list');
+            animationList.empty();
+            
+            response.animations.forEach(animation => {
+              const item = $(`
+                <a href="#" class="list-group-item list-group-item-action animation-item" data-id="${animation.id}">
+                  <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">${animation.name}</h5>
+                    <small>${animation.type}</small>
+                  </div>
+                  <p class="mb-1">${animation.frames ? animation.frames.length + ' frames' : 'Static pattern'}</p>
+                </a>
+              `);
+              
+              item.click(function() {
+                selectAnimation(animation);
+              });
+              
+              animationList.append(item);
+            });
+          } else {
+            $('#no-animations').show();
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Error loading animations:', error);
+          updateStatus('Error loading animations: ' + error, 'danger');
+        }
+      });
+    }
+    
+    function uploadAnimation(animationData) {
+      $.ajax({
+        url: '/api/animations',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(animationData),
+        success: function(response) {
+          console.log('Upload response:', response);
+          if (response.status === 'success') {
+            updateStatus('Animation uploaded successfully');
+            loadAnimationsList();
+          } else {
+            updateStatus('Failed to upload animation: ' + response.message, 'danger');
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Error uploading animation:', error);
+          updateStatus('Error uploading animation: ' + error, 'danger');
+        }
+      });
+    }
+    
+    function selectAnimation(animation) {
+      // Update current animation
+      currentAnimation = animation;
+      $('#animation-name').val(animation.name);
+      
+      // Update selection in list
+      $('.animation-item').removeClass('active');
+      $(`.animation-item[data-id="${animation.id}"]`).addClass('active');
+      
+      // Enable play button
+      $('#play-animation-btn').prop('disabled', false);
+      
+      // Preview first frame if available
+      if (animation.frames && animation.frames.length > 0) {
+        const firstFrame = animation.frames[0];
+        updatePreviewFromFrame(firstFrame);
+      }
+      
+      updateStatus(`Animation "${animation.name}" selected`);
+    }
+
+    function sendCurrentAnimatorFrame() {
+        const animatorFrame = document.getElementById('animator-frame');
+        if (!animatorFrame || !animatorFrame.contentWindow || typeof animatorFrame.contentWindow.getCurrentFrameRGBData !== 'function') {
+            console.error('Cannot access animator frame or getCurrentFrameRGBData function.');
+            // updateStatus('Error accessing animator frame data.', 'danger');
+            return;
+        }
+
+        try {
+            const rgbData = animatorFrame.contentWindow.getCurrentFrameRGBData();
+            if (rgbData && rgbData.length > 0) {
+                console.log(`Sending frame data (${rgbData.length} LEDs) via WebSocket...`);
+                animationSocket.emit('send_animation_frame', { frame_data: rgbData });
+                // Optionally update local preview as well
+                updatePreviewFromFrameData(rgbData);
+            } else {
+                 console.warn('getCurrentFrameRGBData returned empty or invalid data.');
+            }
+        } catch (error) {
+            console.error('Error getting or sending frame data:', error);
+            updateStatus('Error sending frame data: ' + error.message, 'danger');
+        }
+    }
+
+    function startLocalPreview(animation) {
+      if (!animation || !animation.frames || animation.frames.length === 0) {
+        return;
+      }
+      
+      // Stop any existing preview
+      stopLocalPreview();
+      
+      frameIndex = 0;
+      const frameDelay = animation.speed || 100; // Default to 100ms if not specified
+      
+      // Calculate FPS
+      const fps = 1000 / frameDelay;
+      
+      animationInterval = setInterval(function() {
+        // Get current frame
+        const frame = animation.frames[frameIndex];
+        updatePreviewFromFrame(frame);
+        
+        // Move to next frame
+        frameIndex = (frameIndex + 1) % animation.frames.length;
+        
+        // Stop if animation is set to not loop and we've completed one cycle
+        if (!$('#loop-animation').is(':checked') && frameIndex === 0) {
+          stopLocalPreview();
+        }
+      }, frameDelay);
+    }
+    
+    function stopLocalPreview() {
+      if (animationInterval) {
+        clearInterval(animationInterval);
+        animationInterval = null;
+      }
+      
+      // Reset UI
+      $('#play-animation-btn').prop('disabled', false);
+      $('#stop-animation-btn').prop('disabled', true);
+      isPlaying = false;
+    }
+    
+    function updatePreviewFromFrame(frame) {
+      if (!frame || !frame.leds) return;
+      
+      // Get the preview container
+      const ledStrip = $('#led-preview .led-strip');
+      
+      // If it's empty, initialize it
+      if (ledStrip.children().length === 0) {
+        for (let i = 0; i < ledCount; i++) {
+          ledStrip.append('<div class="led"></div>');
+        }
+      }
+      
+      // Clear all LEDs first
+      ledStrip.children().css('backgroundColor', '#333');
+      
+      // Update LEDs based on frame data
+      frame.leds.forEach(ledData => {
+        if (ledData.hasOwnProperty('index')) {
+          // 1D format
+          if (ledData.index >= 0 && ledData.index < ledCount) {
+            ledStrip.children().eq(ledData.index).css('backgroundColor', ledData.color);
+          }
+        } else if (ledData.hasOwnProperty('x') && ledData.hasOwnProperty('y')) {
+          // 2D format, but our preview is 1D for now
+          if (ledData.y === 0 && ledData.x >= 0 && ledData.x < ledCount) {
+            ledStrip.children().eq(ledData.x).css('backgroundColor', ledData.color);
+          }
+        }
+      });
+    }
+    
+    function updatePreviewFromFrameData(frameData) {
+      // Frame data format from server might be different
+      // Expected format: array of [r, g, b] values for each LED
+      if (!Array.isArray(frameData)) return;
+      
+      const ledStrip = $('#led-preview .led-strip');
+      
+      // If it's empty, initialize it
+      if (ledStrip.children().length === 0) {
+        for (let i = 0; i < ledCount; i++) {
+          ledStrip.append('<div class="led"></div>');
+        }
+      }
+      
+      // Update LEDs based on raw frame data
+      frameData.forEach((rgb, index) => {
+        if (index < ledCount) {
+          const color = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+          ledStrip.children().eq(index).css('backgroundColor', color);
+        }
+      });
+    }
+    
+    function initializePreview(count) {
+      ledCount = count;
+      const ledStrip = $('#led-preview .led-strip');
+      ledStrip.empty();
+      
+      for (let i = 0; i < ledCount; i++) {
+        ledStrip.append('<div class="led"></div>');
+      }
+    }
+    
+    function updateStatus(message, type = 'info') {
+      const statusDiv = $('#animation-status');
+      statusDiv.removeClass('alert-info alert-success alert-warning alert-danger');
+      statusDiv.addClass(`alert-${type}`);
+      statusDiv.text(message);
+    }
+  });

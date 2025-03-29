@@ -12,9 +12,16 @@ struct HandlerWrapper {
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
 };
 
+struct RawHandlerWrapper {
+    void (*handler)(uint32_t, const uint8_t*, uint8_t);
+};
+
 #define MAX_WRAPPERS 128
 static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
+
+static RawHandlerWrapper g_raw_handlers[MAX_WRAPPERS];
+static int g_num_raw_handlers = 0;
 
 // Global wrapper function for message handlers
 static void global_message_handler(kart_common_MessageType msg_type,
@@ -34,6 +41,17 @@ static void global_message_handler(kart_common_MessageType msg_type,
                 static_cast<int>(val_type),
                 val
             );
+            break;
+        }
+    }
+}
+
+// Global wrapper function for raw message handlers
+static void global_raw_handler(uint32_t can_id, const uint8_t* data, uint8_t length) {
+    // Find and call the appropriate raw handler
+    for (int i = 0; i < g_num_raw_handlers; i++) {
+        if (g_raw_handlers[i].handler) {
+            g_raw_handlers[i].handler(can_id, data, length);
             break;
         }
     }
@@ -149,6 +167,52 @@ EXPORT void can_interface_process(can_interface_t handle) {
     
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     interface->process();
+}
+
+EXPORT void can_interface_register_raw_handler(
+    can_interface_t handle,
+    uint32_t can_id,
+    void (*handler)(uint32_t, const uint8_t*, uint8_t)
+) {
+    printf("C API: can_interface_register_raw_handler called with handle=%p, can_id=0x%X\n", 
+           handle, can_id);
+    if (!handle) {
+        printf("C API ERROR: Null handle in can_interface_register_raw_handler\n");
+        return;
+    }
+    
+    // Store the handler in our global array
+    if (g_num_raw_handlers < MAX_WRAPPERS) {
+        g_raw_handlers[g_num_raw_handlers].handler = handler;
+        g_num_raw_handlers++;
+    } else {
+        printf("C API ERROR: Too many raw handlers registered\n");
+        return;
+    }
+    
+    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    interface->registerRawHandler(can_id, global_raw_handler);
+    printf("C API: Raw handler registered successfully for CAN ID 0x%X\n", can_id);
+}
+
+EXPORT bool can_interface_send_raw_message(
+    can_interface_t handle,
+    uint32_t can_id,
+    const uint8_t* data,
+    uint8_t length
+) {
+    printf("C API: can_interface_send_raw_message called with handle=%p, can_id=0x%X, length=%u\n", 
+           handle, can_id, length);
+    if (!handle) {
+        printf("C API ERROR: Null handle in can_interface_send_raw_message\n");
+        return false;
+    }
+    
+    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    bool result = interface->sendRawMessage(can_id, data, length);
+    printf("C API: can_interface_send_raw_message %s\n", result ? "succeeded" : "failed");
+    return result;
 }
 
 }  // extern "C"

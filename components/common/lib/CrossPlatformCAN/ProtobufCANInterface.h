@@ -11,10 +11,15 @@
 
 // Max number of message handlers
 #define MAX_HANDLERS 32
+// Max number of raw message handlers
+#define MAX_RAW_HANDLERS 16
 
 // Function pointer type for message handlers
 typedef void (*MessageHandler)(kart_common_MessageType, kart_common_ComponentType, 
                              uint8_t, uint8_t, kart_common_ValueType, int32_t);
+                             
+// Function pointer type for raw message handlers
+typedef void (*RawMessageHandler)(uint32_t can_id, const uint8_t* data, uint8_t length);
 
 class ProtobufCANInterface {
 public:
@@ -72,6 +77,24 @@ public:
   void process();
   
   /**
+   * Register a raw message handler for a specific CAN ID
+   * 
+   * @param can_id The CAN ID to handle (e.g., 0x700 for animation data)
+   * @param handler Function to call when a matching raw CAN message is received
+   */
+  void registerRawHandler(uint32_t can_id, RawMessageHandler handler);
+  
+  /**
+   * Send a raw message directly over the CAN bus
+   * 
+   * @param can_id The CAN ID to use
+   * @param data Pointer to the data bytes to send
+   * @param length Number of bytes to send (0-8)
+   * @return true on success, false on failure
+   */
+  bool sendRawMessage(uint32_t can_id, const uint8_t* data, uint8_t length);
+  
+  /**
    * Helper function to pack a header byte
    */
   static uint8_t packHeader(kart_common_MessageType type, kart_common_ComponentType component);
@@ -101,9 +124,17 @@ private:
     MessageHandler handler;
   };
 
+  // Structure for raw message handlers
+  struct RawHandlerEntry {
+    uint32_t can_id;
+    RawMessageHandler handler;
+  };
+
   uint32_t m_nodeId;
   HandlerEntry m_handlers[MAX_HANDLERS];
   int m_numHandlers;
+  RawHandlerEntry m_rawHandlers[MAX_RAW_HANDLERS];
+  int m_numRawHandlers;
   CANInterface m_canInterface;
   
   // Debug logging helper
@@ -195,8 +226,37 @@ bool can_interface_send_message(
  */
 void can_interface_process(can_interface_t handle);
 
+/**
+ * Register a raw message handler for a specific CAN ID
+ * 
+ * @param handle Handle to the interface
+ * @param can_id The CAN ID to handle (e.g., 0x700 for animation data)
+ * @param handler Function to call when a matching raw CAN message is received
+ */
+void can_interface_register_raw_handler(
+    can_interface_t handle,
+    uint32_t can_id,
+    void (*handler)(uint32_t, const uint8_t*, uint8_t)
+);
+
+/**
+ * Send a raw message directly over the CAN bus
+ * 
+ * @param handle Handle to the interface
+ * @param can_id The CAN ID to use
+ * @param data Pointer to the data bytes to send
+ * @param length Number of bytes to send (0-8)
+ * @return true on success, false on failure
+ */
+bool can_interface_send_raw_message(
+    can_interface_t handle,
+    uint32_t can_id,
+    const uint8_t* data,
+    uint8_t length
+);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // PROTOBUF_CAN_INTERFACE_H 
+#endif // PROTOBUF_CAN_INTERFACE_H

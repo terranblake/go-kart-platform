@@ -21,6 +21,7 @@ include_directories(
 set(TEST_SOURCES
   test_can_interface.cpp
   test_protobuf_interface.cpp
+  test_raw_message_handling.cpp
 )
 
 # Create test executable
@@ -36,4 +37,4 @@ target_link_libraries(can_tests
 add_test(NAME can_interface_tests COMMAND can_tests)
 
 # Add a custom target for building tests
-add_custom_target(tests DEPENDS can_tests) 
+add_custom_target(tests DEPENDS can_tests)
