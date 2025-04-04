@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package kart.motors;
+
+// Motor component IDs
+enum MotorComponentId {
+  MAIN_DRIVE = 0;           // Main drive motor
+  AUXILIARY = 1;            // Auxiliary motors
+  STEERING = 2;             // Steering motor if electric
+  FAN = 3;                  // Cooling fan motor
+  PUMP = 4;                 // Liquid cooling pump
+  ALL = 255;                // All motors (broadcast)
+}
+
+// Motor command IDs
+enum MotorCommandId {
+  SPEED = 0;                // Speed control (0-100%)
+  DIRECTION = 1;            // Forward/reverse
+  BRAKE = 2;                // Brake control
+  MODE = 3;                 // Speed mode (low/mid/high)
+  ENABLE = 4;               // Enable/disable motor
+  EMERGENCY = 5;            // Emergency commands
+  TORQUE = 6;               // Torque control
+  CALIBRATE = 7;            // Calibration
+  TEMPERATURE = 8;          // Temperature reading/limit
+  STATUS = 9;               // Status request
+}
+
+// Motor direction values
+enum MotorDirectionValue {
+  FORWARD = 0;              // Forward direction
+  REVERSE = 1;              // Reverse direction
+  NEUTRAL = 2;              // Neutral (no direction)
+}
+
+// Motor mode values
+enum MotorModeValue {
+  LOW = 0;                  // Low speed/power mode
+  MEDIUM = 1;               // Medium speed/power mode
+  HIGH = 2;                 // High speed/power mode
+  ECO = 3;                  // Economy mode
+  SPORT = 4;                // Sport mode
+  CUSTOM = 5;               // Custom mode
+}
+
+// Motor emergency command values
+enum MotorEmergencyValue {
+  NORMAL = 0;               // Normal operation
+  STOP = 1;                 // Emergency stop
+  LIMP_HOME = 2;            // Limp home mode (reduced power)
+  SHUTDOWN = 3;             // Complete shutdown
+}
+
+// Motor calibration values
+enum MotorCalibrateValue {
+  CAL_START = 0;            // Start calibration
+  CAL_STOP = 1;             // Stop calibration
+  CAL_RESET = 2;            // Reset to default calibration
+}
+
+// Motor status values (bitfield)
+enum MotorStatusValue {
+  STATUS_OK = 0;            // No issues
+  ERROR_OVERCURRENT = 1;    // Overcurrent error
+  ERROR_OVERVOLTAGE = 2;    // Overvoltage error
+  ERROR_UNDERVOLTAGE = 4;   // Undervoltage error
+  ERROR_OVERTEMP = 8;       // Overtemperature error
+  ERROR_HALL_SENSOR = 16;   // Hall sensor error
+  ERROR_COMMUNICATION = 32; // Communication error
+  ERROR_GENERAL = 64;       // General error
+} 

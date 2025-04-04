@@ -8,6 +8,7 @@ set -e  # Exit on error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NANOPB_DIR="${SCRIPT_DIR}/nanopb"
 OUTPUT_DIR="${SCRIPT_DIR}/generated"
+COMPONENT_INCLUDE_DIR="${SCRIPT_DIR}/../components/common/lib/CrossPlatformCAN/include"
 
 # Verify nanopb.proto exists
 NANOPB_PROTO_DIR="${NANOPB_DIR}/generator/proto"
@@ -43,6 +44,7 @@ python3 --version > /dev/null 2>&1 || {
 # Create output directories if they don't exist
 mkdir -p "${OUTPUT_DIR}/python"
 mkdir -p "${OUTPUT_DIR}/nanopb"
+mkdir -p "${COMPONENT_INCLUDE_DIR}"
 
 # Get all proto files
 PROTO_FILES=$(find "${SCRIPT_DIR}" -maxdepth 1 -name "*.proto")
@@ -81,6 +83,11 @@ for proto in ${PROTO_FILES}; do
     echo "[$(basename ${proto})] Nanopb bindings generated successfully at ${OUTPUT_DIR}/nanopb"
     echo ""
 done
+
+# Copy the generated headers to the components include directory
+echo "Copying generated headers to components directory..."
+cp -f "${OUTPUT_DIR}/nanopb/"*.h "${COMPONENT_INCLUDE_DIR}/"
+echo "Headers copied to ${COMPONENT_INCLUDE_DIR}"
 
 echo "Protocol compilation complete! yay!"
 exit 0
