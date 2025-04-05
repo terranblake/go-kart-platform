@@ -2,58 +2,76 @@
 #define SENSOR_REGISTRY_H
 
 #include <Arduino.h>
-#include "ProtobufCANInterface.h"
+#include "../../common/lib/CrossPlatformCAN/ProtobufCANInterface.h"
 #include "Sensor.h"
+#include "SensorProtocol.h"
 
 /**
- * SensorRegistry - Manages a collection of sensors for a component
- * Handles initialization, processing, and CAN transmission
+ * SensorRegistry - Manages a collection of sensors
+ * 
+ * Handles registration, periodic processing, and CAN transmission
+ * for multiple sensors.
  */
 class SensorRegistry {
 public:
   /**
    * Constructor
-   * @param can ProtobufCANInterface reference
+   * 
+   * @param canInterface CAN interface for transmission
    * @param componentType Component type from kart_common_ComponentType
    * @param componentId Component ID
    */
-  SensorRegistry(ProtobufCANInterface& can, uint8_t componentType, uint8_t componentId) : 
-    _can(can), _componentType(componentType), _componentId(componentId) {}
+  SensorRegistry(
+    ProtobufCANInterface& canInterface,
+    kart_common_ComponentType componentType,
+    uint8_t componentId
+  ) : _canInterface(canInterface),
+      _componentType(componentType),
+      _componentId(componentId),
+      _sensorCount(0) {}
   
   /**
-   * Register a sensor with the registry
-   * @param sensor Pointer to sensor object
-   * @return true if registration was successful
+   * Register a sensor
+   * 
+   * @param sensor Pointer to a sensor
+   * @return true if registration successful
    */
   bool registerSensor(Sensor* sensor) {
-    if (_sensorCount >= MAX_SENSORS) return false;
+    if (_sensorCount >= MAX_SENSORS) {
+      return false;
+    }
     
     _sensors[_sensorCount++] = sensor;
     sensor->begin();
+    
     return true;
   }
   
   /**
-   * Process all sensors
-   * Reads and transmits sensor data based on update intervals
+   * Process all registered sensors
+   * 
+   * @param forceSend Force sending values even if not due
    */
-  void process() {
-    uint32_t currentTime = millis();
+  void process(bool forceSend = false) {
     for (uint8_t i = 0; i < _sensorCount; i++) {
-      if (_sensors[i]) {
-        _sensors[i]->process(_can, _componentType, _componentId, currentTime);
+      if (_sensors[i] && _sensors[i]->isEnabled()) {
+        _sensors[i]->process(_canInterface, _componentType, forceSend);
       }
     }
   }
   
   /**
-   * Get a sensor by ID
+   * Get a specific sensor by ID and type
+   * 
+   * @param sensorType Sensor type from SensorProtocol::SensorComponentId
    * @param id Sensor ID
-   * @return Pointer to sensor or nullptr if not found
+   * @return Pointer to the sensor or nullptr if not found
    */
-  Sensor* getSensor(uint8_t id) {
+  Sensor* getSensor(uint8_t sensorType, uint8_t id) {
     for (uint8_t i = 0; i < _sensorCount; i++) {
-      if (_sensors[i] && _sensors[i]->getId() == id) {
+      if (_sensors[i] && 
+          _sensors[i]->getSensorType() == sensorType && 
+          _sensors[i]->getId() == id) {
         return _sensors[i];
       }
     }
@@ -61,20 +79,31 @@ public:
   }
   
   /**
-   * Get number of registered sensors
-   * @return Sensor count
+   * Broadcast status of all registered sensors
+   * 
+   * @param status Status value (from SensorProtocol::SensorStatusValue)
    */
-  uint8_t getSensorCount() const {
-    return _sensorCount;
+  void broadcastStatus(uint8_t status) {
+    for (uint8_t i = 0; i < _sensorCount; i++) {
+      if (_sensors[i]) {
+        SensorProtocol::sendSensorStatus(
+          _canInterface, 
+          _sensors[i]->getSensorType(), 
+          _sensors[i]->getId(), 
+          status
+        );
+      }
+    }
   }
   
 private:
   static const uint8_t MAX_SENSORS = 16;
-  Sensor* _sensors[MAX_SENSORS] = {nullptr};
-  uint8_t _sensorCount = 0;
-  ProtobufCANInterface& _can;
-  uint8_t _componentType;
-  uint8_t _componentId;
+  
+  ProtobufCANInterface& _canInterface;  // CAN interface reference
+  kart_common_ComponentType _componentType;  // Component type
+  uint8_t _componentId;  // Component ID
+  Sensor* _sensors[MAX_SENSORS];  // Array of sensor pointers
+  uint8_t _sensorCount;  // Number of registered sensors
 };
 
 #endif // SENSOR_REGISTRY_H 

@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
+#include "../src/SensorProtocol.h"
 
 /**
  * RpmSensor - Hall sensor-based RPM measurement
@@ -41,7 +42,7 @@ public:
     
     // Store in SensorValue
     SensorValue value;
-    value.uint_value = rpm;
+    value.uint16_value = rpm;
     return value;
   }
   
@@ -50,6 +51,13 @@ public:
    */
   uint8_t getValueType() const override {
     return kart_common_ValueType_UINT16;
+  }
+  
+  /**
+   * Get sensor type (RPM)
+   */
+  uint8_t getSensorType() const override {
+    return SensorProtocol::SensorComponentId::RPM;
   }
   
   /**

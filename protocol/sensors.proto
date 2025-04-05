@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package kart.sensors;
+
+// Sensor component IDs
+enum SensorComponentId {
+  TEMPERATURE = 0;          // Temperature sensors
+  RPM = 1;                  // RPM sensors
+  VOLTAGE = 2;              // Voltage sensors
+  CURRENT = 3;              // Current sensors
+  PRESSURE = 4;             // Pressure sensors
+  POSITION = 5;             // Position sensors
+  ACCELERATION = 6;         // Accelerometer
+  GYROSCOPE = 7;            // Gyroscope
+  SAFETY = 8;               // Safety-critical sensors
+  ALL = 255;                // All sensors (broadcast)
+}
+
+// Sensor command IDs
+enum SensorCommandId {
+  READ = 0;                 // Read current sensor value
+  CONFIGURE = 1;            // Configure sensor parameters
+  CALIBRATE = 2;            // Calibrate sensor
+  INTERVAL = 3;             // Set update interval
+  THRESHOLD = 4;            // Set alert threshold
+  RESET = 5;                // Reset sensor
+  STATUS = 6;               // Get sensor status
+  ALERT = 7;                // Alert notification (threshold exceeded)
+  ENABLE = 8;               // Enable/disable sensor
+}
+
+// Sensor status values
+enum SensorStatusValue {
+  OK = 0;                   // Normal operation
+  ERROR_CONNECTION = 1;     // Connection error
+  ERROR_TIMEOUT = 2;        // Timeout error
+  ERROR_RANGE = 3;          // Out of range error
+  ERROR_CALIBRATION = 4;    // Calibration error
+  DISABLED = 5;             // Sensor is disabled
+  INITIALIZING = 6;         // Sensor is initializing
+  ERROR_GENERAL = 7;        // General error
+}
+
+// Temperature sensor types
+enum TemperatureSensorType {
+  MOTOR = 0;                // Motor temperature
+  CONTROLLER = 1;           // Controller temperature
+  BATTERY = 2;              // Battery temperature
+  AMBIENT = 3;              // Ambient temperature
+  COOLANT = 4;              // Coolant temperature
+}
+
+// RPM sensor sources
+enum RpmSensorSource {
+  HALL_EFFECT = 0;          // Hall effect sensor
+  OPTICAL = 1;              // Optical sensor
+  CALCULATED = 2;           // Calculated from other values
+}
+
+// Calibration commands
+enum SensorCalibrateCommand {
+  CAL_START = 0;            // Start calibration
+  CAL_FINISH = 1;           // Finish calibration
+  CAL_RESET = 2;            // Reset to default calibration
+  CAL_ZERO = 3;             // Set current reading as zero
+  CAL_REFERENCE = 4;        // Set reference point
+}
+
+// Threshold types
+enum SensorThresholdType {
+  THRESHOLD_LOW = 0;        // Low threshold
+  THRESHOLD_HIGH = 1;       // High threshold
+  THRESHOLD_RATE = 2;       // Rate of change threshold
+  THRESHOLD_DELTA = 3;      // Delta threshold
+} 

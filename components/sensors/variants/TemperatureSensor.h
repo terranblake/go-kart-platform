@@ -3,21 +3,25 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
+#include "../src/SensorProtocol.h"
 
 /**
- * TemperatureSensor - Implementation for NTCLE100E3203JBD thermistor
+ * TemperatureSensor - Measures temperature using NTC thermistors
+ * 
+ * Designed for NTCLE100E3203JBD thermistors with a series resistor
+ * Uses the Steinhart-Hart equation for temperature conversion
  */
 class TemperatureSensor : public Sensor {
 public:
   /**
    * Constructor
    * @param id Sensor ID
-   * @param pin Analog pin for thermistor
+   * @param pin Analog pin connected to the voltage divider
    * @param updateInterval Update interval in ms
-   * @param seriesResistor Series resistor value (ohms)
-   * @param thermistorNominal Nominal resistance at 25°C (ohms)
+   * @param seriesResistor Value of the series resistor (ohms)
+   * @param thermistorNominal Resistance at nominal temperature (ohms)
    * @param temperatureNominal Nominal temperature (°C)
-   * @param bCoefficient Beta coefficient from datasheet
+   * @param bCoefficient B coefficient from thermistor datasheet
    */
   TemperatureSensor(
     uint8_t id, 
@@ -26,97 +30,106 @@ public:
     uint32_t seriesResistor = 10000,
     uint32_t thermistorNominal = 10000,
     float temperatureNominal = 25.0,
-    float bCoefficient = 3977.0
+    float bCoefficient = 3950.0
   ) : Sensor(id, updateInterval),
       _pin(pin),
       _seriesResistor(seriesResistor),
       _thermistorNominal(thermistorNominal),
       _temperatureNominal(temperatureNominal),
-      _bCoefficient(bCoefficient) {}
+      _bCoefficient(bCoefficient),
+      _lastTemp(0.0) {}
   
   /**
    * Initialize the temperature sensor
    */
   bool begin() override {
+    // Set up analog pin
     pinMode(_pin, INPUT);
+    
+    // Take initial reading
+    _lastTemp = readTemperature();
+    
     return true;
   }
   
   /**
-   * Read temperature from thermistor
-   * @return SensorValue containing temperature in °C
+   * Read temperature
+   * @return SensorValue containing temperature
    */
   SensorValue read() override {
-    int rawADC = analogRead(_pin);
+    // Read temperature
+    _lastTemp = readTemperature();
     
-    // Convert ADC value to temperature
-    float temperature = calculateTemperature(rawADC);
-    
-    // Store in SensorValue
+    // Store in SensorValue (as INT16 in tenths of a degree)
     SensorValue value;
-    value.float_value = temperature;
+    value.int16_value = (int16_t)(_lastTemp * 10.0);
     return value;
   }
   
   /**
-   * Get value type (FLOAT16)
+   * Get value type (INT16 - temperature in tenths of a degree)
    */
   uint8_t getValueType() const override {
-    return kart_common_ValueType_FLOAT16;
+    return kart_common_ValueType_INT16;
   }
   
   /**
-   * Convert sensor value to int32_t for CAN transmission
-   * We'll use a fixed-point representation (temp * 100)
+   * Get sensor type (TEMPERATURE)
    */
-  int32_t toInt32() const {
-    return static_cast<int32_t>(_lastReading * 100.0f);
+  uint8_t getSensorType() const override {
+    return SensorProtocol::SensorComponentId::TEMPERATURE;
   }
   
   /**
-   * Get last temperature reading
+   * Get the current temperature value
    * @return Temperature in °C
    */
   float getTemperature() const {
-    return _lastReading;
+    return _lastTemp;
   }
   
 private:
-  uint8_t _pin;
-  uint32_t _seriesResistor;
-  uint32_t _thermistorNominal;
-  float _temperatureNominal;
-  float _bCoefficient;
-  float _lastReading = 0.0f;
+  uint8_t _pin;                // Analog pin
+  uint32_t _seriesResistor;    // Series resistor value (ohms)
+  uint32_t _thermistorNominal; // Resistance at nominal temperature (ohms)
+  float _temperatureNominal;   // Nominal temperature (°C)
+  float _bCoefficient;         // Beta coefficient from datasheet
+  float _lastTemp;             // Last temperature reading
   
   /**
-   * Calculate temperature using Steinhart-Hart equation
-   * @param adcValue Raw ADC value
+   * Read the current temperature
    * @return Temperature in °C
    */
-  float calculateTemperature(int adcValue) {
-    // Safety check for invalid readings
-    if (adcValue <= 1 || adcValue >= 1022) {
-      return -99.9f;
-    }
+  float readTemperature() {
+    // Read analog value
+    int adcValue = analogRead(_pin);
     
-    // Convert ADC reading to resistance
-    float resistance = _seriesResistor / ((1023.0f / adcValue) - 1.0f);
+    // Prevent division by zero or invalid readings
+    if (adcValue >= 1023) adcValue = 1022;
+    if (adcValue <= 0) adcValue = 1;
     
-    // Apply Steinhart-Hart equation
-    float steinhart = resistance / _thermistorNominal;  // (R/Ro)
-    steinhart = log(steinhart);                         // ln(R/Ro)
-    steinhart /= _bCoefficient;                         // 1/B * ln(R/Ro)
-    steinhart += 1.0f / (_temperatureNominal + 273.15f); // + (1/To)
-    steinhart = 1.0f / steinhart;                        // Invert
-    steinhart -= 273.15f;                                // Convert to °C
+    // Calculate resistance of thermistor
+#if defined(ESP8266) || defined(ESP32)
+    // ESP ADC is 3.3V with 10-bit resolution (0-1023)
+    float resistance = _seriesResistor / ((1023.0 / adcValue) - 1.0);
+#else
+    // Arduino ADC is typically 5V with 10-bit resolution (0-1023)
+    float resistance = _seriesResistor / ((1023.0 / adcValue) - 1.0);
+#endif
     
-    // Sanity check
-    if (steinhart < -40.0f || steinhart > 125.0f) {
-      return -99.9f;
-    }
+    // Calculate temperature using Steinhart-Hart equation (simplified B parameter equation)
+    float steinhart;
+    steinhart = resistance / _thermistorNominal;           // (R/Ro)
+    steinhart = log(steinhart);                           // ln(R/Ro)
+    steinhart /= _bCoefficient;                           // 1/B * ln(R/Ro)
+    steinhart += 1.0 / (_temperatureNominal + 273.15);    // + (1/To)
+    steinhart = 1.0 / steinhart;                          // Invert
+    steinhart -= 273.15;                                  // Convert to °C
     
-    _lastReading = steinhart;
+    // Apply limits
+    if (steinhart < -55.0) steinhart = -55.0;
+    if (steinhart > 125.0) steinhart = 125.0;
+    
     return steinhart;
   }
 };
