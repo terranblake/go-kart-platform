@@ -29,25 +29,3 @@ enum SensorStatusValue {
   INITIALIZING = 6;         // Sensor is initializing
   ERROR_GENERAL = 7;        // General error
 }
-
-// Temperature sensor location
-// Used in component_id field when command_id is TEMPERATURE
-enum TemperatureSensorLocation {
-  MOTOR = 0;                // Motor temperature
-  CONTROLLER = 1;           // Controller temperature
-  BATTERY = 2;              // Battery temperature
-  AMBIENT = 3;              // Ambient temperature
-  COOLANT = 4;              // Coolant temperature
-}
-
-// RPM sensor location
-// Used in component_id field when command_id is RPM
-enum RpmSensorLocation {
-  WHEEL_FRONT_LEFT = 0;     // Front left wheel
-  WHEEL_FRONT_RIGHT = 1;    // Front right wheel
-  WHEEL_REAR_LEFT = 2;      // Rear left wheel
-  WHEEL_REAR_RIGHT = 3;     // Rear right wheel
-  ENGINE = 4;               // Engine RPM
-  MOTOR_MAIN = 5;           // Main drive motor
-  MOTOR_AUXILIARY = 6;      // Auxiliary motor
-}

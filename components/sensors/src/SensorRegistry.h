@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "../../common/lib/CrossPlatformCAN/ProtobufCANInterface.h"
 #include "Sensor.h"
-#include "SensorProtocol.h"
+#include "/Users/terranblake/Documents/go-kart-platform/protocol/generated/nanopb/sensors.pb.h"
 
 /**
  * SensorRegistry - Manages a collection of sensors
@@ -40,9 +40,10 @@ public:
     if (_sensorCount >= MAX_SENSORS) {
       return false;
     }
-    
+    Serial.println("Registering sensor");
     _sensors[_sensorCount++] = sensor;
     sensor->begin();
+    delay(50);
     
     return true;
   }
@@ -55,7 +56,7 @@ public:
   void process(bool forceSend = false) {
     for (uint8_t i = 0; i < _sensorCount; i++) {
       if (_sensors[i] && _sensors[i]->isEnabled()) {
-        _sensors[i]->process(_canInterface, _componentType, forceSend);
+        _sensors[i]->process(_canInterface, forceSend);
       }
     }
   }
@@ -63,15 +64,15 @@ public:
   /**
    * Get a specific sensor by ID and type
    * 
-   * @param sensorType Sensor type from SensorProtocol::SensorComponentId
-   * @param id Sensor ID
+   * @param sensorType Sensor type from SensorCommandId enum
+   * @param locationId Sensor location ID
    * @return Pointer to the sensor or nullptr if not found
    */
-  Sensor* getSensor(uint8_t sensorType, uint8_t id) {
+  Sensor* getSensor(uint8_t sensorType, uint8_t locationId) {
     for (uint8_t i = 0; i < _sensorCount; i++) {
       if (_sensors[i] && 
-          _sensors[i]->getSensorType() == sensorType && 
-          _sensors[i]->getId() == id) {
+          _sensors[i]->getSensorCommandId() == sensorType && 
+          _sensors[i]->getLocationId() == locationId) {
         return _sensors[i];
       }
     }
@@ -81,17 +82,22 @@ public:
   /**
    * Broadcast status of all registered sensors
    * 
-   * @param status Status value (from SensorProtocol::SensorStatusValue)
+   * @param status Status value (from SensorStatusValue enum)
    */
   void broadcastStatus(uint8_t status) {
+    Serial.println("Broadcasting status");
+
     for (uint8_t i = 0; i < _sensorCount; i++) {
       if (_sensors[i]) {
-        SensorProtocol::sendSensorStatus(
-          _canInterface, 
-          _sensors[i]->getSensorType(), 
-          _sensors[i]->getId(), 
+        _canInterface.sendMessage(
+          kart_common_MessageType_STATUS,
+          _componentType,
+          _sensors[i]->getLocationId(),
+          kart_sensors_SensorCommandId_STATUS,
+          kart_common_ValueType_UINT8,
           status
         );
+        delay(50);
       }
     }
   }

@@ -231,8 +231,8 @@ void setLowBrake(bool engaged) {
   }
   
 #if DEBUG_ENABLED
-  Serial.print(F("Low brake: "));
-  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  // Serial.print(F("Low brake: "));
+  // Serial.println(engaged ? F("Engaged") : F("Disengaged"));
 #endif
 }
 
@@ -241,8 +241,8 @@ void setHighBrake(bool engaged) {
   digitalWrite(HIGH_BRAKE_PIN, engaged ? HIGH : LOW);
   
 #if DEBUG_ENABLED
-  Serial.print(F("High brake: "));
-  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  // Serial.print(F("High brake: "));
+  // Serial.println(engaged ? F("Engaged") : F("Disengaged"));
 #endif
 }
 
@@ -253,7 +253,7 @@ void allStop() {
   setHighBrake(true);
   
 #if DEBUG_ENABLED
-  Serial.println(F("EMERGENCY STOP - All systems halted"));
+  // Serial.println(F("EMERGENCY STOP - All systems halted"));
 #endif
 }
 

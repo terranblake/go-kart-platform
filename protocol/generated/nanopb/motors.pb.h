@@ -30,8 +30,7 @@ typedef enum _kart_motors_MotorCommandId {
     kart_motors_MotorCommandId_EMERGENCY = 5, /* Emergency commands */
     kart_motors_MotorCommandId_TORQUE = 6, /* Torque control */
     kart_motors_MotorCommandId_CALIBRATE = 7, /* Calibration */
-    kart_motors_MotorCommandId_TEMPERATURE = 8, /* Temperature reading/limit */
-    kart_motors_MotorCommandId_STATUS = 9 /* Status request */
+    kart_motors_MotorCommandId_TEMPERATURE = 8 /* Temperature reading/limit */
 } kart_motors_MotorCommandId;
 
 /* Motor direction values */
@@ -89,8 +88,8 @@ extern "C" {
 #define _kart_motors_MotorComponentId_ARRAYSIZE ((kart_motors_MotorComponentId)(kart_motors_MotorComponentId_ALL+1))
 
 #define _kart_motors_MotorCommandId_MIN kart_motors_MotorCommandId_SPEED
-#define _kart_motors_MotorCommandId_MAX kart_motors_MotorCommandId_STATUS
-#define _kart_motors_MotorCommandId_ARRAYSIZE ((kart_motors_MotorCommandId)(kart_motors_MotorCommandId_STATUS+1))
+#define _kart_motors_MotorCommandId_MAX kart_motors_MotorCommandId_TEMPERATURE
+#define _kart_motors_MotorCommandId_ARRAYSIZE ((kart_motors_MotorCommandId)(kart_motors_MotorCommandId_TEMPERATURE+1))
 
 #define _kart_motors_MotorDirectionValue_MIN kart_motors_MotorDirectionValue_FORWARD
 #define _kart_motors_MotorDirectionValue_MAX kart_motors_MotorDirectionValue_NEUTRAL

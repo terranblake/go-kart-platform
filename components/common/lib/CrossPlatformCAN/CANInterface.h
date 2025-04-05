@@ -13,8 +13,6 @@
 #if defined(ARDUINO)
   // Arduino platform
   #include <Arduino.h>
-  #include <SPI.h>
-  // We'll use the standard Arduino-CAN library
   #include <CAN.h>
   #define PLATFORM_ARDUINO
 #elif defined(__linux__) || defined(__unix__)

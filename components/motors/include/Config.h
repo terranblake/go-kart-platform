@@ -7,9 +7,6 @@
 #endif
 
 // CAN interface
-#define CAN_CS_PIN 10
-#define CAN_INT_PIN 2
-#define CAN_SPEED 500E3
 #ifndef NODE_ID
 #define NODE_ID 0x20  // Node ID for this motor controller
 #endif

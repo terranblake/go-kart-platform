@@ -44,7 +44,7 @@ public:
   bool begin() override {
     // Set up analog pin
     pinMode(_pin, INPUT);
-    
+    Serial.println("TemperatureSensor begin");
     // Take initial reading
     _lastTemp = readTemperature();
     
