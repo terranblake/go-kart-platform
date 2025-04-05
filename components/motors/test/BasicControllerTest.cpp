@@ -24,6 +24,13 @@
 
 #include <Arduino.h>
 
+// Add sensor framework includes
+#include "../../sensors/src/Sensor.h"
+#include "../../sensors/src/SensorRegistry.h"
+#include "../../sensors/src/SensorManager.h"
+#include "../../sensors/variants/TemperatureSensor.h"
+#include "../../sensors/variants/RpmSensor.h"
+
 // PIN DEFINITIONS - must match your actual wiring
 #if defined(ESP8266)
 // ESP8266 NodeMCU pin mapping
@@ -157,6 +164,56 @@ bool currentLowBrake = false;  // true = engaged, false = disengaged
 bool currentHighBrake = false; // true = engaged, false = disengaged
 unsigned long testStartTime = 0; // Time when test sequence started
 
+// Mock CAN interface for testing
+class MockCANInterface : public ProtobufCANInterface {
+public:
+  MockCANInterface(uint8_t nodeId) : ProtobufCANInterface(nodeId) {}
+  
+  bool begin(uint32_t baudrate = 500000) override { 
+    return true; 
+  }
+  
+  bool sendMessage(
+    kart_common_MessageType msg_type,
+    kart_common_ComponentType comp_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    kart_common_ValueType value_type,
+    int32_t value) override {
+    
+    // Print message to serial
+    if (SERIAL_ENABLED && JSON_OUTPUT) {
+      Serial.print(F("{\"can_msg\":{\"type\":"));
+      Serial.print((int)msg_type);
+      Serial.print(F(",\"comp_type\":"));
+      Serial.print((int)comp_type);
+      Serial.print(F(",\"comp_id\":"));
+      Serial.print(component_id);
+      Serial.print(F(",\"cmd_id\":"));
+      Serial.print(command_id);
+      Serial.print(F(",\"value_type\":"));
+      Serial.print((int)value_type);
+      Serial.print(F(",\"value\":"));
+      Serial.print(value);
+      Serial.println(F("}}"));
+    }
+    
+    return true;
+  }
+  
+  void process() override {
+    // Nothing to do for mock interface
+  }
+};
+
+// Global sensor objects
+MockCANInterface canInterface(0x01);
+SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, 0x01);
+TemperatureSensor* batteryTempSensor;
+TemperatureSensor* controllerTempSensor;
+TemperatureSensor* motorTempSensor;
+RpmSensor* motorRpmSensor;
+
 // Function prototypes
 void setupPins();
 void setSpeedMode(uint8_t mode);
@@ -167,15 +224,9 @@ void printStatus(const char* action, uint8_t value);
 void allStop();
 void setLowBrake(bool engaged);
 void setHighBrake(bool engaged);
-#if defined(ESP8266)
-ICACHE_RAM_ATTR void hallSensorA_ISR();
-ICACHE_RAM_ATTR void hallSensorB_ISR();
-ICACHE_RAM_ATTR void hallSensorC_ISR();
-#else
 void hallSensorA_ISR();
 void hallSensorB_ISR();
 void hallSensorC_ISR();
-#endif
 void updateHallReadings();
 unsigned int calculateRPM();
 void recordDataPoint();
@@ -190,7 +241,6 @@ void clearTestData();
 void resetTestStats();
 void streamDataPoint();
 void resetDevice();
-float readTemperature(int pin);
 void updateTemperatures();
 void checkTemperatureSafety();
 
@@ -215,7 +265,7 @@ void setup() {
     // Longer delay for serial to connect
     delay(5000);
     
-    Serial.println(F("Kunray MY1020 Basic Controller Test with Hall Sensor Monitoring"));
+    Serial.println(F("Kunray MY1020 Basic Controller Test with Sensor Framework"));
     Serial.println(F("============================================================="));
     Serial.println(F("This test will cycle through:"));
     Serial.println(F("1. Different throttle levels"));
@@ -246,25 +296,63 @@ void setup() {
     digitalWrite(LED_BUILTIN, LOW);
   }
   
+  // Init hardware pins
   setupPins();
   
-  // Initialize temperature readings
+  // Initialize the sensor manager
+  SensorManager::initialize();
+  
+  // Initialize temperature sensors
+  batteryTempSensor = new TemperatureSensor(
+    1,                        // ID
+    TEMP_SENSOR_BATTERY,      // Pin
+    2000,                     // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+  
+  controllerTempSensor = new TemperatureSensor(
+    2,                        // ID
+    TEMP_SENSOR_CONTROLLER,   // Pin
+    2000,                     // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+  
+  motorTempSensor = new TemperatureSensor(
+    3,                        // ID
+    TEMP_SENSOR_MOTOR,        // Pin
+    2000,                     // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+  
+  // Initialize RPM sensor
+  motorRpmSensor = new RpmSensor(4, 100); // ID 4, update every 100ms
+  SensorManager::registerRpmSensor(motorRpmSensor);
+  
+  // Register all sensors with the registry
+  sensorRegistry.registerSensor(batteryTempSensor);
+  sensorRegistry.registerSensor(controllerTempSensor);
+  sensorRegistry.registerSensor(motorTempSensor);
+  sensorRegistry.registerSensor(motorRpmSensor);
+  
+  // Initialize temperatures
   updateTemperatures();
   if (SERIAL_ENABLED) {
     Serial.println(F("Temperature Sensor Readings:"));
-    Serial.print(F("Raw ADC values - Battery: "));
-    Serial.print(analogRead(TEMP_SENSOR_BATTERY));
-    Serial.print(F(", Controller: "));
-    Serial.print(analogRead(TEMP_SENSOR_CONTROLLER));
-    Serial.print(F(", Motor: "));
-    Serial.println(analogRead(TEMP_SENSOR_MOTOR));
-    
-    Serial.print(F("Temperature values - Battery: "));
-    Serial.print(batteryTemp, 1);
+    Serial.print(F("Battery: "));
+    Serial.print(batteryTempSensor->getTemperature(), 1);
     Serial.print(F("°C, Controller: "));
-    Serial.print(controllerTemp, 1);
+    Serial.print(controllerTempSensor->getTemperature(), 1);
     Serial.print(F("°C, Motor: "));
-    Serial.print(motorTemp, 1);
+    Serial.print(motorTempSensor->getTemperature(), 1);
     Serial.println(F("°C"));
   }
   
@@ -291,24 +379,35 @@ void loop() {
   // Process serial commands
   if (SERIAL_ENABLED && Serial.available()) {
     char c = Serial.read();
-    if (c == 'r' || c == 'R') {
-      Serial.println(F("Resetting and running test again..."));
+    
+    if (c == 's' || c == 'S') {
+      // Stop
+      allStop();
+      Serial.println(F("EMERGENCY STOP"));
+    } else if (c == 'r' || c == 'R') {
+      // Restart
+      Serial.println(F("Restarting test..."));
       delay(1000);
-      // Reset Arduino
       resetDevice();
     } else if (c == 'j' || c == 'J') {
       // Output JSON format regardless of current setting
-      Serial.println(F("Outputting results in JSON format..."));
-      Serial.println(F("{\"message\": \"Results streamed in real-time\"}"));
+      JSON_OUTPUT = true;
+      Serial.println(F("{\"status\":\"JSON output enabled\"}"));
+    } else if (c == 't' || c == 'T') {
+      // Output text format
+      JSON_OUTPUT = false;
+      Serial.println(F("Text output enabled"));
     }
   }
   
   // Update hall sensor readings and calculate RPM
   updateHallReadings();
   
-  // Update temperature readings periodically
+  // Process all sensors
+  sensorRegistry.process();
+  
+  // Check temperature safety periodically
   if (currentMillis - lastTempUpdate > TEMP_UPDATE_INTERVAL) {
-    updateTemperatures();
     checkTemperatureSafety();
     lastTempUpdate = currentMillis;
   }
@@ -488,38 +587,27 @@ void printStatus(const char* action, uint8_t value) {
   currentCommand = action;
 }
 
-// Implement the ISR functions with ICACHE_RAM_ATTR for ESP8266 compatibility
-#if defined(ESP8266)
-ICACHE_RAM_ATTR void hallSensorA_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
+// Update the hall sensor ISR to use our SensorManager
+void ICACHE_RAM_ATTR hallSensorA_ISR() {
+  SensorManager::hallSensorInterrupt();
+  
+  // Update hall state for display purposes
+  hallState = (hallState & 0b110) | (digitalRead(HALL_A_PIN) ? 0b001 : 0);
 }
 
-ICACHE_RAM_ATTR void hallSensorB_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
+void ICACHE_RAM_ATTR hallSensorB_ISR() {
+  SensorManager::hallSensorInterrupt();
+  
+  // Update hall state for display purposes
+  hallState = (hallState & 0b101) | (digitalRead(HALL_B_PIN) ? 0b010 : 0);
 }
 
-ICACHE_RAM_ATTR void hallSensorC_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
+void ICACHE_RAM_ATTR hallSensorC_ISR() {
+  SensorManager::hallSensorInterrupt();
+  
+  // Update hall state for display purposes
+  hallState = (hallState & 0b011) | (digitalRead(HALL_C_PIN) ? 0b100 : 0);
 }
-#else
-void hallSensorA_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
-}
-
-void hallSensorB_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
-}
-
-void hallSensorC_ISR() {
-  hallPulseCount++;
-  lastHallTime = micros();
-}
-#endif
 
 // Update all hall sensor readings and calculate RPM
 void updateHallReadings() {
@@ -536,44 +624,9 @@ void updateHallReadings() {
   }
 }
 
-// Calculate RPM based on hall sensor pulses
+// Replace calculateRPM with the sensor-based approach
 unsigned int calculateRPM() {
-  static unsigned long prevCount = 0;
-  static unsigned long prevTime = 0;
-  unsigned long currentTime = millis();
-  
-  // Calculate time elapsed since last update
-  unsigned long timeElapsed = currentTime - prevTime;
-  if (timeElapsed < 100) return currentRpm; // Don't update too frequently
-  
-  // Calculate pulses per minute
-  unsigned long countDiff = 0;
-  
-  // Handle possible overflow of hallPulseCount
-  if (hallPulseCount >= prevCount) {
-    countDiff = hallPulseCount - prevCount;
-  } else {
-    // Counter has overflowed, handle gracefully
-    countDiff = (0xFFFFFFFF - prevCount) + hallPulseCount + 1;
-  }
-  
-  unsigned int rpm = 0;
-  
-  // Calculate RPM with additional validation
-  if (timeElapsed > 0 && countDiff > 0) {
-    // For a BLDC with 3 hall sensors, one revolution typically creates 6 pulses (using RISING edge only)
-    // The divisor is 6 because we're counting each phase change once (RISING only, not CHANGE)
-    rpm = (countDiff * 60000) / (timeElapsed * 6);
-  } else if (timeElapsed > 1000 && countDiff == 0) {
-    // If no pulses for over 1 second, RPM is zero
-    rpm = 0;
-  }
-  
-  // Store current values for next calculation
-  prevCount = hallPulseCount;
-  prevTime = currentTime;
-  
-  return rpm;
+  return motorRpmSensor->getRPM();
 }
 
 void resetTestStats() {
@@ -1236,60 +1289,30 @@ void resetDevice() {
 #endif
 }
 
-// Read temperature from a thermistor on the specified pin
-float readTemperature(int pin) {
-  int rawADC = analogRead(pin);
-  
-  // Safety check for invalid readings
-  if (rawADC <= 1 || rawADC >= 1022) {
-    return -99.9; // Return an obvious error value
-  }
-  
-  // Convert reading to resistance
-  float reading = 1023.0 / rawADC - 1.0;
-  reading = SERIES_RESISTOR / reading;
-  
-  // Safety check for reasonable resistance values
-  if (reading <= 0 || reading > 1000000) {
-    return -99.9; // Return an obvious error value
-  }
-  
-  // Apply Steinhart-Hart equation to convert resistance to temperature
-  float steinhart = reading / THERMISTOR_NOMINAL;          // (R/Ro)
-  steinhart = log(steinhart);                              // ln(R/Ro)
-  steinhart /= B_COEFFICIENT;                              // 1/B * ln(R/Ro)
-  steinhart += 1.0 / (TEMPERATURE_NOMINAL + 273.15);       // + (1/To)
-  steinhart = 1.0 / steinhart;                             // Invert
-  steinhart -= 273.15;                                     // Convert to °C
-  
-  // Reasonable temperature range check
-  if (steinhart < -40 || steinhart > 125) {
-    return -99.9; // Return an obvious error value for out-of-range temperatures
-  }
-  
-  return steinhart;
-}
-
-// Update all temperature readings
+// Replace updateTemperatures with the sensor-based approach
 void updateTemperatures() {
-  batteryTemp = readTemperature(TEMP_SENSOR_BATTERY);
-  controllerTemp = readTemperature(TEMP_SENSOR_CONTROLLER);
-  motorTemp = readTemperature(TEMP_SENSOR_MOTOR);
+  // Directly read from the sensors
+  batteryTemp = batteryTempSensor->getTemperature();
+  controllerTemp = controllerTempSensor->getTemperature();
+  motorTemp = motorTempSensor->getTemperature();
 }
 
-// Check temperature thresholds and take safety actions if needed
+// Update checkTemperatureSafety to use our sensor framework
 void checkTemperatureSafety() {
+  // Update temperature variables from sensors
+  updateTemperatures();
+  
   bool prevCritical = tempCriticalActive;
   
   // Check for critical temperatures
   tempCriticalActive = (batteryTemp > TEMP_BATTERY_CRITICAL ||
-                        controllerTemp > TEMP_CONTROLLER_CRITICAL ||
-                        motorTemp > TEMP_MOTOR_CRITICAL);
-                        
+                       controllerTemp > TEMP_CONTROLLER_CRITICAL ||
+                       motorTemp > TEMP_MOTOR_CRITICAL);
+                       
   // Check for warning temperatures
   tempWarningActive = (batteryTemp > TEMP_BATTERY_WARNING ||
-                       controllerTemp > TEMP_CONTROLLER_WARNING ||
-                       motorTemp > TEMP_MOTOR_WARNING);
+                      controllerTemp > TEMP_CONTROLLER_WARNING ||
+                      motorTemp > TEMP_MOTOR_WARNING);
   
   // Take action if critical temperature detected
   if (tempCriticalActive && !prevCritical) {
