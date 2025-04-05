@@ -2,8 +2,9 @@ syntax = "proto3";
 
 package kart.sensors;
 
-// Sensor component IDs
-enum SensorComponentId {
+// Sensor command IDs (sensor types)
+// These are used as command_id in the protocol
+enum SensorCommandId {
   TEMPERATURE = 0;          // Temperature sensors
   RPM = 1;                  // RPM sensors
   VOLTAGE = 2;              // Voltage sensors
@@ -13,23 +14,11 @@ enum SensorComponentId {
   ACCELERATION = 6;         // Accelerometer
   GYROSCOPE = 7;            // Gyroscope
   SAFETY = 8;               // Safety-critical sensors
-  ALL = 255;                // All sensors (broadcast)
-}
-
-// Sensor command IDs
-enum SensorCommandId {
-  READ = 0;                 // Read current sensor value
-  CONFIGURE = 1;            // Configure sensor parameters
-  CALIBRATE = 2;            // Calibrate sensor
-  INTERVAL = 3;             // Set update interval
-  THRESHOLD = 4;            // Set alert threshold
-  RESET = 5;                // Reset sensor
-  STATUS = 6;               // Get sensor status
-  ALERT = 7;                // Alert notification (threshold exceeded)
-  ENABLE = 8;               // Enable/disable sensor
+  STATUS = 9;               // Sensor status message
 }
 
 // Sensor status values
+// Used in value field when command_id is STATUS
 enum SensorStatusValue {
   OK = 0;                   // Normal operation
   ERROR_CONNECTION = 1;     // Connection error
@@ -41,8 +30,9 @@ enum SensorStatusValue {
   ERROR_GENERAL = 7;        // General error
 }
 
-// Temperature sensor types
-enum TemperatureSensorType {
+// Temperature sensor location
+// Used in component_id field when command_id is TEMPERATURE
+enum TemperatureSensorLocation {
   MOTOR = 0;                // Motor temperature
   CONTROLLER = 1;           // Controller temperature
   BATTERY = 2;              // Battery temperature
@@ -50,26 +40,14 @@ enum TemperatureSensorType {
   COOLANT = 4;              // Coolant temperature
 }
 
-// RPM sensor sources
-enum RpmSensorSource {
-  HALL_EFFECT = 0;          // Hall effect sensor
-  OPTICAL = 1;              // Optical sensor
-  CALCULATED = 2;           // Calculated from other values
+// RPM sensor location
+// Used in component_id field when command_id is RPM
+enum RpmSensorLocation {
+  WHEEL_FRONT_LEFT = 0;     // Front left wheel
+  WHEEL_FRONT_RIGHT = 1;    // Front right wheel
+  WHEEL_REAR_LEFT = 2;      // Rear left wheel
+  WHEEL_REAR_RIGHT = 3;     // Rear right wheel
+  ENGINE = 4;               // Engine RPM
+  MOTOR_MAIN = 5;           // Main drive motor
+  MOTOR_AUXILIARY = 6;      // Auxiliary motor
 }
-
-// Calibration commands
-enum SensorCalibrateCommand {
-  CAL_START = 0;            // Start calibration
-  CAL_FINISH = 1;           // Finish calibration
-  CAL_RESET = 2;            // Reset to default calibration
-  CAL_ZERO = 3;             // Set current reading as zero
-  CAL_REFERENCE = 4;        // Set reference point
-}
-
-// Threshold types
-enum SensorThresholdType {
-  THRESHOLD_LOW = 0;        // Low threshold
-  THRESHOLD_HIGH = 1;       // High threshold
-  THRESHOLD_RATE = 2;       // Rate of change threshold
-  THRESHOLD_DELTA = 3;      // Delta threshold
-} 

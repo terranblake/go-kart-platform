@@ -3,14 +3,8 @@
 
 #include <Arduino.h>
 #include "../../common/lib/CrossPlatformCAN/ProtobufCANInterface.h"
-#include "SensorProtocol.h"
 
-// Forward declaration
-class SensorRegistry;
-
-/**
- * SensorValue - Union to store different value types
- */
+// Sensor value union to support different types
 union SensorValue {
   bool    bool_value;
   int8_t  int8_value;
@@ -23,23 +17,27 @@ union SensorValue {
 };
 
 /**
- * Sensor - Base class for all sensors
+ * Base Sensor class
+ * Abstract class for all sensor types
  */
 class Sensor {
 public:
   /**
    * Constructor
-   * @param id Unique sensor ID within a component
-   * @param updateInterval Time in ms between sensor readings
+   * @param locationId Location ID for this sensor (used as component_id)
+   * @param updateInterval Update interval in milliseconds
    */
-  Sensor(uint8_t id, uint16_t updateInterval = 1000) : 
-    _id(id), _updateInterval(updateInterval), _lastUpdateTime(0), _enabled(true) {}
+  Sensor(uint8_t locationId, uint16_t updateInterval = 1000) :
+    _locationId(locationId),
+    _updateInterval(updateInterval),
+    _lastUpdateTime(0),
+    _enabled(true) {}
   
   /**
-   * Destructor
+   * Virtual destructor
    */
   virtual ~Sensor() {}
-    
+  
   /**
    * Initialize the sensor
    * @return true if initialization was successful
@@ -48,61 +46,50 @@ public:
   
   /**
    * Read the sensor value
-   * @return SensorValue containing the reading
+   * @return SensorValue union containing the read value
    */
   virtual SensorValue read() = 0;
   
   /**
-   * Get the value type for CAN protocol
-   * @return Value type from kart_common_ValueType enum
+   * Get the value type as defined in CrossPlatformCAN's ValueType enum
    */
   virtual uint8_t getValueType() const = 0;
   
   /**
-   * Get sensor ID
-   * @return Sensor ID
+   * Get the sensor command ID (sensor type from sensors.proto SensorCommandId)
+   * This is the type of sensor (TEMPERATURE, RPM, etc.)
    */
-  uint8_t getId() const { return _id; }
+  virtual uint8_t getSensorCommandId() const = 0;
   
   /**
-   * Get update interval
-   * @return Update interval in ms
-   */
-  uint16_t getUpdateInterval() const { return _updateInterval; }
-  
-  /**
-   * Set update interval
-   * @param updateInterval New interval in ms
-   */
-  void setUpdateInterval(uint16_t updateInterval) { _updateInterval = updateInterval; }
-  
-  /**
-   * Process the sensor and transmit if needed
-   * @param can CAN interface to use for transmission
-   * @param componentType Component type from kart_common_ComponentType
+   * Process sensor (read and transmit if needed)
+   * Should be called regularly in the main loop
+   * @param canInterface The CAN interface to transmit readings
    * @param forceSend Force sending the reading even if not due
-   * @return true if sensor was read and transmitted
+   * @return true if reading was taken and sent
    */
-  bool process(ProtobufCANInterface& can, kart_common_ComponentType componentType, bool forceSend = false) {
+  bool process(ProtobufCANInterface& canInterface, bool forceSend = false) {
     if (!_enabled) return false;
     
     unsigned long currentTime = millis();
     if (forceSend || (currentTime - _lastUpdateTime >= _updateInterval)) {
+      // Read sensor
       SensorValue value = read();
-      _lastUpdateTime = currentTime;
       
-      // Send via CAN
-      bool result = can.sendMessage(
-        kart_common_MessageType_STATUS,
-        componentType,
-        getSensorType(),
-        _id,
-        (kart_common_ValueType)getValueType(),
-        getValue(value)
+      // Send over CAN
+      bool result = canInterface.sendMessage(
+        kart_common_MessageType_STATUS,        // Message type: STATUS
+        kart_common_ComponentType_SENSORS,     // Component type: SENSORS 
+        _locationId,                           // Component ID: sensor location
+        getSensorCommandId(),                  // Command ID: sensor type
+        (kart_common_ValueType)getValueType(), // Value type
+        getValue(value)                        // Value
       );
       
+      _lastUpdateTime = currentTime;
       return result;
     }
+    
     return false;
   }
   
@@ -123,18 +110,34 @@ public:
   }
   
   /**
-   * Get the sensor component type (from SensorProtocol::SensorComponentId)
-   * Default implementation returns 0 (TEMPERATURE)
+   * Get the sensor location ID
+   * @return The location ID
    */
-  virtual uint8_t getSensorType() const {
-    return SensorProtocol::SensorComponentId::TEMPERATURE;
+  uint8_t getLocationId() const {
+    return _locationId;
+  }
+  
+  /**
+   * Set the update interval
+   * @param interval Update interval in milliseconds
+   */
+  void setUpdateInterval(uint16_t interval) {
+    _updateInterval = interval;
+  }
+  
+  /**
+   * Get the update interval
+   * @return Update interval in milliseconds
+   */
+  uint16_t getUpdateInterval() const {
+    return _updateInterval;
   }
   
 protected:
-  uint8_t _id;                 // Sensor ID within component
-  uint16_t _updateInterval;    // Update interval in ms
-  unsigned long _lastUpdateTime;   // Last update timestamp
-  bool _enabled;                   // Enabled flag
+  uint8_t _locationId;               // Sensor location ID (component_id)
+  uint16_t _updateInterval;          // Update interval in ms
+  unsigned long _lastUpdateTime;     // Last update timestamp
+  bool _enabled;                     // Enabled flag
   
   /**
    * Extract the proper value from SensorValue based on type

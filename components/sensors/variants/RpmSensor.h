@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
-#include "../src/SensorProtocol.h"
 
 /**
  * RpmSensor - Hall sensor-based RPM measurement
@@ -14,11 +13,11 @@ class RpmSensor : public Sensor {
 public:
   /**
    * Constructor
-   * @param id Sensor ID
+   * @param locationId Location ID of this sensor (from RpmSensorLocation enum)
    * @param updateInterval Update interval in ms
    */
-  RpmSensor(uint8_t id, uint16_t updateInterval = 100) : 
-    Sensor(id, updateInterval) {
+  RpmSensor(uint8_t locationId, uint16_t updateInterval = 100) : 
+    Sensor(locationId, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
   }
@@ -54,10 +53,10 @@ public:
   }
   
   /**
-   * Get sensor type (RPM)
+   * Get sensor command ID (RPM)
    */
-  uint8_t getSensorType() const override {
-    return SensorProtocol::SensorComponentId::RPM;
+  uint8_t getSensorCommandId() const override {
+    return 1; // RPM = 1 from sensors.proto
   }
   
   /**

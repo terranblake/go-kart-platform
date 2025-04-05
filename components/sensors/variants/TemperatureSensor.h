@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
-#include "../src/SensorProtocol.h"
 
 /**
  * TemperatureSensor - Measures temperature using NTC thermistors
@@ -15,7 +14,7 @@ class TemperatureSensor : public Sensor {
 public:
   /**
    * Constructor
-   * @param id Sensor ID
+   * @param locationId Location ID for this sensor (from TemperatureSensorLocation enum)
    * @param pin Analog pin connected to the voltage divider
    * @param updateInterval Update interval in ms
    * @param seriesResistor Value of the series resistor (ohms)
@@ -24,14 +23,14 @@ public:
    * @param bCoefficient B coefficient from thermistor datasheet
    */
   TemperatureSensor(
-    uint8_t id, 
+    uint8_t locationId, 
     uint8_t pin, 
     uint16_t updateInterval = 1000,
     uint32_t seriesResistor = 10000,
     uint32_t thermistorNominal = 10000,
     float temperatureNominal = 25.0,
     float bCoefficient = 3950.0
-  ) : Sensor(id, updateInterval),
+  ) : Sensor(locationId, updateInterval),
       _pin(pin),
       _seriesResistor(seriesResistor),
       _thermistorNominal(thermistorNominal),
@@ -74,10 +73,10 @@ public:
   }
   
   /**
-   * Get sensor type (TEMPERATURE)
+   * Get sensor command ID (TEMPERATURE)
    */
-  uint8_t getSensorType() const override {
-    return SensorProtocol::SensorComponentId::TEMPERATURE;
+  uint8_t getSensorCommandId() const override {
+    return 0; // TEMPERATURE = 0 from sensors.proto
   }
   
   /**
