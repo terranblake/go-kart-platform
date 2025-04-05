@@ -25,6 +25,29 @@
 #include <Arduino.h>
 
 // PIN DEFINITIONS - must match your actual wiring
+#if defined(ESP8266)
+// ESP8266 NodeMCU pin mapping
+#define THROTTLE_PIN D1        // PWM output to GREEN wire of throttle connector (GPIO5)
+#define DIRECTION_PIN D2       // Signal to BLUE wire of reverse connector: HIGH = forward, LOW = reverse (GPIO4)
+
+// Speed mode pins - connect to separate wires on 3-speed connector
+#define SPEED_MODE_1_PIN D5    // Connect to WHITE wire (Speed 1) (GPIO14)
+#define SPEED_MODE_2_PIN D6    // Connect to BLUE wire (Speed 2) (GPIO12)
+
+// Brake controls
+#define LOW_BRAKE_PIN D0       // Controls transistor for Low Brake (YELLOW wire) (GPIO16)
+                              // HIGH = brake engaged, LOW = normal operation
+#define HIGH_BRAKE_PIN D7      // High level brake signal (to ORANGE wire) (GPIO13)
+                              // LOW = normal operation, HIGH = brake engaged
+
+// Hall sensor pins - moved away from boot pins
+// Avoid using D3 (GPIO0) and D4 (GPIO2) as they're used during flashing
+#define HALL_A_PIN D8          // Hall sensor A (GPIO15)
+#define HALL_B_PIN D9          // Hall sensor B (GPIO3/RX)
+#define HALL_C_PIN D10         // Hall sensor C (GPIO1/TX)
+
+#else
+// Arduino Nano pin mapping (original)
 #define THROTTLE_PIN 5        // PWM output to GREEN wire of throttle connector
 #define DIRECTION_PIN 6       // Signal to BLUE wire of reverse connector: HIGH = forward, LOW = reverse
 
@@ -44,6 +67,7 @@
 #define HALL_A_PIN 2          // Hall sensor A (interrupt pin)
 #define HALL_B_PIN 3          // Hall sensor B (interrupt pin)
 #define HALL_C_PIN 4          // Hall sensor C (reading only)
+#endif
 
 // Controller type - uncomment the one being used
 #define USING_TRANSISTOR      // Using transistor for low brake control
@@ -56,6 +80,23 @@
 #define FULL_THROTTLE 200     // Full throttle value (maximum possible)
 #define MIN_THROTTLE 75       // Minimum throttle value where motor actually responds
 #define RPM_UPDATE_INTERVAL 500 // How often to update RPM calculation (ms)
+
+// NTC Thermistor parameters for NTCLE100E3203JBD
+#define TEMP_SENSOR_BATTERY A0
+#define TEMP_SENSOR_CONTROLLER A1
+#define TEMP_SENSOR_MOTOR A2
+#define THERMISTOR_NOMINAL 10000   // Resistance at 25°C
+#define TEMPERATURE_NOMINAL 25     // Temperature for nominal resistance (°C)
+#define B_COEFFICIENT 3977         // Beta coefficient from datasheet
+#define SERIES_RESISTOR 10000      // Value of the series resistor
+
+// Temperature thresholds (°C)
+#define TEMP_BATTERY_WARNING 45
+#define TEMP_BATTERY_CRITICAL 55
+#define TEMP_CONTROLLER_WARNING 65
+#define TEMP_CONTROLLER_CRITICAL 80
+#define TEMP_MOTOR_WARNING 75
+#define TEMP_MOTOR_CRITICAL 90
 
 // Data logging parameters
 #define MAX_DATA_POINTS 0     // We'll stream data in real-time instead of storing
@@ -72,6 +113,15 @@ volatile unsigned long lastHallTime = 0;      // Timestamp of last hall sensor t
 unsigned long lastRpmUpdate = 0;              // Timestamp of last RPM calculation
 unsigned int currentRpm = 0;                  // Current RPM value
 byte hallState = 0;                           // Current hall sensor state (bit 0=A, 1=B, 2=C)
+
+// Global variables for temperature readings
+float batteryTemp = 0.0;
+float controllerTemp = 0.0;
+float motorTemp = 0.0;
+bool tempWarningActive = false;
+bool tempCriticalActive = false;
+unsigned long lastTempUpdate = 0;
+#define TEMP_UPDATE_INTERVAL 1000  // Update temperatures every 1 second
 
 // For calculating min/max/avg without storing all points
 struct TestStats {
@@ -117,8 +167,15 @@ void printStatus(const char* action, uint8_t value);
 void allStop();
 void setLowBrake(bool engaged);
 void setHighBrake(bool engaged);
+#if defined(ESP8266)
+ICACHE_RAM_ATTR void hallSensorA_ISR();
+ICACHE_RAM_ATTR void hallSensorB_ISR();
+ICACHE_RAM_ATTR void hallSensorC_ISR();
+#else
 void hallSensorA_ISR();
 void hallSensorB_ISR();
+void hallSensorC_ISR();
+#endif
 void updateHallReadings();
 unsigned int calculateRPM();
 void recordDataPoint();
@@ -132,6 +189,10 @@ void runTest5_BrakeTest();
 void clearTestData();
 void resetTestStats();
 void streamDataPoint();
+void resetDevice();
+float readTemperature(int pin);
+void updateTemperatures();
+void checkTemperatureSafety();
 
 void setup() {
   // Reset test statistics
@@ -187,12 +248,32 @@ void setup() {
   
   setupPins();
   
+  // Initialize temperature readings
+  updateTemperatures();
+  if (SERIAL_ENABLED) {
+    Serial.println(F("Temperature Sensor Readings:"));
+    Serial.print(F("Raw ADC values - Battery: "));
+    Serial.print(analogRead(TEMP_SENSOR_BATTERY));
+    Serial.print(F(", Controller: "));
+    Serial.print(analogRead(TEMP_SENSOR_CONTROLLER));
+    Serial.print(F(", Motor: "));
+    Serial.println(analogRead(TEMP_SENSOR_MOTOR));
+    
+    Serial.print(F("Temperature values - Battery: "));
+    Serial.print(batteryTemp, 1);
+    Serial.print(F("°C, Controller: "));
+    Serial.print(controllerTemp, 1);
+    Serial.print(F("°C, Motor: "));
+    Serial.print(motorTemp, 1);
+    Serial.println(F("°C"));
+  }
+  
   // Start with everything stopped/safe
   allStop();
   
   if (SERIAL_ENABLED) {
     Serial.println(F("Beginning test sequence in 3 seconds..."));
-    Serial.println(F("Throttle | RPM | Hall State"));
+    Serial.println(F("Throttle | RPM | Hall State | Temperature"));
     Serial.println();
   }
   delay(3000);
@@ -205,22 +286,31 @@ void setup() {
 }
 
 void loop() {
-  // Main test has completed, just update hall sensor readings periodically
-  updateHallReadings();
+  unsigned long currentMillis = millis();
   
-  // Reset if the serial monitored started after the test completed
+  // Process serial commands
   if (SERIAL_ENABLED && Serial.available()) {
     char c = Serial.read();
     if (c == 'r' || c == 'R') {
       Serial.println(F("Resetting and running test again..."));
       delay(1000);
       // Reset Arduino
-      asm volatile ("jmp 0");
+      resetDevice();
     } else if (c == 'j' || c == 'J') {
       // Output JSON format regardless of current setting
       Serial.println(F("Outputting results in JSON format..."));
       Serial.println(F("{\"message\": \"Results streamed in real-time\"}"));
     }
+  }
+  
+  // Update hall sensor readings and calculate RPM
+  updateHallReadings();
+  
+  // Update temperature readings periodically
+  if (currentMillis - lastTempUpdate > TEMP_UPDATE_INTERVAL) {
+    updateTemperatures();
+    checkTemperatureSafety();
+    lastTempUpdate = currentMillis;
   }
 }
 
@@ -238,15 +328,28 @@ void setupPins() {
   pinMode(HALL_B_PIN, INPUT_PULLUP);
   pinMode(HALL_C_PIN, INPUT_PULLUP);
   
-  // Attach interrupts for hall sensors
-  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, CHANGE);
+  // Attach interrupts for hall sensors - use RISING edge only to reduce noise
+  // and prevent overcounting (CHANGE detection counts each transition twice)
+  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
+  
+  // For ESP8266, we can use interrupts on all hall sensors
+  // For Arduino Nano, pin 4 doesn't support interrupts
+#if defined(ESP8266)
+  attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
+#endif
   
   // Initialize to safe state
   digitalWrite(DIRECTION_PIN, HIGH);     // Forward
   digitalWrite(SPEED_MODE_1_PIN, LOW);   // Speed mode OFF
   digitalWrite(SPEED_MODE_2_PIN, LOW);   // Speed mode OFF
-  setLowBrake(false);                    // Low brake disengaged (normal operation)
+  
+#ifdef USING_TRANSISTOR
+  digitalWrite(LOW_BRAKE_PIN, LOW);      // Transistor off = brake disengaged
+#else
+  digitalWrite(LOW_BRAKE_PIN, HIGH);     // Relay open = brake disengaged
+#endif
+  
   digitalWrite(HIGH_BRAKE_PIN, LOW);     // High brake disengaged
   analogWrite(THROTTLE_PIN, 0);          // Zero throttle
 }
@@ -344,22 +447,64 @@ void allStop() {
 }
 
 void printStatus(const char* action, uint8_t value) {
-  if (SERIAL_ENABLED) {
-    updateHallReadings();
+  if (!SERIAL_ENABLED) return;
+  
+  if (JSON_OUTPUT) {
+    // Output in JSON format for data logging
+    Serial.print(F("{\"action\":\""));
     Serial.print(action);
-    Serial.print(": ");
+    Serial.print(F("\",\"value\":"));
+    Serial.print(value);
+    Serial.print(F(",\"rpm\":"));
+    Serial.print(currentRpm);
+    Serial.print(F(",\"hall\":"));
+    Serial.print(hallState);
+    Serial.print(F(",\"temps\":{\"bat\":"));
+    Serial.print(batteryTemp);
+    Serial.print(F(",\"ctrl\":"));
+    Serial.print(controllerTemp);
+    Serial.print(F(",\"mot\":"));
+    Serial.print(motorTemp);
+    Serial.println(F("}}"));
+  } else {
+    // Human-readable format
+    Serial.print(action);
+    Serial.print(F(": "));
     Serial.print(value);
     Serial.print(F(" | RPM: "));
     Serial.print(currentRpm);
     Serial.print(F(" | Hall: "));
-    Serial.println(hallState, BIN);
+    Serial.print(hallState);
+    Serial.print(F(" | Temp(°C): Bat="));
+    Serial.print(batteryTemp, 1);
+    Serial.print(F(" Ctrl="));
+    Serial.print(controllerTemp, 1);
+    Serial.print(F(" Mot="));
+    Serial.print(motorTemp, 1);
+    Serial.println();
   }
   
   // Store the command for the next data point
   currentCommand = action;
 }
 
-// Hall sensor interrupt handlers
+// Implement the ISR functions with ICACHE_RAM_ATTR for ESP8266 compatibility
+#if defined(ESP8266)
+ICACHE_RAM_ATTR void hallSensorA_ISR() {
+  hallPulseCount++;
+  lastHallTime = micros();
+}
+
+ICACHE_RAM_ATTR void hallSensorB_ISR() {
+  hallPulseCount++;
+  lastHallTime = micros();
+}
+
+ICACHE_RAM_ATTR void hallSensorC_ISR() {
+  hallPulseCount++;
+  lastHallTime = micros();
+}
+#else
 void hallSensorA_ISR() {
   hallPulseCount++;
   lastHallTime = micros();
@@ -369,6 +514,12 @@ void hallSensorB_ISR() {
   hallPulseCount++;
   lastHallTime = micros();
 }
+
+void hallSensorC_ISR() {
+  hallPulseCount++;
+  lastHallTime = micros();
+}
+#endif
 
 // Update all hall sensor readings and calculate RPM
 void updateHallReadings() {
@@ -396,13 +547,22 @@ unsigned int calculateRPM() {
   if (timeElapsed < 100) return currentRpm; // Don't update too frequently
   
   // Calculate pulses per minute
-  unsigned long countDiff = hallPulseCount - prevCount;
+  unsigned long countDiff = 0;
+  
+  // Handle possible overflow of hallPulseCount
+  if (hallPulseCount >= prevCount) {
+    countDiff = hallPulseCount - prevCount;
+  } else {
+    // Counter has overflowed, handle gracefully
+    countDiff = (0xFFFFFFFF - prevCount) + hallPulseCount + 1;
+  }
+  
   unsigned int rpm = 0;
   
+  // Calculate RPM with additional validation
   if (timeElapsed > 0 && countDiff > 0) {
-    // Convert pulse count to RPM
-    // For a typical BLDC with 3 hall sensors, one revolution creates 6 state changes
-    // Multiply by 60000 to convert to minutes, divide by timeElapsed to get per-minute rate
+    // For a BLDC with 3 hall sensors, one revolution typically creates 6 pulses (using RISING edge only)
+    // The divisor is 6 because we're counting each phase change once (RISING only, not CHANGE)
     rpm = (countDiff * 60000) / (timeElapsed * 6);
   } else if (timeElapsed > 1000 && countDiff == 0) {
     // If no pulses for over 1 second, RPM is zero
@@ -1062,5 +1222,87 @@ void printTestSummary() {
     Serial.print(F(" | Avg RPM: "));
     Serial.println(avgRpm);
     Serial.println(F("-------------------------------------------------------"));
+  }
+}
+
+// Update the reset functionality to work on both platforms
+void resetDevice() {
+#if defined(ESP8266)
+  ESP.restart();  // Proper way to reset ESP8266
+#elif defined(ESP32)
+  ESP.restart();  // Proper way to reset ESP32
+#else
+  asm volatile ("jmp 0");  // Reset for AVR Arduino
+#endif
+}
+
+// Read temperature from a thermistor on the specified pin
+float readTemperature(int pin) {
+  int rawADC = analogRead(pin);
+  
+  // Safety check for invalid readings
+  if (rawADC <= 1 || rawADC >= 1022) {
+    return -99.9; // Return an obvious error value
+  }
+  
+  // Convert reading to resistance
+  float reading = 1023.0 / rawADC - 1.0;
+  reading = SERIES_RESISTOR / reading;
+  
+  // Safety check for reasonable resistance values
+  if (reading <= 0 || reading > 1000000) {
+    return -99.9; // Return an obvious error value
+  }
+  
+  // Apply Steinhart-Hart equation to convert resistance to temperature
+  float steinhart = reading / THERMISTOR_NOMINAL;          // (R/Ro)
+  steinhart = log(steinhart);                              // ln(R/Ro)
+  steinhart /= B_COEFFICIENT;                              // 1/B * ln(R/Ro)
+  steinhart += 1.0 / (TEMPERATURE_NOMINAL + 273.15);       // + (1/To)
+  steinhart = 1.0 / steinhart;                             // Invert
+  steinhart -= 273.15;                                     // Convert to °C
+  
+  // Reasonable temperature range check
+  if (steinhart < -40 || steinhart > 125) {
+    return -99.9; // Return an obvious error value for out-of-range temperatures
+  }
+  
+  return steinhart;
+}
+
+// Update all temperature readings
+void updateTemperatures() {
+  batteryTemp = readTemperature(TEMP_SENSOR_BATTERY);
+  controllerTemp = readTemperature(TEMP_SENSOR_CONTROLLER);
+  motorTemp = readTemperature(TEMP_SENSOR_MOTOR);
+}
+
+// Check temperature thresholds and take safety actions if needed
+void checkTemperatureSafety() {
+  bool prevCritical = tempCriticalActive;
+  
+  // Check for critical temperatures
+  tempCriticalActive = (batteryTemp > TEMP_BATTERY_CRITICAL ||
+                        controllerTemp > TEMP_CONTROLLER_CRITICAL ||
+                        motorTemp > TEMP_MOTOR_CRITICAL);
+                        
+  // Check for warning temperatures
+  tempWarningActive = (batteryTemp > TEMP_BATTERY_WARNING ||
+                       controllerTemp > TEMP_CONTROLLER_WARNING ||
+                       motorTemp > TEMP_MOTOR_WARNING);
+  
+  // Take action if critical temperature detected
+  if (tempCriticalActive && !prevCritical) {
+    if (SERIAL_ENABLED) {
+      Serial.println(F("CRITICAL TEMPERATURE DETECTED! Engaging emergency stop!"));
+    }
+    allStop();  // Stop motor immediately
+  }
+  // Reduce throttle for warning temperature
+  else if (tempWarningActive && currentThrottle > 100) {
+    if (SERIAL_ENABLED) {
+      Serial.println(F("WARNING: High temperature detected! Reducing throttle."));
+    }
+    setThrottle(100);  // Limit to lower throttle
   }
 } 

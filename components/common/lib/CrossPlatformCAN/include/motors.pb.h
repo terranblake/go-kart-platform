@@ -71,11 +71,12 @@ typedef enum _kart_motors_MotorStatusValue {
     kart_motors_MotorStatusValue_STATUS_OK = 0, /* No issues */
     kart_motors_MotorStatusValue_ERROR_OVERCURRENT = 1, /* Overcurrent error */
     kart_motors_MotorStatusValue_ERROR_OVERVOLTAGE = 2, /* Overvoltage error */
-    kart_motors_MotorStatusValue_ERROR_UNDERVOLTAGE = 4, /* Undervoltage error */
-    kart_motors_MotorStatusValue_ERROR_OVERTEMP = 8, /* Overtemperature error */
-    kart_motors_MotorStatusValue_ERROR_HALL_SENSOR = 16, /* Hall sensor error */
-    kart_motors_MotorStatusValue_ERROR_COMMUNICATION = 32, /* Communication error */
-    kart_motors_MotorStatusValue_ERROR_GENERAL = 64 /* General error */
+    kart_motors_MotorStatusValue_ERROR_UNDERVOLTAGE = 3, /* Undervoltage error */
+    kart_motors_MotorStatusValue_ERROR_OVERTEMP = 4, /* Overtemperature error */
+    kart_motors_MotorStatusValue_ERROR_HALL_SENSOR = 5, /* Hall sensor error */
+    kart_motors_MotorStatusValue_ERROR_COMMUNICATION = 6, /* Communication error */
+    kart_motors_MotorStatusValue_ERROR_GENERAL = 7, /* General error */
+    kart_motors_MotorStatusValue_STATUS_UNKNOWN = 8 /* Unknown status */
 } kart_motors_MotorStatusValue;
 
 #ifdef __cplusplus
@@ -108,8 +109,8 @@ extern "C" {
 #define _kart_motors_MotorCalibrateValue_ARRAYSIZE ((kart_motors_MotorCalibrateValue)(kart_motors_MotorCalibrateValue_CAL_RESET+1))
 
 #define _kart_motors_MotorStatusValue_MIN kart_motors_MotorStatusValue_STATUS_OK
-#define _kart_motors_MotorStatusValue_MAX kart_motors_MotorStatusValue_ERROR_GENERAL
-#define _kart_motors_MotorStatusValue_ARRAYSIZE ((kart_motors_MotorStatusValue)(kart_motors_MotorStatusValue_ERROR_GENERAL+1))
+#define _kart_motors_MotorStatusValue_MAX kart_motors_MotorStatusValue_STATUS_UNKNOWN
+#define _kart_motors_MotorStatusValue_ARRAYSIZE ((kart_motors_MotorStatusValue)(kart_motors_MotorStatusValue_STATUS_UNKNOWN+1))
 
 
 #ifdef __cplusplus

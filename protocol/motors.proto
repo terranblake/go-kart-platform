@@ -23,7 +23,6 @@ enum MotorCommandId {
   TORQUE = 6;               // Torque control
   CALIBRATE = 7;            // Calibration
   TEMPERATURE = 8;          // Temperature reading/limit
-  STATUS = 9;               // Status request
 }
 
 // Motor direction values
@@ -63,9 +62,10 @@ enum MotorStatusValue {
   STATUS_OK = 0;            // No issues
   ERROR_OVERCURRENT = 1;    // Overcurrent error
   ERROR_OVERVOLTAGE = 2;    // Overvoltage error
-  ERROR_UNDERVOLTAGE = 4;   // Undervoltage error
-  ERROR_OVERTEMP = 8;       // Overtemperature error
-  ERROR_HALL_SENSOR = 16;   // Hall sensor error
-  ERROR_COMMUNICATION = 32; // Communication error
-  ERROR_GENERAL = 64;       // General error
+  ERROR_UNDERVOLTAGE = 3;   // Undervoltage error
+  ERROR_OVERTEMP = 4;       // Overtemperature error
+  ERROR_HALL_SENSOR = 5;   // Hall sensor error
+  ERROR_COMMUNICATION = 6; // Communication error
+  ERROR_GENERAL = 7;       // General error
+  STATUS_UNKNOWN = 8;      // Unknown status
 } 
