@@ -225,6 +225,9 @@ void setThrottle(uint8_t level) {
     currentThrottle = 0;
     return;
   }
+
+  // level will be some value between 0 and 100; scale level between min and max
+  level = map(level, 0, 100, MIN_THROTTLE, MAX_THROTTLE);
   
   currentThrottle = level;
   analogWrite(THROTTLE_PIN, level);
