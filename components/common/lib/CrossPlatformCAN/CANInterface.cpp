@@ -82,12 +82,27 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   frame.can_dlc = msg.length;
   memcpy(frame.data, msg.data, msg.length);
   
+#if DEBUG_MODE
+  // Add detailed byte-by-byte debug for the first byte (header)
+  printf("DEBUG CANInterface: First byte (header) details:\n");
+  printf("  - Value in hex: 0x%02X\n", frame.data[0]);
+  printf("  - Value in binary: ");
+  for (int bit = 7; bit >= 0; bit--) {
+    printf("%d", (frame.data[0] >> bit) & 0x01);
+    if (bit == 6 || bit == 3) printf(" "); // Add space after bit positions for readability
+  }
+  printf("\n");
+  printf("  - Message type bits (7-6): %d\n", (frame.data[0] >> 6) & 0x03);
+  printf("  - Component type bits (5-3): %d\n", (frame.data[0] >> 3) & 0x07);
+  printf("  - Reserved bits (2-0): %d\n", frame.data[0] & 0x07);
+  
   printf("Debug: Sending CAN frame - ID: 0x%X, DLC: %d, Data:", 
          frame.can_id, frame.can_dlc);
   for (int i = 0; i < frame.can_dlc; i++) {
     printf(" %02X", frame.data[i]);
   }
   printf("\n");
+#endif
   
   // Check socket validity
   if (m_socket < 0) {

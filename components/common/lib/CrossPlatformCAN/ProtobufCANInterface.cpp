@@ -56,6 +56,13 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     // Pack first byte (message type and component type)
     uint8_t header = packHeader(message_type, component_type);
     
+#if DEBUG_MODE
+    printf("DEBUG: After packHeader - Raw header value: 0x%02X\n", header);
+    printf("DEBUG: Expected header: 0x%02X (msg_type=%d << 6 | (comp_type=%d & 0x07) << 3)\n", 
+           (static_cast<uint8_t>(message_type) << 6) | ((static_cast<uint8_t>(component_type) & 0x07) << 3),
+           static_cast<uint8_t>(message_type), static_cast<uint8_t>(component_type));
+#endif
+    
     // Pack the value based on its type
     uint32_t packed_value = packValue(value_type, value);
     
@@ -145,7 +152,21 @@ void ProtobufCANInterface::process()
 
 uint8_t ProtobufCANInterface::packHeader(kart_common_MessageType type, kart_common_ComponentType component)
 {
-    return (static_cast<uint8_t>(type) << 6) | ((static_cast<uint8_t>(component) & 0x07) << 3);
+#if DEBUG_MODE
+    printf("DEBUG: packHeader called with type=%d, component=%d\n", 
+           static_cast<uint8_t>(type), static_cast<uint8_t>(component));
+#endif
+
+    uint8_t type_bits = static_cast<uint8_t>(type) << 6;
+    uint8_t comp_bits = (static_cast<uint8_t>(component) & 0x07) << 3;
+    uint8_t result = type_bits | comp_bits;
+    
+#if DEBUG_MODE
+    printf("DEBUG: packHeader bit operations - type_bits=0x%02X, comp_bits=0x%02X, result=0x%02X\n",
+           type_bits, comp_bits, result);
+#endif
+           
+    return result;
 }
 
 void ProtobufCANInterface::unpackHeader(uint8_t header, kart_common_MessageType &type, kart_common_ComponentType &component)

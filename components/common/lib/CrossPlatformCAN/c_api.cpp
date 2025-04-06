@@ -121,15 +121,15 @@ EXPORT bool can_interface_send_message(
     int value_type,
     int32_t value
 ) {
-    printf("C API: can_interface_send_message called - handle=%p, msg_type=%d, comp_type=%d, component_id=%u, command_id=%u, value_type=%d, value=%d\n", 
-           handle, msg_type, comp_type, component_id, command_id, value_type, value);
     if (!handle) {
-        printf("C API ERROR: Null handle in can_interface_send_message\n");
+        printf("Error: Invalid CAN interface handle\n");
         return false;
     }
     
-    ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
-    bool result = interface->sendMessage(
+
+    // Call the C++ method
+    ProtobufCANInterface* interface = reinterpret_cast<ProtobufCANInterface*>(handle);
+    return interface->sendMessage(
         static_cast<kart_common_MessageType>(msg_type),
         static_cast<kart_common_ComponentType>(comp_type),
         component_id,
@@ -137,8 +137,6 @@ EXPORT bool can_interface_send_message(
         static_cast<kart_common_ValueType>(value_type),
         value
     );
-    printf("C API: can_interface_send_message %s\n", result ? "succeeded" : "failed");
-    return result;
 }
 
 EXPORT void can_interface_process(can_interface_t handle) {
