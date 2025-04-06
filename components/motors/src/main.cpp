@@ -4,6 +4,12 @@
 #include "common.pb.h"
 #include "motors.pb.h"
 
+// Add sensor framework includes for integration
+#include "Sensor.h"
+#include "SensorRegistry.h"
+#include "TemperatureSensor.h"
+#include "RpmSensor.h"
+
 // Global state variables
 ProtobufCANInterface canInterface(NODE_ID);
 
@@ -11,7 +17,7 @@ ProtobufCANInterface canInterface(NODE_ID);
 uint8_t currentThrottle = 0;
 uint8_t currentDirection = kart_motors_MotorDirectionValue_NEUTRAL;
 uint8_t currentSpeedMode = kart_motors_MotorModeValue_OFF;
-uint8_t currentBrakeMode = kart_motors_MotorBrakeModeValue_OFF;
+uint8_t currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_OFF;
 uint8_t currentStatus = kart_motors_MotorStatusValue_STATUS_UNKNOWN;
 
 // Hall sensor variables
@@ -24,6 +30,10 @@ byte hallState = 0;
 // Status reporting
 unsigned long lastStatusUpdate = 0;
 
+// Sensor framework integration - add sensor objects
+SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, NODE_ID);
+RpmSensor* motorRpmSensor;
+
 void setup() {
 #if DEBUG_ENABLED
   Serial.begin(115200);
@@ -34,17 +44,11 @@ void setup() {
   setupPins();
   
   // Initialize CAN interface
-  if (!canInterface.begin(CAN_SPEED)) {
+  if (!canInterface.begin(500E3)) {
 #if DEBUG_ENABLED
     Serial.println(F("Failed to initialize CAN interface"));
 #endif
-    while (1) {
-      // Blink LED to indicate error
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(100);
-    }
+
   }
   
 #if DEBUG_ENABLED
@@ -89,6 +93,15 @@ void setup() {
                                kart_motors_MotorCommandId_EMERGENCY, 
                                handleEmergencyCommand);
 
+  // Initialize RPM sensor with the sensor framework
+  motorRpmSensor = new RpmSensor(
+    kart_motors_MotorComponentId_MAIN_DRIVE, // Use motor component ID
+    100                                     // Update interval 100ms
+  );
+  
+  // Register the RPM sensor with the registry
+  sensorRegistry.registerSensor(motorRpmSensor);
+  
 #if DEBUG_ENABLED
   Serial.println(F("Motor controller initialized"));
 #endif
@@ -101,11 +114,9 @@ void loop() {
   // Update hall sensor readings periodically
   updateHallReadings();
   
-  // Send status updates periodically
-  if (millis() - lastStatusUpdate > STATUS_INTERVAL) {
-    sendStatusUpdate();
-    lastStatusUpdate = millis();
-  }
+  // Process all sensors using the SensorRegistry
+  sensorRegistry.process();
+  
 }
 
 void setupPins() {
@@ -142,7 +153,7 @@ void setupPins() {
 
 void setThrottle(uint8_t level) {
   // If low brake is engaged, don't allow motor to run
-  if (currentLowBrake) {
+  if (currentBrakeMode != kart_motors_MotorBrakeValue_BRAKE_OFF) {
     analogWrite(THROTTLE_PIN, 0);
     currentThrottle = 0;
     return;
@@ -211,7 +222,7 @@ void setSpeedMode(uint8_t mode) {
 }
 
 void setLowBrake(bool engaged) {
-  currentLowBrake = engaged;
+  currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_LOW;
   
 #ifdef USING_TRANSISTOR
   // When using a transistor to control the yellow wire:
@@ -231,18 +242,18 @@ void setLowBrake(bool engaged) {
   }
   
 #if DEBUG_ENABLED
-  // Serial.print(F("Low brake: "));
-  // Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  Serial.print(F("Low brake: "));
+  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
 #endif
 }
 
 void setHighBrake(bool engaged) {
-  currentHighBrake = engaged;
+  currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_HIGH;
   digitalWrite(HIGH_BRAKE_PIN, engaged ? HIGH : LOW);
   
 #if DEBUG_ENABLED
-  // Serial.print(F("High brake: "));
-  // Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  Serial.print(F("High brake: "));
+  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
 #endif
 }
 
@@ -268,6 +279,11 @@ void hallSensorA_ISR() {
     hallPulseCount++;
     lastHallTime = currentTime;
     lastHallPulseTime[0] = currentTime;
+    
+    // Notify the RPM sensor of the pulse
+    if (motorRpmSensor) {
+      motorRpmSensor->incrementPulse();
+    }
   }
 }
 
@@ -278,6 +294,11 @@ void hallSensorB_ISR() {
     hallPulseCount++;
     lastHallTime = currentTime;
     lastHallPulseTime[1] = currentTime;
+    
+    // Notify the RPM sensor of the pulse
+    if (motorRpmSensor) {
+      motorRpmSensor->incrementPulse();
+    }
   }
 }
 
@@ -288,6 +309,11 @@ void hallSensorC_ISR() {
     hallPulseCount++;
     lastHallTime = currentTime;
     lastHallPulseTime[2] = currentTime;
+    
+    // Notify the RPM sensor of the pulse
+    if (motorRpmSensor) {
+      motorRpmSensor->incrementPulse();
+    }
   }
 }
 
@@ -306,8 +332,14 @@ void updateHallReadings() {
   }
 }
 
-// Improved RPM calculation without maximum capping
+// Update the calculateRPM function to use the RPM sensor
 unsigned int calculateRPM() {
+  // Simply get the RPM from the sensor if available
+  if (motorRpmSensor) {
+    return motorRpmSensor->getRPM();
+  }
+  
+  // Fall back to original implementation if sensor is not available
   static unsigned long prevCount = 0;
   static unsigned long prevTime = 0;
   unsigned long currentTime = millis();
@@ -344,59 +376,6 @@ unsigned int calculateRPM() {
   prevTime = currentTime;
   
   return rpm;
-}
-
-void sendStatusUpdate() {
-  // Update hall sensor readings to get latest RPM
-  updateHallReadings();
-  
-  // Send motor status
-  canInterface.sendMessage(
-    kart_common_MessageType_STATUS,
-    kart_common_ComponentType_MOTORS,
-    kart_motors_MotorComponentId_MAIN_DRIVE,
-    kart_motors_MotorCommandId_STATUS,
-    kart_common_ValueType_UINT8,
-    currentStatus
-  );
-  
-  // Send motor speed (RPM)
-  canInterface.sendMessage(
-    kart_common_MessageType_STATUS,
-    kart_common_ComponentType_MOTORS,
-    kart_motors_MotorComponentId_MAIN_DRIVE,
-    kart_motors_MotorCommandId_SPEED,
-    kart_common_ValueType_UINT16,
-    currentRpm
-  );
-  
-  // Send direction
-  canInterface.sendMessage(
-    kart_common_MessageType_STATUS,
-    kart_common_ComponentType_MOTORS,
-    kart_motors_MotorComponentId_MAIN_DRIVE,
-    kart_motors_MotorCommandId_DIRECTION,
-    kart_common_ValueType_UINT8,
-    currentDirection
-  );
-  
-#if DEBUG_ENABLED
-  Serial.print(F("Status update: RPM="));
-  Serial.print(currentRpm);
-  Serial.print(F(", Throttle="));
-  Serial.print(currentThrottle);
-  Serial.print(F(", Direction="));
-  Serial.print(currentDirection ? F("FWD") : F("REV"));
-  Serial.print(F(", Mode="));
-  Serial.print(currentSpeedMode == 0 ? F("OFF") : currentSpeedMode == 1 ? F("LOW") : F("HIGH"));
-  Serial.print(F(", Brake="));
-  
-  if (currentLowBrake) Serial.print(F("Low "));
-  if (currentHighBrake) Serial.print(F("High"));
-  if (!currentLowBrake && !currentHighBrake) Serial.print(F("None"));
-  
-  Serial.println();
-#endif
 }
 
 void emergencyStop() {
@@ -609,25 +588,5 @@ void handleEmergencyCommand(kart_common_MessageType msg_type,
     command_id,
     kart_common_ValueType_UINT8,
     value
-  );
-}
-
-void handleStatusCommand(kart_common_MessageType msg_type,
-                        kart_common_ComponentType comp_type,
-                        uint8_t component_id,
-                        uint8_t command_id,
-                        kart_common_ValueType value_type,
-                        int32_t value) {
-  // Send full status update immediately
-  sendStatusUpdate();
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    1
   );
 }

@@ -43,6 +43,11 @@
 #include "/Users/terranblake/Documents/go-kart-platform/protocol/generated/nanopb/sensors.pb.h"
 #include "/Users/terranblake/Documents/go-kart-platform/protocol/generated/nanopb/motors.pb.h"
 
+// Define DEBUG_MODE for serial command testing
+#ifndef DEBUG_MODE
+#define DEBUG_MODE 1  // Set to 1 to enable debug features
+#endif
+
 // Add platform-specific defines at the top after the includes
 #if defined(ESP8266) || defined(ESP32)
 #define ICACHE_RAM_ATTR ICACHE_RAM_ATTR
@@ -106,7 +111,7 @@
 #define STEP_DELAY 3000       // Delay between test steps (ms)
 #define THROTTLE_INCREMENT 25 // Throttle increment for speed tests (0-255)
 #define MAX_THROTTLE 150      // Maximum throttle level for safety during testing
-#define FULL_THROTTLE 200     // Full throttle value (maximum possible)
+#define FULL_THROTTLE 250     // Full throttle value (maximum possible)
 #define MIN_THROTTLE 75       // Minimum throttle value where motor actually responds
 #define RPM_UPDATE_INTERVAL 500 // How often to update RPM calculation (ms)
 
@@ -130,6 +135,10 @@ volatile unsigned long lastHallTime = 0;      // Timestamp of last hall sensor t
 unsigned long lastRpmUpdate = 0;              // Timestamp of last RPM calculation
 unsigned int currentRpm = 0;                  // Current RPM value
 byte hallState = 0;                           // Current hall sensor state (bit 0=A, 1=B, 2=C)
+// Track previous hall sensor states for edge detection
+byte prevHallA = 0;
+byte prevHallB = 0;
+byte prevHallC = 0;
 
 // Global variables for temperature readings
 float batteryTemp = 0.0;
@@ -146,6 +155,7 @@ uint8_t currentSpeedMode = 0;  // 0 = OFF, 1 = LOW, 2 = HIGH
 bool currentLowBrake = false;  // true = engaged, false = disengaged
 bool currentHighBrake = false; // true = engaged, false = disengaged
 unsigned long testStartTime = 0; // Time when test sequence started
+unsigned long lastSensorPrintTime = 0; // Time of last sensor value print
 
 // Global sensor objects
 ProtobufCANInterface canInterface(NODE_ID);
@@ -173,6 +183,9 @@ unsigned int calculateRPM();
 void updateTemperatures();
 void checkTemperatureSafety();
 void testCombinedFunctions();
+#if DEBUG_MODE == 1
+void parseSerialCommands();  // Prototype for the serial command parser
+#endif
 // void printFreeMemory();
 
 // CAN message handlers
@@ -246,8 +259,6 @@ void setup() {
     Serial.println(F("Initializing CAN interface..."));
   }
   
-  // Start CAN communication with MCP2515 at 500kbps only if DEBUG_MODE is disabled
-#if !defined(DEBUG_MODE) || DEBUG_MODE == 0
   // Using SPI for MCP2515 CAN controller
   if (!canInterface.begin(500000)) {
     if (SERIAL_ENABLED) {
@@ -298,11 +309,6 @@ void setup() {
     kart_motors_MotorCommandId_EMERGENCY,
     handleMotorCommand
   );
-#else
-  if (SERIAL_ENABLED) {
-    Serial.println(F("DEBUG_MODE enabled, skipping CAN initialization"));
-  }
-#endif
   
   // Initialize temperature sensors with location IDs from TemperatureSensorLocation enum
   batteryTempSensor = new TemperatureSensor(
@@ -355,13 +361,16 @@ void setup() {
   }
   delay(1000);
   
+  // Initialize lastSensorPrintTime to ensure first print happens after 2 seconds
+  lastSensorPrintTime = millis() - 2000; // This makes the first print happen immediately
+  
   // Record test start time
   testStartTime = millis();
   
   // Broadcast initial status
   
   // Run the test sequence
-  runTestSequence();
+  // runTestSequence();
 }
 
 void loop() {
@@ -372,10 +381,13 @@ void loop() {
   // printFreeMemory();
   sensorRegistry.process();
   
-  // Process any incoming CAN messages
-#if !defined(DEBUG_MODE) || DEBUG_MODE == 0
-  canInterface.process();
+  // Parse serial commands in DEBUG_MODE
+#if DEBUG_MODE == 1
+  parseSerialCommands();
 #endif
+  
+  // Process any incoming CAN messages
+  canInterface.process();
 }
 
 void setupPins() {
@@ -661,4 +673,90 @@ void updateTemperatures() {
 //   int v;
 //   Serial.print(F("Free RAM: "));
 //   Serial.println((int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval));
-// } 
+// }
+
+// Add this function to parse and handle serial commands
+#if DEBUG_MODE == 1
+void parseSerialCommands() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    // Command format: "T:value" for throttle where value is 0-100
+    if (command.startsWith("T:")) {
+      int throttlePercent = command.substring(2).toInt();
+      // Constrain to valid range
+      throttlePercent = constrain(throttlePercent, 0, 100);
+      
+      // Convert percent to throttle value (0-255 range)
+      uint8_t throttleValue = map(throttlePercent, 0, 100, 0, FULL_THROTTLE);
+      
+      // Apply the throttle
+      setThrottle(throttleValue);
+      
+      // Print confirmation
+      Serial.print(F("DEBUG: Throttle set to "));
+      Serial.print(throttlePercent);
+      Serial.print(F("% ("));
+      Serial.print(throttleValue);
+      Serial.println(F(")"));
+    }
+    // Command format: "D:F" for forward, "D:R" for reverse
+    else if (command.startsWith("D:")) {
+      char direction = command.charAt(2);
+      if (direction == 'F' || direction == 'f') {
+        setDirection(true);
+        Serial.println(F("DEBUG: Direction set to FORWARD"));
+      } 
+      else if (direction == 'R' || direction == 'r') {
+        setDirection(false);
+        Serial.println(F("DEBUG: Direction set to REVERSE"));
+      }
+    }
+    // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
+    else if (command.startsWith("S:")) {
+      int speedMode = command.substring(2).toInt();
+      if (speedMode >= 0 && speedMode <= 2) {
+        setSpeedMode(speedMode);
+        Serial.print(F("DEBUG: Speed mode set to "));
+        Serial.println(speedMode);
+      }
+    }
+    // Command format: "B:E" to engage brakes, "B:D" to disengage
+    else if (command.startsWith("B:")) {
+      char brakeCommand = command.charAt(2);
+      if (brakeCommand == 'E' || brakeCommand == 'e') {
+        setLowBrake(true);
+        Serial.println(F("DEBUG: Brake ENGAGED"));
+      }
+      else if (brakeCommand == 'D' || brakeCommand == 'd') {
+        setLowBrake(false);
+        Serial.println(F("DEBUG: Brake DISENGAGED"));
+      }
+    }
+    // Emergency stop
+    else if (command == "STOP") {
+      allStop();
+      Serial.println(F("DEBUG: EMERGENCY STOP executed"));
+    }
+    // Help command
+    else if (command == "HELP") {
+      Serial.println(F("\n--- DEBUG COMMANDS ---"));
+      Serial.println(F("T:value - Set throttle (0-100%)"));
+      Serial.println(F("D:F     - Set direction FORWARD"));
+      Serial.println(F("D:R     - Set direction REVERSE"));
+      Serial.println(F("S:0     - Speed mode OFF"));
+      Serial.println(F("S:1     - Speed mode LOW"));
+      Serial.println(F("S:2     - Speed mode HIGH"));
+      Serial.println(F("B:E     - Engage brake"));
+      Serial.println(F("B:D     - Disengage brake"));
+      Serial.println(F("STOP    - Emergency stop"));
+      Serial.println(F("HELP    - Show this help"));
+      Serial.println(F("---------------------\n"));
+    }
+    else {
+      Serial.println(F("DEBUG: Unknown command. Type 'HELP' for commands."));
+    }
+  }
+}
+#endif 

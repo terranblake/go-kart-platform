@@ -11,6 +11,8 @@
 #define NODE_ID 0x20  // Node ID for this motor controller
 #endif
 
+#define RPM_UPDATE_INTERVAL 500 // How often to update RPM calculation (ms)
+
 // Motor Controller Pins - Kunray MY1020 3kW BLDC Controller
 // Output pins (signals from Arduino to controller)
 #define THROTTLE_PIN 5        // PWM output for throttle control

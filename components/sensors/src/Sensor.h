@@ -11,7 +11,6 @@ union SensorValue {
   uint8_t uint8_value;
   int16_t int16_value;
   uint16_t uint16_value;
-  int32_t int24_value;   // 24-bit value stored in 32-bit
   uint32_t uint24_value; // 24-bit value stored in 32-bit
   float   float_value;
 };
@@ -73,8 +72,8 @@ public:
     
     unsigned long currentTime = millis();
     if (forceSend || (currentTime - _lastUpdateTime >= _updateInterval)) {
-      // Read sensor
-      SensorValue value = read();
+      // Read sensor directly into the base sensor value member
+      _baseSensorValue = read();
       
       // Send over CAN
       bool result = canInterface.sendMessage(
@@ -83,11 +82,15 @@ public:
         _locationId,                           // Component ID: sensor location
         getSensorCommandId(),                  // Command ID: sensor type
         (kart_common_ValueType)getValueType(), // Value type
-        getValue(value)                        // Value
+        getValue(_baseSensorValue)             // Value
       );
       
       _lastUpdateTime = currentTime;
-      return result;
+      
+    //   Serial.print(F("Sent sensor successfully: "));
+    //   Serial.println(result);
+
+      return true;
     }
     
     return false;
@@ -138,6 +141,7 @@ protected:
   uint16_t _updateInterval;          // Update interval in ms
   unsigned long _lastUpdateTime;     // Last update timestamp
   bool _enabled;                     // Enabled flag
+  SensorValue _baseSensorValue;      // Reusable sensor value for base class
   
   /**
    * Extract the proper value from SensorValue based on type
@@ -156,8 +160,6 @@ protected:
         return value.int16_value;
       case kart_common_ValueType_UINT16:
         return value.uint16_value;
-      case kart_common_ValueType_INT24:
-        return value.int24_value;
       case kart_common_ValueType_UINT24:
         return value.uint24_value;
       default:

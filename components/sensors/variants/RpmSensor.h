@@ -40,9 +40,8 @@ public:
     uint16_t rpm = calculateRPM();
     
     // Store in SensorValue
-    SensorValue value;
-    value.uint16_value = rpm;
-    return value;
+    _sensorValue.uint16_value = rpm;
+    return _sensorValue;
   }
   
   /**
@@ -80,6 +79,7 @@ private:
   volatile uint32_t _pulseCount = 0;
   volatile uint32_t _lastPulseTime = 0;
   uint16_t _lastRPM = 0;
+  SensorValue _sensorValue;    // Reusable sensor value object
   
   // Variables for RPM calculation
   uint32_t _lastCalcTime = 0;
@@ -130,7 +130,13 @@ private:
     // Calculate RPM based on pulse count and time difference
     // For a 3-phase BLDC motor with 3 hall sensors, one revolution creates 6 pulses
     // RPM = (pulses / 6) * (60000 / milliseconds)
-    _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL));
+    // For Kunray MY1020 with ~4 pole pairs, divide by 4 to get true mechanical RPM
+    _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL));
+    
+    // Simple sanity check - cap at reasonable maximum
+    // if (_lastRPM > 6000) {
+    //   _lastRPM = 0; // Likely an erroneous reading
+    // }
     
     // Store values for next calculation
     _lastCalcTime = currentTime;

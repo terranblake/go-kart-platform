@@ -40,6 +40,13 @@ typedef enum _kart_motors_MotorDirectionValue {
     kart_motors_MotorDirectionValue_NEUTRAL = 2 /* Neutral (no direction) */
 } kart_motors_MotorDirectionValue;
 
+/* Motor brake values */
+typedef enum _kart_motors_MotorBrakeValue {
+    kart_motors_MotorBrakeValue_BRAKE_OFF = 0, /* Brake off */
+    kart_motors_MotorBrakeValue_BRAKE_LOW = 1, /* Brake low */
+    kart_motors_MotorBrakeValue_BRAKE_HIGH = 2 /* Brake high */
+} kart_motors_MotorBrakeValue;
+
 /* Motor mode values */
 typedef enum _kart_motors_MotorModeValue {
     kart_motors_MotorModeValue_LOW = 0, /* Low speed/power mode */
@@ -47,7 +54,8 @@ typedef enum _kart_motors_MotorModeValue {
     kart_motors_MotorModeValue_HIGH = 2, /* High speed/power mode */
     kart_motors_MotorModeValue_ECO = 3, /* Economy mode */
     kart_motors_MotorModeValue_SPORT = 4, /* Sport mode */
-    kart_motors_MotorModeValue_CUSTOM = 5 /* Custom mode */
+    kart_motors_MotorModeValue_CUSTOM = 5, /* Custom mode */
+    kart_motors_MotorModeValue_OFF = 6 /* Off mode */
 } kart_motors_MotorModeValue;
 
 /* Motor emergency command values */
@@ -95,9 +103,13 @@ extern "C" {
 #define _kart_motors_MotorDirectionValue_MAX kart_motors_MotorDirectionValue_NEUTRAL
 #define _kart_motors_MotorDirectionValue_ARRAYSIZE ((kart_motors_MotorDirectionValue)(kart_motors_MotorDirectionValue_NEUTRAL+1))
 
+#define _kart_motors_MotorBrakeValue_MIN kart_motors_MotorBrakeValue_BRAKE_OFF
+#define _kart_motors_MotorBrakeValue_MAX kart_motors_MotorBrakeValue_BRAKE_HIGH
+#define _kart_motors_MotorBrakeValue_ARRAYSIZE ((kart_motors_MotorBrakeValue)(kart_motors_MotorBrakeValue_BRAKE_HIGH+1))
+
 #define _kart_motors_MotorModeValue_MIN kart_motors_MotorModeValue_LOW
-#define _kart_motors_MotorModeValue_MAX kart_motors_MotorModeValue_CUSTOM
-#define _kart_motors_MotorModeValue_ARRAYSIZE ((kart_motors_MotorModeValue)(kart_motors_MotorModeValue_CUSTOM+1))
+#define _kart_motors_MotorModeValue_MAX kart_motors_MotorModeValue_OFF
+#define _kart_motors_MotorModeValue_ARRAYSIZE ((kart_motors_MotorModeValue)(kart_motors_MotorModeValue_OFF+1))
 
 #define _kart_motors_MotorEmergencyValue_MIN kart_motors_MotorEmergencyValue_NORMAL
 #define _kart_motors_MotorEmergencyValue_MAX kart_motors_MotorEmergencyValue_SHUTDOWN

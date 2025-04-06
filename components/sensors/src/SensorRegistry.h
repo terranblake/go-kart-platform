@@ -40,10 +40,9 @@ public:
     if (_sensorCount >= MAX_SENSORS) {
       return false;
     }
-    Serial.println("Registering sensor");
+
     _sensors[_sensorCount++] = sensor;
     sensor->begin();
-    delay(50);
     
     return true;
   }
@@ -97,7 +96,6 @@ public:
           kart_common_ValueType_UINT8,
           status
         );
-        delay(50);
       }
     }
   }
@@ -108,6 +106,8 @@ private:
   ProtobufCANInterface& _canInterface;  // CAN interface reference
   kart_common_ComponentType _componentType;  // Component type
   uint8_t _componentId;  // Component ID
+
+public:
   Sensor* _sensors[MAX_SENSORS];  // Array of sensor pointers
   uint8_t _sensorCount;  // Number of registered sensors
 };

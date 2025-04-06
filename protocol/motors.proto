@@ -32,6 +32,13 @@ enum MotorDirectionValue {
   NEUTRAL = 2;              // Neutral (no direction)
 }
 
+// Motor brake values
+enum MotorBrakeValue {
+  BRAKE_OFF = 0;            // Brake off
+  BRAKE_LOW = 1;            // Brake low
+  BRAKE_HIGH = 2;           // Brake high
+}
+
 // Motor mode values
 enum MotorModeValue {
   LOW = 0;                  // Low speed/power mode
@@ -40,6 +47,7 @@ enum MotorModeValue {
   ECO = 3;                  // Economy mode
   SPORT = 4;                // Sport mode
   CUSTOM = 5;               // Custom mode
+  OFF = 6;                  // Off mode
 }
 
 // Motor emergency command values

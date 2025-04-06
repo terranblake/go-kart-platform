@@ -36,7 +36,8 @@ public:
       _thermistorNominal(thermistorNominal),
       _temperatureNominal(temperatureNominal),
       _bCoefficient(bCoefficient),
-      _lastTemp(0.0) {}
+      _lastTemp(0.0),
+      _sensorValue() {}
   
   /**
    * Initialize the temperature sensor
@@ -44,7 +45,6 @@ public:
   bool begin() override {
     // Set up analog pin
     pinMode(_pin, INPUT);
-    Serial.println("TemperatureSensor begin");
     // Take initial reading
     _lastTemp = readTemperature();
     
@@ -60,9 +60,8 @@ public:
     _lastTemp = readTemperature();
     
     // Store in SensorValue (as INT16 in tenths of a degree)
-    SensorValue value;
-    value.int16_value = (int16_t)(_lastTemp * 10.0);
-    return value;
+    _sensorValue.int16_value = (int16_t)(_lastTemp * 10.0);
+    return _sensorValue;
   }
   
   /**
@@ -94,6 +93,7 @@ private:
   float _temperatureNominal;   // Nominal temperature (°C)
   float _bCoefficient;         // Beta coefficient from datasheet
   float _lastTemp;             // Last temperature reading
+  SensorValue _sensorValue;    // Reusable sensor value object
   
   /**
    * Read the current temperature
