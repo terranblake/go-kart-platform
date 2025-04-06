@@ -242,11 +242,7 @@ class CANInterfaceWrapper:
 
                     # Register handler for STATUS messages from all component IDs
                     self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
-                    
-                    # Also register for COMMAND echo messages (Arduino might be sending these)
-                    self.register_handler('COMMAND', comp_type, 255, cmd_id, self._handle_message)
-                    
-                    registered_count += 2
+                    registered_count += 1
         
         self.logger.info(f"Registered {registered_count} message handlers")
     
