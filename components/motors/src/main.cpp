@@ -558,6 +558,12 @@ void parseSerialCommands() {
       Serial.print(F("% ("));
       Serial.print(throttleValue);
       Serial.println(F(")"));
+      
+      // Send acknowledgement
+      Serial.println(F("ACK: THROTTLE command processed"));
+      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_SPEED, 
+                               kart_common_ValueType_UINT8, currentThrottle);
     }
     // Command format: "D:F" for forward, "D:R" for reverse
     else if (command.startsWith("D:")) {
@@ -574,6 +580,12 @@ void parseSerialCommands() {
         setDirection(kart_motors_MotorDirectionValue_NEUTRAL);
         Serial.println(F("Direction set to NEUTRAL"));
       }
+      
+      // Send acknowledgement
+      Serial.println(F("ACK: DIRECTION command processed"));
+      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_DIRECTION, 
+                               kart_common_ValueType_UINT8, currentDirection);
     }
     // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
     else if (command.startsWith("S:")) {
@@ -582,6 +594,12 @@ void parseSerialCommands() {
         setSpeedMode(speedMode);
         Serial.print(F("Speed mode set to "));
         Serial.println(speedMode);
+        
+        // Send acknowledgement
+        Serial.println(F("ACK: SPEED_MODE command processed"));
+        canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                                 kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_MODE, 
+                                 kart_common_ValueType_UINT8, currentSpeedMode);
       }
     }
     // Command format: "B:L" for low brake, "B:H" for high brake, "B:N" for no brake
@@ -602,15 +620,35 @@ void parseSerialCommands() {
         setHighBrake(false);
         Serial.println(F("Brakes DISENGAGED"));
       }
+      
+      // Send acknowledgement
+      Serial.println(F("ACK: BRAKE command processed"));
+      // Form brake value: Bit 0 = Low brake, Bit 1 = High brake
+      uint8_t brakeValue = (currentLowBrake ? 0x01 : 0) | (currentHighBrake ? 0x02 : 0);
+      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_BRAKE, 
+                               kart_common_ValueType_UINT8, brakeValue);
     }
     // Emergency commands
     else if (command == "STOP") {
       emergencyStop();
       Serial.println(F("EMERGENCY STOP executed"));
+      
+      // Send acknowledgement
+      Serial.println(F("ACK: EMERGENCY_STOP command processed"));
+      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_EMERGENCY, 
+                               kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_STOP);
     }
     else if (command == "SHUTDOWN") {
       emergencyShutdown();
       Serial.println(F("EMERGENCY SHUTDOWN executed"));
+      
+      // Send acknowledgement
+      Serial.println(F("ACK: EMERGENCY_SHUTDOWN command processed"));
+      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
+                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_EMERGENCY, 
+                               kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_SHUTDOWN);
     }
     // Help command
     else if (command == "HELP") {
@@ -630,6 +668,9 @@ void parseSerialCommands() {
       Serial.println(F("STATUS  - Show system status"));
       Serial.println(F("HELP    - Show this help"));
       Serial.println(F("---------------------\n"));
+      
+      // Send acknowledgement for HELP command
+      Serial.println(F("ACK: HELP command processed"));
     }
     else if (command == "STATUS") {
       Serial.println(F("STATUS"));
@@ -664,9 +705,13 @@ void parseSerialCommands() {
       Serial.println(hallPulseCount);
       Serial.print(F("Current status: "));
       Serial.println(currentStatus);
+      
+      // Send acknowledgement for STATUS command
+      Serial.println(F("ACK: STATUS command processed"));
     }
     else {
       Serial.println(F("Unknown command. Type 'HELP' for commands."));
+      Serial.println(F("ACK: UNKNOWN command rejected"));
     }
   }
 }
