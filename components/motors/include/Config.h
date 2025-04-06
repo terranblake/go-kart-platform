@@ -1,11 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Debug mode - enable for serial output
-#ifndef DEBUG_ENABLED
-#define DEBUG_ENABLED 1
-#endif
-
 // CAN interface
 #ifndef NODE_ID
 #define NODE_ID 0x20  // Node ID for this motor controller
@@ -22,19 +17,19 @@
 
 // There are 3 speed modes, controlled by a single 3-speed connector (L M H)
 // We use 2 pins to control the 3 speeds through a simple circuit
-#define SPEED_MODE_PIN_1 8    // Speed mode selection pin 1
-#define SPEED_MODE_PIN_2 9    // Speed mode selection pin 2
+#define SPEED_MODE_PIN_1 A1    // Speed mode selection pin 1 - WHITE
+#define SPEED_MODE_PIN_2 A2    // Speed mode selection pin 2 - BLUE
 
 // Brake control pins (2 levels available on the controller)
-#define LOW_BRAKE_PIN 7       // Low level brake signal
-#define HIGH_BRAKE_PIN A0     // High level brake signal
+#define LOW_BRAKE_PIN A4       // Low level brake signal
+#define HIGH_BRAKE_PIN A3     // High level brake signal
 
 // Key/Safety features
-#define E_LOCK_PIN A1         // E-Lock electronic key signal (safety)
-#define HARD_BOOT_PIN A2      // Hard boot/reset functionality
+#define E_LOCK_PIN -1         // E-Lock electronic key signal (safety)
+#define HARD_BOOT_PIN -1      // Hard boot/reset functionality
 
 // Cruise control
-#define CRUISE_PIN A3         // Cruise control activation
+#define CRUISE_PIN -1         // Cruise control activation
 
 // Hall sensor inputs (feedback from motor)
 #define HALL_A_PIN 2          // Hall sensor A (interrupt pin)
@@ -42,9 +37,9 @@
 #define HALL_C_PIN 4          // Hall sensor C (reading only)
 
 // Temperature sensor pins
-#define TEMP_SENSOR_BATTERY A6   // Battery temperature sensor (A6 analog input)
-#define TEMP_SENSOR_CONTROLLER A7 // Controller temperature sensor (A7 analog input)
-#define TEMP_SENSOR_MOTOR 10     // Motor temperature sensor (digital pin with analog capabilities)
+#define TEMP_SENSOR_BATTERY A5   // Battery temperature sensor (A6 analog input)
+#define TEMP_SENSOR_CONTROLLER A6 // Controller temperature sensor (A7 analog input)
+#define TEMP_SENSOR_MOTOR A7     // Motor temperature sensor (digital pin with analog capabilities)
 
 // NTC Thermistor parameters for NTCLE100E3203JBD
 #define THERMISTOR_NOMINAL 10000   // Resistance at 25°C

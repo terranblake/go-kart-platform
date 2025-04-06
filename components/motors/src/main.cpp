@@ -10,10 +10,6 @@
 #include "TemperatureSensor.h"
 #include "RpmSensor.h"
 
-// Define DEBUG_MODE for serial command testing
-#ifndef DEBUG_MODE
-#define DEBUG_MODE DEBUG_ENABLED  // Use DEBUG_ENABLED from Config.h
-#endif
 
 // Add platform-specific defines
 #if defined(ESP8266) || defined(ESP32)
@@ -65,7 +61,7 @@ void parseSerialCommands();
 #endif
 
 void setup() {
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.begin(115200);
   Serial.println(F("Kunray MY1020 Motor Controller"));
 #endif
@@ -75,12 +71,12 @@ void setup() {
   
   // Initialize CAN interface
   if (!canInterface.begin(500E3)) {
-#if DEBUG_ENABLED
+#if DEBUG_MODE
     Serial.println(F("Failed to initialize CAN interface"));
 #endif
   }
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.println(F("CAN interface initialized"));
 #endif
 
@@ -165,12 +161,7 @@ void setup() {
   sensorRegistry.registerSensor(controllerTempSensor);
   sensorRegistry.registerSensor(motorTempSensor);
   
-  // Manually simulate some pulses to test RPM sensor
-  for (int i = 0; i < 60; i++) {
-    motorRpmSensor->incrementPulse();
-  }
-  
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.println(F("Motor controller initialized"));
 #endif
 }
@@ -236,7 +227,7 @@ void setThrottle(uint8_t level) {
   currentThrottle = level;
   analogWrite(THROTTLE_PIN, level);
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.print(F("Throttle set to: "));
   Serial.println(level);
 #endif
@@ -258,7 +249,7 @@ void setDirection(kart_motors_MotorDirectionValue direction) {
     digitalWrite(DIRECTION_PIN, direction == kart_motors_MotorDirectionValue_FORWARD ? HIGH : LOW);
   }
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.print(F("Direction set to: "));
   Serial.println(direction == kart_motors_MotorDirectionValue_FORWARD ? F("Forward") : F("Reverse"));
 #endif
@@ -294,7 +285,7 @@ void setSpeedMode(uint8_t mode) {
       break;
   }
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.print(F("Speed mode set to: "));
   Serial.println(mode == 0 ? F("OFF") : mode == 1 ? F("LOW") : F("HIGH"));
 #endif
@@ -327,7 +318,7 @@ void setLowBrake(bool engaged) {
     setThrottle(0);
   }
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.print(F("Low brake: "));
   Serial.println(engaged ? F("Engaged") : F("Disengaged"));
   Serial.print(F("Brake mode: "));
@@ -347,7 +338,7 @@ void setHighBrake(bool engaged) {
   
   digitalWrite(HIGH_BRAKE_PIN, engaged ? HIGH : LOW);
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.print(F("High brake: "));
   Serial.println(engaged ? F("Engaged") : F("Disengaged"));
   Serial.print(F("Brake mode: "));
@@ -361,7 +352,7 @@ void allStop() {
   setLowBrake(true);
   setHighBrake(true);
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   // Serial.println(F("EMERGENCY STOP - All systems halted"));
 #endif
 }
@@ -418,7 +409,7 @@ void emergencyStop() {
   setLowBrake(true);
   currentStatus = kart_motors_MotorStatusValue_STATUS_OK; // Reset status since this is a commanded stop
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.println(F("EMERGENCY STOP"));
 #endif
 }
@@ -431,7 +422,7 @@ void emergencyShutdown() {
   setSpeedMode(0); // Set speed mode to OFF
   currentStatus = kart_motors_MotorStatusValue_STATUS_OK; // Reset status since this is a commanded shutdown
   
-#if DEBUG_ENABLED
+#if DEBUG_MODE
   Serial.println(F("EMERGENCY SHUTDOWN"));
 #endif
 }
@@ -634,8 +625,43 @@ void parseSerialCommands() {
       Serial.println(F("B:N     - Disengage brakes"));
       Serial.println(F("STOP    - Emergency stop"));
       Serial.println(F("SHUTDOWN- Emergency shutdown"));
+      Serial.println(F("STATUS  - Show system status"));
       Serial.println(F("HELP    - Show this help"));
       Serial.println(F("---------------------\n"));
+    }
+    else if (command == "STATUS") {
+      Serial.println(F("STATUS"));
+      Serial.print(F("RPM: "));
+      Serial.println(currentRpm);
+      Serial.print(F("Throttle: "));
+      Serial.println(currentThrottle);
+      Serial.print(F("Direction: "));
+      Serial.println(currentDirection);
+      Serial.print(F("Brake mode: "));
+      Serial.println(currentBrakeMode);
+      Serial.print(F("Speed mode: "));
+      Serial.println(currentSpeedMode);
+      Serial.print(F("Low brake: "));
+      Serial.println(currentLowBrake);
+      Serial.print(F("High brake: "));
+      Serial.println(currentHighBrake);
+      Serial.print(F("Battery temp: "));
+      // Get values from sensor framework
+      Serial.println(batteryTempSensor ? batteryTempSensor->getTemperature() : 0.0);
+      Serial.print(F("Controller temp: "));
+      Serial.println(controllerTempSensor ? controllerTempSensor->getTemperature() : 0.0);
+      Serial.print(F("Motor temp: "));
+      Serial.println(motorTempSensor ? motorTempSensor->getTemperature() : 0.0);
+      Serial.print(F("Temp warning: "));
+      Serial.println(tempWarningActive ? F("ACTIVE") : F("INACTIVE"));
+      Serial.print(F("Temp critical: "));
+      Serial.println(tempCriticalActive ? F("ACTIVE") : F("INACTIVE"));
+      Serial.print(F("Hall state: 0b"));
+      Serial.println(hallState, BIN);
+      Serial.print(F("Hall pulse count: "));
+      Serial.println(hallPulseCount);
+      Serial.print(F("Current status: "));
+      Serial.println(currentStatus);
     }
     else {
       Serial.println(F("Unknown command. Type 'HELP' for commands."));
