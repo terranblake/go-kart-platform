@@ -71,14 +71,16 @@ void setup() {
   
   // Initialize CAN interface
   if (!canInterface.begin(500E3)) {
-#if DEBUG_MODE
+// #if DEBUG_MODE
     Serial.println(F("Failed to initialize CAN interface"));
-#endif
+// #endif
+  } else {
+    Serial.println(F("CAN interface initialized"));
   }
   
-#if DEBUG_MODE
-  Serial.println(F("CAN interface initialized"));
-#endif
+// #if DEBUG_MODE
+  
+// #endif
 
   // Register command handlers
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 

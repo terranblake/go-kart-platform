@@ -32,7 +32,7 @@
 #define CRUISE_PIN -1         // Cruise control activation
 
 // Hall sensor inputs (feedback from motor)
-#define HALL_A_PIN 2          // Hall sensor A (interrupt pin)
+#define HALL_A_PIN 7          // Hall sensor A (reading only; had to move from pin 2 due to conflict with CAN0 RX)
 #define HALL_B_PIN 3          // Hall sensor B (interrupt pin)
 #define HALL_C_PIN 4          // Hall sensor C (reading only)
 
