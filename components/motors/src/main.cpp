@@ -10,6 +10,18 @@
 #include "TemperatureSensor.h"
 #include "RpmSensor.h"
 
+// Define DEBUG_MODE for serial command testing
+#ifndef DEBUG_MODE
+#define DEBUG_MODE DEBUG_ENABLED  // Use DEBUG_ENABLED from Config.h
+#endif
+
+// Add platform-specific defines
+#if defined(ESP8266) || defined(ESP32)
+#define ICACHE_RAM_ATTR ICACHE_RAM_ATTR
+#else
+#define ICACHE_RAM_ATTR
+#endif
+
 // Global state variables
 ProtobufCANInterface canInterface(NODE_ID);
 
@@ -27,12 +39,30 @@ unsigned long lastRpmUpdate = 0;
 unsigned int currentRpm = 0;
 byte hallState = 0;
 
-// Status reporting
+// Global variables for temperature readings
+float batteryTemp = 0.0;
+float controllerTemp = 0.0;
+float motorTemp = 0.0;
+bool tempWarningActive = false;
+bool tempCriticalActive = false;
+unsigned long lastTempUpdate = 0;
 unsigned long lastStatusUpdate = 0;
+
+// Brake state variables - define these externally as they're declared in Config.h
+bool currentLowBrake = false;
+bool currentHighBrake = false;
 
 // Sensor framework integration - add sensor objects
 SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, NODE_ID);
 RpmSensor* motorRpmSensor;
+TemperatureSensor* batteryTempSensor;
+TemperatureSensor* controllerTempSensor;
+TemperatureSensor* motorTempSensor;
+
+// Function prototypes for new functions
+#if DEBUG_MODE == 1
+void parseSerialCommands();
+#endif
 
 void setup() {
 #if DEBUG_ENABLED
@@ -48,7 +78,6 @@ void setup() {
 #if DEBUG_ENABLED
     Serial.println(F("Failed to initialize CAN interface"));
 #endif
-
   }
   
 #if DEBUG_ENABLED
@@ -93,14 +122,53 @@ void setup() {
                                kart_motors_MotorCommandId_EMERGENCY, 
                                handleEmergencyCommand);
 
+  // Initialize temperature sensors
+  batteryTempSensor = new TemperatureSensor(
+    2,                         // Location ID (BATTERY=2)
+    TEMP_SENSOR_BATTERY,       // Pin
+    2000,                      // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+  
+  controllerTempSensor = new TemperatureSensor(
+    1,                         // Location ID (CONTROLLER=1)
+    TEMP_SENSOR_CONTROLLER,    // Pin
+    2000,                      // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+  
+  motorTempSensor = new TemperatureSensor(
+    0,                         // Location ID (MOTOR=0)
+    TEMP_SENSOR_MOTOR,         // Pin
+    2000,                      // Update interval (2 seconds)
+    SERIES_RESISTOR,
+    THERMISTOR_NOMINAL,
+    TEMPERATURE_NOMINAL,
+    B_COEFFICIENT
+  );
+
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new RpmSensor(
     kart_motors_MotorComponentId_MAIN_DRIVE, // Use motor component ID
-    100                                     // Update interval 100ms
+    100                                      // Update interval 100ms
   );
   
-  // Register the RPM sensor with the registry
+  // Register the sensors with the registry
   sensorRegistry.registerSensor(motorRpmSensor);
+  sensorRegistry.registerSensor(batteryTempSensor);
+  sensorRegistry.registerSensor(controllerTempSensor);
+  sensorRegistry.registerSensor(motorTempSensor);
+  
+  // Manually simulate some pulses to test RPM sensor
+  for (int i = 0; i < 60; i++) {
+    motorRpmSensor->incrementPulse();
+  }
   
 #if DEBUG_ENABLED
   Serial.println(F("Motor controller initialized"));
@@ -117,6 +185,10 @@ void loop() {
   // Process all sensors using the SensorRegistry
   sensorRegistry.process();
   
+  // Parse serial commands in DEBUG_MODE
+#if DEBUG_MODE == 1
+  parseSerialCommands();
+#endif
 }
 
 void setupPins() {
@@ -129,18 +201,20 @@ void setupPins() {
   pinMode(HIGH_BRAKE_PIN, OUTPUT);
   
   // Set up hall sensor pins
-  pinMode(HALL_SENSOR_1, INPUT_PULLUP);
-  pinMode(HALL_SENSOR_2, INPUT_PULLUP);
-  pinMode(HALL_SENSOR_3, INPUT_PULLUP);
-  
-  // Set up built-in LED
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(HALL_A_PIN, INPUT_PULLUP);
+  pinMode(HALL_B_PIN, INPUT_PULLUP);
+  pinMode(HALL_C_PIN, INPUT_PULLUP);
   
   // Attach interrupts for hall sensors - use RISING edge only to reduce noise
   // and prevent overcounting (CHANGE detection counts each transition twice)
-  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_1), hallSensorA_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_2), hallSensorB_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_3), hallSensorC_ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
+  
+  // Conditionally attach interrupt for hall sensor C based on platform
+#if defined(ESP8266) || defined(ESP32)
+  // ESP8266/ESP32 can use interrupts on all pins
+  attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
+#endif
   
   // Initialize to safe state
   digitalWrite(DIRECTION_PIN, HIGH);     // Forward
@@ -168,20 +242,25 @@ void setThrottle(uint8_t level) {
 #endif
 }
 
-void setDirection(bool forward) {
+void setDirection(kart_motors_MotorDirectionValue direction) {
   // To change direction safely, ensure motor is stopped first
-  if (currentThrottle > 0) {
+  if (currentThrottle > 0 && direction != kart_motors_MotorDirectionValue_NEUTRAL) {
     // Motor is running, stop it first
     setThrottle(0);
     delay(500); // Brief delay to ensure motor stops
+  } else if (direction == kart_motors_MotorDirectionValue_NEUTRAL) {
+    // Neutral direction - stop motor
+    // very low throttle to keep motor free and able to turn
+    setThrottle(0);
+  } else {
+    // Normal operation
+    currentDirection = direction;
+    digitalWrite(DIRECTION_PIN, direction == kart_motors_MotorDirectionValue_FORWARD ? HIGH : LOW);
   }
-  
-  currentDirection = forward;
-  digitalWrite(DIRECTION_PIN, forward ? HIGH : LOW);
   
 #if DEBUG_ENABLED
   Serial.print(F("Direction set to: "));
-  Serial.println(forward ? F("Forward") : F("Reverse"));
+  Serial.println(direction == kart_motors_MotorDirectionValue_FORWARD ? F("Forward") : F("Reverse"));
 #endif
 }
 
@@ -222,7 +301,14 @@ void setSpeedMode(uint8_t mode) {
 }
 
 void setLowBrake(bool engaged) {
-  currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_LOW;
+  currentLowBrake = engaged;
+  
+  if (engaged) {
+    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_LOW;
+  } else if (!currentHighBrake) {
+    // Only set to OFF if high brake is also not engaged
+    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_OFF;
+  }
   
 #ifdef USING_TRANSISTOR
   // When using a transistor to control the yellow wire:
@@ -244,16 +330,28 @@ void setLowBrake(bool engaged) {
 #if DEBUG_ENABLED
   Serial.print(F("Low brake: "));
   Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  Serial.print(F("Brake mode: "));
+  Serial.println(currentBrakeMode);
 #endif
 }
 
 void setHighBrake(bool engaged) {
-  currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_HIGH;
+  currentHighBrake = engaged;
+  
+  if (engaged) {
+    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_HIGH;
+  } else if (!currentLowBrake) {
+    // Only set to OFF if low brake is also not engaged
+    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_OFF;
+  }
+  
   digitalWrite(HIGH_BRAKE_PIN, engaged ? HIGH : LOW);
   
 #if DEBUG_ENABLED
   Serial.print(F("High brake: "));
   Serial.println(engaged ? F("Engaged") : F("Disengaged"));
+  Serial.print(F("Brake mode: "));
+  Serial.println(currentBrakeMode);
 #endif
 }
 
@@ -273,47 +371,29 @@ volatile unsigned long lastHallPulseTime[3] = {0, 0, 0};
 const unsigned long DEBOUNCE_TIME = 1000; // 1ms debounce time (in microseconds)
 
 void hallSensorA_ISR() {
-  unsigned long currentTime = micros();
-  // Apply debounce to avoid noise
-  if (currentTime - lastHallPulseTime[0] > DEBOUNCE_TIME) {
-    hallPulseCount++;
-    lastHallTime = currentTime;
-    lastHallPulseTime[0] = currentTime;
-    
-    // Notify the RPM sensor of the pulse
-    if (motorRpmSensor) {
-      motorRpmSensor->incrementPulse();
-    }
+  hallPulseCount++;
+  lastHallTime = millis();
+  // Notify the RPM sensor of the pulse
+  if (motorRpmSensor) {
+    motorRpmSensor->incrementPulse();
   }
 }
 
 void hallSensorB_ISR() {
-  unsigned long currentTime = micros();
-  // Apply debounce to avoid noise
-  if (currentTime - lastHallPulseTime[1] > DEBOUNCE_TIME) {
-    hallPulseCount++;
-    lastHallTime = currentTime;
-    lastHallPulseTime[1] = currentTime;
-    
-    // Notify the RPM sensor of the pulse
-    if (motorRpmSensor) {
-      motorRpmSensor->incrementPulse();
-    }
+  hallPulseCount++;
+  lastHallTime = millis();
+  // Notify the RPM sensor of the pulse
+  if (motorRpmSensor) {
+    motorRpmSensor->incrementPulse();
   }
 }
 
 void hallSensorC_ISR() {
-  unsigned long currentTime = micros();
-  // Apply debounce to avoid noise
-  if (currentTime - lastHallPulseTime[2] > DEBOUNCE_TIME) {
-    hallPulseCount++;
-    lastHallTime = currentTime;
-    lastHallPulseTime[2] = currentTime;
-    
-    // Notify the RPM sensor of the pulse
-    if (motorRpmSensor) {
-      motorRpmSensor->incrementPulse();
-    }
+  hallPulseCount++;
+  lastHallTime = millis();
+  // Notify the RPM sensor of the pulse
+  if (motorRpmSensor) {
+    motorRpmSensor->incrementPulse();
   }
 }
 
@@ -321,61 +401,15 @@ void hallSensorC_ISR() {
 void updateHallReadings() {
   // Read current hall sensor state (binary pattern of all 3 sensors)
   hallState = 0;
-  if (digitalRead(HALL_SENSOR_1)) hallState |= 0b001;
-  if (digitalRead(HALL_SENSOR_2)) hallState |= 0b010;
-  if (digitalRead(HALL_SENSOR_3)) hallState |= 0b100;
+  if (digitalRead(HALL_A_PIN)) hallState |= 0b001;
+  if (digitalRead(HALL_B_PIN)) hallState |= 0b010;
+  if (digitalRead(HALL_C_PIN)) hallState |= 0b100;
   
   // Update RPM calculation periodically
   if (millis() - lastRpmUpdate > RPM_UPDATE_INTERVAL) {
-    currentRpm = calculateRPM();
+    currentRpm = motorRpmSensor->getRPM();
     lastRpmUpdate = millis();
   }
-}
-
-// Update the calculateRPM function to use the RPM sensor
-unsigned int calculateRPM() {
-  // Simply get the RPM from the sensor if available
-  if (motorRpmSensor) {
-    return motorRpmSensor->getRPM();
-  }
-  
-  // Fall back to original implementation if sensor is not available
-  static unsigned long prevCount = 0;
-  static unsigned long prevTime = 0;
-  unsigned long currentTime = millis();
-  
-  // Calculate time elapsed since last update
-  unsigned long timeElapsed = currentTime - prevTime;
-  if (timeElapsed < 100) return currentRpm; // Don't update too frequently
-  
-  // Calculate pulses per minute
-  unsigned long countDiff = 0;
-  
-  // Handle possible overflow of hallPulseCount
-  if (hallPulseCount >= prevCount) {
-    countDiff = hallPulseCount - prevCount;
-  } else {
-    // Counter has overflowed, handle gracefully
-    countDiff = (0xFFFFFFFF - prevCount) + hallPulseCount + 1;
-  }
-  
-  unsigned int rpm = 0;
-  
-  // Calculate RPM with additional validation
-  if (timeElapsed > 0 && countDiff > 0) {
-    // For a BLDC with 3 hall sensors, one revolution typically creates 6 pulses (using RISING edge only)
-    // The divisor is 6 because we're counting each phase change once (RISING only, not CHANGE)
-    rpm = (countDiff * 60000) / (timeElapsed * 6);
-  } else if (timeElapsed > 1000 && countDiff == 0) {
-    // If no pulses for over 1 second, RPM is zero
-    rpm = 0;
-  }
-  
-  // Store current values for next calculation
-  prevCount = hallPulseCount;
-  prevTime = currentTime;
-  
-  return rpm;
 }
 
 void emergencyStop() {
@@ -415,16 +449,6 @@ void handleSpeedCommand(kart_common_MessageType msg_type,
   
   // Set throttle
   setThrottle(value);
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    value
-  );
 }
 
 void handleDirectionCommand(kart_common_MessageType msg_type,
@@ -433,54 +457,9 @@ void handleDirectionCommand(kart_common_MessageType msg_type,
                            uint8_t command_id,
                            kart_common_ValueType value_type,
                            int32_t value) {
-  // Validate value
-  bool isForward;
-  
-  if (value == kart_motors_MotorDirectionValue_FORWARD) {
-    isForward = true;
-  } else if (value == kart_motors_MotorDirectionValue_REVERSE) {
-    isForward = false;
-  } else if (value == kart_motors_MotorDirectionValue_NEUTRAL) {
-    // For neutral, we stop the motor but don't change direction
-    setThrottle(0);
-    
-    // Send acknowledgment
-    canInterface.sendMessage(
-      kart_common_MessageType_ACK,
-      kart_common_ComponentType_MOTORS,
-      component_id,
-      command_id,
-      kart_common_ValueType_UINT8,
-      value
-    );
-    
-    return;
-  } else {
-    // Invalid value, ignore or return current state
-    canInterface.sendMessage(
-      kart_common_MessageType_ERROR,
-      kart_common_ComponentType_MOTORS,
-      component_id,
-      command_id,
-      kart_common_ValueType_UINT8,
-      currentDirection ? kart_motors_MotorDirectionValue_FORWARD : kart_motors_MotorDirectionValue_REVERSE
-    );
-    
-    return;
-  }
   
   // Set direction
-  setDirection(isForward);
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    isForward ? kart_motors_MotorDirectionValue_FORWARD : kart_motors_MotorDirectionValue_REVERSE
-  );
+  setDirection(static_cast<kart_motors_MotorDirectionValue>(value));
 }
 
 void handleBrakeCommand(kart_common_MessageType msg_type,
@@ -495,16 +474,6 @@ void handleBrakeCommand(kart_common_MessageType msg_type,
   
   setLowBrake(lowBrake);
   setHighBrake(highBrake);
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    (lowBrake ? 1 : 0) | (highBrake ? 2 : 0)
-  );
 }
 
 void handleModeCommand(kart_common_MessageType msg_type,
@@ -537,16 +506,6 @@ void handleModeCommand(kart_common_MessageType msg_type,
   }
   
   setSpeedMode(speedMode);
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    value
-  );
 }
 
 void handleEmergencyCommand(kart_common_MessageType msg_type,
@@ -579,14 +538,108 @@ void handleEmergencyCommand(kart_common_MessageType msg_type,
       setHighBrake(false);
       break;
   }
-  
-  // Send acknowledgment
-  canInterface.sendMessage(
-    kart_common_MessageType_ACK,
-    kart_common_ComponentType_MOTORS,
-    component_id,
-    command_id,
-    kart_common_ValueType_UINT8,
-    value
-  );
 }
+
+// Serial command processing for testing
+#if DEBUG_MODE == 1
+void parseSerialCommands() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    // Command format: "T:value" for throttle where value is 0-100
+    if (command.startsWith("T:")) {
+      int throttlePercent = command.substring(2).toInt();
+      // Constrain to valid range
+      throttlePercent = constrain(throttlePercent, 0, 100);
+      
+      // Convert percent to throttle value (0-255 range)
+      uint8_t throttleValue = map(throttlePercent, 0, 100, 0, 255);
+      
+      // Apply the throttle
+      setThrottle(throttleValue);
+      
+      // Print confirmation
+      Serial.print(F("Throttle set to "));
+      Serial.print(throttlePercent);
+      Serial.print(F("% ("));
+      Serial.print(throttleValue);
+      Serial.println(F(")"));
+    }
+    // Command format: "D:F" for forward, "D:R" for reverse
+    else if (command.startsWith("D:")) {
+      char direction = command.charAt(2);
+      if (direction == 'F' || direction == 'f') {
+        setDirection(kart_motors_MotorDirectionValue_FORWARD);
+        Serial.println(F("Direction set to FORWARD"));
+      } 
+      else if (direction == 'R' || direction == 'r') {
+        setDirection(kart_motors_MotorDirectionValue_REVERSE);
+        Serial.println(F("Direction set to REVERSE"));
+      }
+      else if (direction == 'N' || direction == 'n') {
+        setDirection(kart_motors_MotorDirectionValue_NEUTRAL);
+        Serial.println(F("Direction set to NEUTRAL"));
+      }
+    }
+    // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
+    else if (command.startsWith("S:")) {
+      int speedMode = command.substring(2).toInt();
+      if (speedMode >= 0 && speedMode <= 2) {
+        setSpeedMode(speedMode);
+        Serial.print(F("Speed mode set to "));
+        Serial.println(speedMode);
+      }
+    }
+    // Command format: "B:L" for low brake, "B:H" for high brake, "B:N" for no brake
+    else if (command.startsWith("B:")) {
+      char brakeCommand = command.charAt(2);
+      if (brakeCommand == 'L' || brakeCommand == 'l') {
+        setLowBrake(true);
+        setHighBrake(false);
+        Serial.println(F("LOW Brake ENGAGED"));
+      }
+      else if (brakeCommand == 'H' || brakeCommand == 'h') {
+        setLowBrake(false);
+        setHighBrake(true);
+        Serial.println(F("HIGH Brake ENGAGED"));
+      }
+      else if (brakeCommand == 'N' || brakeCommand == 'n') {
+        setLowBrake(false);
+        setHighBrake(false);
+        Serial.println(F("Brakes DISENGAGED"));
+      }
+    }
+    // Emergency commands
+    else if (command == "STOP") {
+      emergencyStop();
+      Serial.println(F("EMERGENCY STOP executed"));
+    }
+    else if (command == "SHUTDOWN") {
+      emergencyShutdown();
+      Serial.println(F("EMERGENCY SHUTDOWN executed"));
+    }
+    // Help command
+    else if (command == "HELP") {
+      Serial.println(F("\n--- DEBUG COMMANDS ---"));
+      Serial.println(F("T:value - Set throttle (0-100%)"));
+      Serial.println(F("D:F     - Set direction FORWARD"));
+      Serial.println(F("D:R     - Set direction REVERSE"));
+      Serial.println(F("D:N     - Set direction NEUTRAL"));
+      Serial.println(F("S:0     - Speed mode OFF"));
+      Serial.println(F("S:1     - Speed mode LOW"));
+      Serial.println(F("S:2     - Speed mode HIGH"));
+      Serial.println(F("B:L     - Engage LOW brake"));
+      Serial.println(F("B:H     - Engage HIGH brake"));
+      Serial.println(F("B:N     - Disengage brakes"));
+      Serial.println(F("STOP    - Emergency stop"));
+      Serial.println(F("SHUTDOWN- Emergency shutdown"));
+      Serial.println(F("HELP    - Show this help"));
+      Serial.println(F("---------------------\n"));
+    }
+    else {
+      Serial.println(F("Unknown command. Type 'HELP' for commands."));
+    }
+  }
+}
+#endif

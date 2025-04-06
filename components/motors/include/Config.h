@@ -11,7 +11,9 @@
 #define NODE_ID 0x20  // Node ID for this motor controller
 #endif
 
-#define RPM_UPDATE_INTERVAL 500 // How often to update RPM calculation (ms)
+
+// CAN speed
+#define CAN_SPEED CAN_500KBPS
 
 // Motor Controller Pins - Kunray MY1020 3kW BLDC Controller
 // Output pins (signals from Arduino to controller)
@@ -35,9 +37,20 @@
 #define CRUISE_PIN A3         // Cruise control activation
 
 // Hall sensor inputs (feedback from motor)
-#define HALL_SENSOR_1 A4      // Hall sensor 1 input
-#define HALL_SENSOR_2 A5      // Hall sensor 2 input
-#define HALL_SENSOR_3 3       // Hall sensor 3 input
+#define HALL_A_PIN 2          // Hall sensor A (interrupt pin)
+#define HALL_B_PIN 3          // Hall sensor B (interrupt pin)
+#define HALL_C_PIN 4          // Hall sensor C (reading only)
+
+// Temperature sensor pins
+#define TEMP_SENSOR_BATTERY A6   // Battery temperature sensor (A6 analog input)
+#define TEMP_SENSOR_CONTROLLER A7 // Controller temperature sensor (A7 analog input)
+#define TEMP_SENSOR_MOTOR 10     // Motor temperature sensor (digital pin with analog capabilities)
+
+// NTC Thermistor parameters for NTCLE100E3203JBD
+#define THERMISTOR_NOMINAL 10000   // Resistance at 25°C
+#define TEMPERATURE_NOMINAL 25     // Temperature for nominal resistance (°C)
+#define B_COEFFICIENT 3977         // Beta coefficient from datasheet
+#define SERIES_RESISTOR 10000      // Value of the series resistor
 
 // Motor speed constants
 #define MOTOR_MIN_SPEED 0
@@ -46,10 +59,20 @@
 // Status update interval (ms)
 #define STATUS_INTERVAL 500
 
+// RPM update interval (ms)
+#define RPM_UPDATE_INTERVAL 500
+
 // Motor state defaults
 #define DEFAULT_SPEED 0       // Initial speed (0-255)
 #define DEFAULT_DIRECTION kart_motors_MotorDirectionValue_FORWARD
 #define DEFAULT_MODE kart_motors_MotorModeValue_LOW
+
+// Global state variables declarations (these are defined in main.cpp)
+extern bool currentLowBrake;
+extern bool currentHighBrake;
+
+// Use transistors for brake control (vs relays)
+#define USING_TRANSISTOR
 
 // Function prototypes
 void setupPins();
@@ -63,7 +86,6 @@ void hallSensorA_ISR();
 void hallSensorB_ISR();
 void hallSensorC_ISR();
 void updateHallReadings();
-unsigned int calculateRPM();
 void sendStatusUpdate();
 void emergencyStop();
 void emergencyShutdown();
