@@ -63,9 +63,9 @@ void setup()
 
   Serial.println(F("Go-Kart Lights"));
 
-#if DEBUG_MODE
-  setupLightsForTesting();
-#endif
+// #if DEBUG_MODE
+//   setupLightsForTesting();
+// #endif
 }
 
 void loop()
@@ -366,7 +366,7 @@ void updateStartupShutdownAnimation(CRGB *leds, int numLeds, LightState &lightSt
   }
 
   // Force update the display
-  FastLED.show();
+  // FastLED.show();
 }
 
 void clearLights(CRGB *leds, int numLeds)
@@ -461,13 +461,16 @@ void handleLightLocation(kart_common_MessageType msg_type,
 void setupLightsForTesting()
 {
   Serial.println("Sending message to set location to front");
-  canInterface.sendMessage(
+  // log result of sendMessage
+  bool result = canInterface.sendMessage(
       kart_common_MessageType_COMMAND,
       kart_common_ComponentType_LIGHTS,
       kart_lights_LightComponentId_ALL,
       kart_lights_LightCommandId_LOCATION,
       kart_common_ValueType_INT8,
       0);
+  Serial.print("Result: ");
+  Serial.println(result);
 
   Serial.println("Sending message to set testing to true");
   canInterface.sendMessage(
@@ -477,7 +480,6 @@ void setupLightsForTesting()
       kart_controls_ControlCommandId_MODE,
       kart_common_ValueType_INT8,
       kart_controls_ControlModeValue_TEST);
-
   Serial.println("Lights set up for testing");
 }
 
