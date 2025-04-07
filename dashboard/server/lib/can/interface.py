@@ -55,7 +55,7 @@ ffi.cdef("""
         int comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+        void (*handler)(uint16_t message_id, int32_t value)
     );
     
     // Message sending
@@ -71,6 +71,8 @@ ffi.cdef("""
     
     // Message processing
     void can_interface_process(can_interface_t handle);
+         
+    //todo: expose function to unpack id into message type, component type, component id, command id, value type
 """)
 
 # Global flag to track if we have hardware CAN support
@@ -199,31 +201,25 @@ class CANInterfaceWrapper:
         """Helper to get a type name from the registry dictionary by its value"""
         return registry_dict.get(value, f"Unknown({value})")
     
-    def _handle_message(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
+    def _handle_message(self, message_id, value):
         """Default message handler that logs messages and processes them through the protocol registry"""
-        # Convert numeric types to names for better logging
-        msg_type_name = self._get_type_name(self.message_types_by_value, msg_type)
-        comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
-        val_type_name = self._get_type_name(self.value_types_by_value, val_type)
-        
-        logger.debug(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
-                    f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
+        logger.debug(f"Received CAN message: {message_id}, {value}")
         
         if not self.telemetry_store:
             logger.error("Telemetry store is not set, dropping message")
             return
 
-        state_data = {
-            'message_type': msg_type_name,
-            'component_type': comp_type_name,
-            'component_id': comp_id,
-            'command_id': cmd_id,
-            'value_type': val_type_name,
-            'value': value
-        }
+        # state_data = {
+        #     'message_type': msg_type_name,
+        #     'component_type': comp_type_name,
+        #     'component_id': comp_id,
+        #     'command_id': cmd_id,
+        #     'value_type': val_type_name,
+        #     'value': value
+        # }
         
-        state_data = GoKartState(**state_data).to_dict()
-        self.telemetry_store.update_state(state_data)
+        # state_data = GoKartState(**state_data).to_dict()
+        # self.telemetry_store.update_state(state_data)
     
     def _register_default_handlers(self):
         """Register default handlers for status messages from components."""
