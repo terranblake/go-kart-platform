@@ -263,7 +263,7 @@ class CANInterfaceWrapper:
         message_type = self.protocol_registry.get_message_type(message_type)
         if self.has_can_hardware:
             # Create a CFFI callback function - make sure signature matches C API
-            cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
+            cb = ffi.callback("void(uint16_t, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
