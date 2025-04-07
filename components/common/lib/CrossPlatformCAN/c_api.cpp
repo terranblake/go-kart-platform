@@ -8,23 +8,24 @@
 #define EXPORT __attribute__((visibility("default")))
 
 // Store pointers to handler functions
-can_message_handler_t handler;
+struct HandlerWrapper {
+    can_message_handler_t handler;
+};
 
 #define MAX_WRAPPERS 128
-static can_message_handler_t g_handlers[MAX_WRAPPERS];
+static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
 // Global wrapper function for message handlers
-static void global_message_handler(uint16_t message_id, int32_t value) {
+static void global_message_handler(int32_t value) {
 #ifdef PLATFORM_LINUX
-    printf("C API: global_message_handler called with message_id=0x%X, value=%d\n", 
-           message_id, value);
+    printf("C API: global_message_handler called with value=%d\n", value);
 #endif
 
     // Find and call the appropriate handler
     for (int i = 0; i < g_num_handlers; i++) {
         if (g_handlers[i].handler) {
-            g_handlers[i].handler(message_id, value);
+            g_handlers[i].handler(0, value); // Pass 0 as message_id since it's not used in C++ interface
             break;
         }
     }
