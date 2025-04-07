@@ -31,7 +31,7 @@
 #define VALUE_TYPE_MASK 0x1F
 
 // Function pointer type for message handlers
-typedef void (*MessageHandler)(int32_t value);
+typedef void (*MessageHandler)(uint16_t message_id, int32_t value);
 
 class ProtobufCANInterface {
 public:

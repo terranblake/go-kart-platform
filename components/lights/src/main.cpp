@@ -353,14 +353,14 @@ void clearLights(CRGB *leds, int numLeds)
   fill_solid(leds, numLeds, CRGB::Black);
 }
 
-void handleLightMode(int32_t value)
+void handleLightMode(uint16_t message_id, int32_t value)
 {
   lightState.mode = value;
   Serial.print(F("Light mode: "));
   Serial.println(lightState.mode);
 }
 
-void handleLightSignal(int32_t value)
+void handleLightSignal(uint16_t message_id, int32_t value)
 {
   switch (value)
   {
@@ -383,14 +383,14 @@ void handleLightSignal(int32_t value)
   Serial.println(lightState.turnRight);
 }
 
-void handleLightBrake(int32_t value)
+void handleLightBrake(uint16_t message_id, int32_t value)
 {
   lightState.braking = (value == 1) ? 1 : 0;
   Serial.print(F("Brake: "));
   Serial.println(lightState.braking);
 }
 
-void handleLightTest(int32_t value)
+void handleLightTest(uint16_t message_id, int32_t value)
 {
   testModeActive = (value == kart_controls_ControlModeValue_TEST);
   Serial.print(F("Test mode: "));
@@ -401,7 +401,7 @@ void handleLightTest(int32_t value)
   Serial.println(testModeActive);
 }
 
-void handleLightLocation(int32_t value)
+void handleLightLocation(uint16_t message_id, int32_t value)
 {
   updateFrontLights = (value == 1);
   locationSelected = true;

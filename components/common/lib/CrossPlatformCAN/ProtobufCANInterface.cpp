@@ -124,7 +124,7 @@ void ProtobufCANInterface::process()
     for (int i = 0; i < m_numHandlers; i++) {
         if (matchesHandler(m_handlers[i], msg_type, comp_type, component_id, command_id)) {
             handlerFound = true;
-            m_handlers[i].handler(value);
+            m_handlers[i].handler(msg.id, value);
         }
     }
 

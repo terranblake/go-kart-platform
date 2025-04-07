@@ -32,11 +32,11 @@ typedef struct
 } LightState;
 
 // Function prototypes for command handlers
-void handleLightMode(int32_t value);
-void handleLightSignal(int32_t value);
-void handleLightBrake(int32_t value);
-void handleLightTest(int32_t value);
-void handleLightLocation(int32_t value);
+void handleLightMode(uint16_t message_id, int32_t value);
+void handleLightSignal(uint16_t message_id, int32_t value);
+void handleLightBrake(uint16_t message_id, int32_t value);
+void handleLightTest(uint16_t message_id, int32_t value);
+void handleLightLocation(uint16_t message_id, int32_t value);
 
 // Forward declarations for functions
 void clearLights(CRGB *leds, int numLeds);
