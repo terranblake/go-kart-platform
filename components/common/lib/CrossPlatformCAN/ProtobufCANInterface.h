@@ -10,7 +10,8 @@
 #include "common.pb.h"
 
 // Max number of message handlers
-#ifdef PLATFORM_ARDUINO || PLATFORM_EMBEDDED
+// todo: switch to using PLATFORM_EMBEDDED
+#ifdef PLATFORM_ARDUINO
 #define MAX_HANDLERS 32
 #else
 #define MAX_HANDLERS 128

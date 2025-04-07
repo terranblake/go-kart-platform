@@ -239,7 +239,7 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
                                         uint8_t component_id,
                                         uint8_t command_id) {
 
-#if PLATFORM_LINUX && DEBUG_MODE
+#if PLATFORM_LINUX
     // log if msg_type, type and component_id match
     if (handler.msg_type == msg_type && handler.type == comp_type && handler.component_id == component_id) {
         printf("MATCH: %d, %d, %d\n", handler.msg_type, handler.type, handler.component_id);
