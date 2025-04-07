@@ -115,6 +115,13 @@ private:
                  kart_common_ComponentType component_type,
                  uint8_t component_id, uint8_t command_id,
                  kart_common_ValueType value_type, int32_t value);
+
+  // Helper function to check if a message matches a handler's criteria
+  bool matchesHandler(const HandlerEntry& handler,
+                     kart_common_MessageType msg_type,
+                     kart_common_ComponentType comp_type,
+                     uint8_t component_id,
+                     uint8_t command_id);
 };
 
 // C API for Python CFFI

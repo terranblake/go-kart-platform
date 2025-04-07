@@ -3,6 +3,8 @@
  */
 
 #include "ProtobufCANInterface.h"
+#include <stdio.h>
+#include <string.h>
 
 // Debug mode
 #ifndef DEBUG_MODE
@@ -140,14 +142,12 @@ void ProtobufCANInterface::process()
     // Find and execute matching handlers - now checking message type as well
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        if ((m_handlers[i].msg_type == msg_type) &&
-            (m_handlers[i].type == comp_type) &&
-            (m_handlers[i].component_id == component_id || m_handlers[i].component_id == 0xFF) &&
-            (m_handlers[i].command_id == command_id)) {
-            
-            handlerFound = true;
-            m_handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
+        if (!matchesHandler(m_handlers[i], msg_type, comp_type, component_id, command_id)) {
+            continue;
         }
+
+        handlerFound = true;
+        m_handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
     }
 
     // Echo status if this was a command (optional)
@@ -230,4 +230,24 @@ void ProtobufCANInterface::logMessage(const char* prefix, kart_common_MessageTyp
            prefix, (int)message_type, (int)component_type, 
            component_id, command_id, (int)value_type, value);
 #endif
+}
+
+// Helper function to check if a message matches a handler's criteria
+bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
+                                        kart_common_MessageType msg_type,
+                                        kart_common_ComponentType comp_type,
+                                        uint8_t component_id,
+                                        uint8_t command_id) {
+
+#if PLATFORM_LINUX && DEBUG_MODE
+    // log if msg_type, type and component_id match
+    if (handler.msg_type == msg_type && handler.type == comp_type && handler.component_id == component_id) {
+        printf("MATCH: %d, %d, %d\n", handler.msg_type, handler.type, handler.component_id);
+    }
+#endif
+
+    return (handler.msg_type == msg_type) &&
+           (handler.type == comp_type) &&
+           (handler.component_id == component_id || handler.component_id == 0xFF) &&
+           (handler.command_id == command_id);
 } 
