@@ -82,27 +82,12 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   frame.can_dlc = msg.length;
   memcpy(frame.data, msg.data, msg.length);
   
-#if DEBUG_MODE
-  // Add detailed byte-by-byte debug for the first byte (header)
-  printf("DEBUG CANInterface: First byte (header) details:\n");
-  printf("  - Value in hex: 0x%02X\n", frame.data[0]);
-  printf("  - Value in binary: ");
-  for (int bit = 7; bit >= 0; bit--) {
-    printf("%d", (frame.data[0] >> bit) & 0x01);
-    if (bit == 6 || bit == 3) printf(" "); // Add space after bit positions for readability
-  }
-  printf("\n");
-  printf("  - Message type bits (7-6): %d\n", (frame.data[0] >> 6) & 0x03);
-  printf("  - Component type bits (5-3): %d\n", (frame.data[0] >> 3) & 0x07);
-  printf("  - Reserved bits (2-0): %d\n", frame.data[0] & 0x07);
-  
   printf("Debug: Sending CAN frame - ID: 0x%X, DLC: %d, Data:", 
          frame.can_id, frame.can_dlc);
   for (int i = 0; i < frame.can_dlc; i++) {
     printf(" %02X", frame.data[i]);
   }
   printf("\n");
-#endif
   
   // Check socket validity
   if (m_socket < 0) {
@@ -208,31 +193,14 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   msg.length = frame.can_dlc;
   memcpy(msg.data, frame.data, frame.can_dlc);
   
-  printf("Debug: Received CAN frame - ID: 0x%X, DLC: %d, Data:", 
-         msg.id, msg.length);
-  for (int i = 0; i < msg.length; i++) {
-    printf(" %02X", msg.data[i]);
-  }
-  printf("\n");
-  
   // Extract message details for more helpful debugging
-  if (msg.length >= 8) {
-    // First byte: bits 0-6 = component type, bit 7 = message type
-    int msgType = (msg.data[0] >> 7) & 0x01;
-    int compType = msg.data[0] & 0x7F;
-    
-    // Extract component ID and command ID from bytes 2 and 3
-    int compId = msg.data[2];
-    int cmdId = msg.data[3];
-    
-    // Extract value type from byte 4 (high nibble)
-    int valType = (msg.data[4] >> 4) & 0x0F;
-    
-    // Extract value (last 3 bytes)
-    int value = (msg.data[5] << 16) | (msg.data[6] << 8) | msg.data[7];
-    
-    printf("Debug: Parsed message - Type: %s, Component: %d, ID: %d, CMD: %d, Value Type: %d, Value: %d\n",
-           msgType == 0 ? "COMMAND" : "STATUS", compType, compId, cmdId, valType, value);
+  if (msg.length > 8) {
+    printf("Debug: CAN frame received (%d bytes) is larger than expected (8 bytes) ID: 0x%X, DLC: %d, Data: ", msg.length, msg.id, msg.length);
+    for (int i = 0; i < msg.length; i++) {
+      printf(" %02X", msg.data[i]);
+    }
+    printf("\n");
+    return false;
   }
   
   return true;

@@ -126,7 +126,6 @@ EXPORT bool can_interface_send_message(
         return false;
     }
     
-
     // Call the C++ method
     ProtobufCANInterface* interface = reinterpret_cast<ProtobufCANInterface*>(handle);
     return interface->sendMessage(

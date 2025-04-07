@@ -138,7 +138,7 @@ void ProtobufCANInterface::process()
     }
 
     // Echo status if this was a command (optional)
-    if (msg_type == kart_common_MessageType_COMMAND) {
+    if (handlerFound && msg_type == kart_common_MessageType_COMMAND) {
         sendMessage(kart_common_MessageType_STATUS, comp_type, component_id, command_id, value_type, value);
     }
 }
