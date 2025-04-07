@@ -378,9 +378,10 @@ class ProtocolRegistry:
         cmd_id = self.get_command_id(component_type, command_name)
         
         # Handle value - either named value or direct integer
-        val_type = self.get_value_type("INT8")  # Default
+        val_type = self.get_value_type("UINT8")  # Default
         val = 0
         
+        print(f"Getting command value for {component_type} {command_name} {value_name}")
         value_by_name = self.get_command_value(component_type, command_name, value_name)
         if value_by_name:
             val = value_by_name
