@@ -233,16 +233,15 @@ class CANInterfaceWrapper:
         
         for component_type in self.protocol_registry.get_component_types():
             for command in self.protocol_registry.get_commands(component_type):
-                for value in self.protocol_registry.get_command_values(component_type, command):
-                    self.logger.info(f"Registering handlers for component type: {component_type} command: {command} value: {value}")
+                self.logger.info(f"Registering handlers for component type: {component_type} command: {command}")
 
-                    # convert the type, command, and value to their numeric values
-                    comp_type = self.protocol_registry.get_component_type(component_type)
-                    cmd_id = self.protocol_registry.get_command_id(component_type, command)
+                # convert the type, command, and value to their numeric values
+                comp_type = self.protocol_registry.get_component_type(component_type)
+                cmd_id = self.protocol_registry.get_command_id(component_type, command)
 
-                    # Register handler for STATUS messages from all component IDs
-                    self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
-                    registered_count += 1
+                # Register handler for STATUS messages from all component IDs
+                self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
+                registered_count += 1
         
         self.logger.info(f"Registered {registered_count} message handlers")
     

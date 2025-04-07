@@ -20,7 +20,7 @@ ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
     : m_nodeId(nodeId), m_numHandlers(0)
 {
 #if DEBUG_MODE
-    printf("ProtobufCANInterface: Constructor called with nodeId=%d\n", nodeId);
+    printf("ProtobufCANInterface: Constructor called with nodeId=%d maxHandlers=%d\n", nodeId, MAX_HANDLERS);
 #endif
 }
 
