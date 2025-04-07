@@ -122,7 +122,7 @@ void ProtobufCANInterface::process()
     // Find and execute matching handlers
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        if (!matchesHandler(m_handlers[i], msg_type, comp_type, component_id, command_id)) {
+        if (!matchesHandler(m_handlers[i].msg_type, m_handlers[i].comp_type, m_handlers[i].component_id, m_handlers[i].command_id, msg_type, comp_type, component_id, command_id)) {
             continue;
         }
 
@@ -241,29 +241,32 @@ void ProtobufCANInterface::logMessage(const char *prefix, uint16_t message_id, i
 #endif
 }
 
-bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
+bool ProtobufCANInterface::matchesHandler(kart_common_MessageType handler_msg_type,
+                                        kart_common_ComponentType handler_comp_type,
+                                        uint8_t handler_component_id,
+                                        uint8_t handler_command_id,
                                         kart_common_MessageType msg_type,
                                         kart_common_ComponentType comp_type,
                                         uint8_t component_id,
                                         uint8_t command_id)
 {
     // Check if message type matches
-    if (handler.msg_type != msg_type) {
+    if (handler_msg_type != msg_type) {
         return false;
     }
 
     // Check if component type matches
-    if (handler.type != comp_type) {
+    if (handler_comp_type != comp_type) {
         return false;
     }
 
     // Check if component ID matches (0xFF means match all)
-    if (handler.component_id != 0xFF && handler.component_id != component_id) {
+    if (handler_component_id != 0xFF && handler_component_id != component_id) {
         return false;
     }
 
     // Check if command ID matches (0xFF means match all)
-    if (handler.command_id != 0xFF && handler.command_id != command_id) {
+    if (handler_command_id != 0xFF && handler_command_id != command_id) {
         return false;
     }
 

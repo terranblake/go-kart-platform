@@ -10,6 +10,10 @@
 // Store pointers to handler functions
 struct HandlerWrapper {
     can_message_handler_t handler;
+    kart_common_MessageType msg_type;
+    kart_common_ComponentType comp_type;
+    uint8_t component_id;
+    uint8_t command_id;
 };
 
 #define MAX_WRAPPERS 128
@@ -34,7 +38,7 @@ static void global_message_handler(uint16_t message_id, int32_t value) {
         kart_common_ValueType value_type;
         unpackMessageId(message_id, msg_type, comp_type, component_id, command_id, value_type);
         
-        if (!ProtobufCANInterface::matchesHandler(g_handlers[i].handler, msg_type, comp_type, component_id, command_id)) {
+        if (!ProtobufCANInterface::matchesHandler(g_handlers[i].msg_type, g_handlers[i].comp_type, g_handlers[i].component_id, g_handlers[i].command_id, msg_type, comp_type, component_id, command_id)) {
             continue;
         }
 
@@ -94,6 +98,10 @@ EXPORT void can_interface_register_handler(
     
     // Store the handler
     g_handlers[g_num_handlers].handler = handler;
+    g_handlers[g_num_handlers].msg_type = static_cast<kart_common_MessageType>(msg_type);
+    g_handlers[g_num_handlers].comp_type = static_cast<kart_common_ComponentType>(comp_type);
+    g_handlers[g_num_handlers].component_id = component_id;
+    g_handlers[g_num_handlers].command_id = command_id;
     g_num_handlers++;
     
     interface->registerHandler(
