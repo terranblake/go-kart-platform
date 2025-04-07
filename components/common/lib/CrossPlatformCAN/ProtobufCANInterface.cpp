@@ -151,12 +151,6 @@ void ProtobufCANInterface::process()
         }
 
         handlerFound = true;
-
-#if DEBUG_MODE
-    printf("ProtobufCANInterface: Found handler for msg_type=%d, comp_type=%d, component_id=%d, command_id=%d\n", 
-           msg_type, comp_type, component_id, command_id);
-#endif
-
         m_handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
     }
 

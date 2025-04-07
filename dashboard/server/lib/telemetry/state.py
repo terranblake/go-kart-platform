@@ -12,21 +12,18 @@ logger = logging.getLogger(__name__)
 class GoKartState:
     """Class for tracking the current state of the Go-Kart"""
     
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """Initialize state with default values"""
         # Basic information
         self.timestamp = time.time()
-        self.last_update = 0
 
-        # telemetry data
-        self.message_type = None
-        self.component_type = None
-        self.component_id = None
-        self.command_id = None
-        self.value_type = None
-        self.value = None
-        
-        logger.info("Go-Kart state initialized with default values")
+        # telemetry data populated from kwargs
+        self.message_type = kwargs.get('message_type', None)
+        self.component_type = kwargs.get('component_type', None)
+        self.component_id = kwargs.get('component_id', None)
+        self.command_id = kwargs.get('command_id', None)
+        self.value_type = kwargs.get('value_type', None)
+        self.value = kwargs.get('value', None)
     
     def to_dict(self):
         """Convert state to dictionary for serialization"""
@@ -36,10 +33,7 @@ class GoKartState:
         
         # Add a formatted timestamp for display
         state_dict['timestamp_formatted'] = datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        
-        # Add connection status based on last update time
-        state_dict['connected'] = (time.time() - self.last_update) < 5.0  # Consider connected if updated in last 5 seconds
-        
+
         return state_dict
     
     def from_dict(self, data):
