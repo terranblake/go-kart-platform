@@ -193,12 +193,13 @@ void ProtobufCANInterface::packValue(kart_common_ValueType type, int32_t value, 
             data[0] = (value >> 8) & 0xFF;
             data[1] = value & 0xFF;
             break;
-        case kart_common_ValueType_FLOAT16:
+        case kart_common_ValueType_FLOAT16: {
             // Convert float to 16-bit fixed point
             int16_t fixed = static_cast<int16_t>(value * 100.0f);
             data[0] = (fixed >> 8) & 0xFF;
             data[1] = fixed & 0xFF;
             break;
+        }
         default:
             length = 0;
             break;
@@ -214,10 +215,11 @@ int32_t ProtobufCANInterface::unpackValue(kart_common_ValueType type, const uint
             return static_cast<uint8_t>(data[0]);
         case kart_common_ValueType_UINT16:
             return (static_cast<uint16_t>(data[0]) << 8) | data[1];
-        case kart_common_ValueType_FLOAT16:
+        case kart_common_ValueType_FLOAT16: {
             // Convert 16-bit fixed point to float
             int16_t fixed = (static_cast<int16_t>(data[0]) << 8) | data[1];
             return static_cast<int32_t>(fixed / 100.0f);
+        }
         default:
             return 0;
     }
