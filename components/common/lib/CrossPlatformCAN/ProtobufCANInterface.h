@@ -6,22 +6,14 @@
 #ifndef PROTOBUF_CAN_INTERFACE_H
 #define PROTOBUF_CAN_INTERFACE_H
 
-#ifndef PLATFORM_ARDUINO
-#define PLATFORM_ARDUINO 0
-#endif
-
-#ifndef PLATFORM_LINUX
-#define PLATFORM_LINUX 0
-#endif
-
 #include "CANInterface.h"
 #include "common.pb.h"
 
 // Max number of message handlers
 // todo: switch to using PLATFORM_EMBEDDED
-#if PLATFORM_ARDUINO == 1
+#if defined(PLATFORM_ARDUINO)
 #define MAX_HANDLERS 32
-#else
+#elif defined(PLATFORM_LINUX)
 #define MAX_HANDLERS 128
 #endif
 
