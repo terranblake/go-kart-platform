@@ -122,7 +122,7 @@ void ProtobufCANInterface::process()
     // Find and execute matching handlers
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        if (!matchesHandler(m_handlers[i].msg_type, m_handlers[i].comp_type, m_handlers[i].component_id, m_handlers[i].command_id, msg_type, comp_type, component_id, command_id)) {
+        if (!matchesHandler(m_handlers[i].msg_type, m_handlers[i].type, m_handlers[i].component_id, m_handlers[i].command_id, msg_type, comp_type, component_id, command_id)) {
             continue;
         }
 

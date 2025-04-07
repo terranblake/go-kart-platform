@@ -36,7 +36,7 @@ static void global_message_handler(uint16_t message_id, int32_t value) {
         uint8_t component_id;
         uint8_t command_id;
         kart_common_ValueType value_type;
-        unpackMessageId(message_id, msg_type, comp_type, component_id, command_id, value_type);
+        ProtobufCANInterface::unpackMessageId(message_id, msg_type, comp_type, component_id, command_id, value_type);
         
         if (!ProtobufCANInterface::matchesHandler(g_handlers[i].msg_type, g_handlers[i].comp_type, g_handlers[i].component_id, g_handlers[i].command_id, msg_type, comp_type, component_id, command_id)) {
             continue;
