@@ -203,7 +203,7 @@ class CANInterfaceWrapper:
     
     def _handle_message(self, message_id, value):
         """Default message handler that logs messages and processes them through the protocol registry"""
-        logger.debug(f"Received CAN message: {message_id}, {value}")
+        logger.info(f"Received CAN message: {message_id}, {value}")
         
         if not self.telemetry_store:
             logger.error("Telemetry store is not set, dropping message")

@@ -143,7 +143,9 @@ public:
    */
   static int32_t unpackValue(kart_common_ValueType type, const uint8_t* data, uint8_t length);
 
-    // Helper function to check if a message matches a handler's criteria
+  /**
+   * Helper function to check if a message matches a handler's criteria
+   */
   static bool matchesHandler(kart_common_MessageType handler_msg_type,
                      kart_common_ComponentType handler_comp_type,
                      uint8_t handler_component_id,
