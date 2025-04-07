@@ -248,14 +248,6 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
                                         kart_common_ComponentType comp_type,
                                         uint8_t component_id,
                                         uint8_t command_id) {
-#ifdef PLATFORM_LINUX
-    // log if msg_type, type and component_id match
-    if (handler.msg_type == msg_type && handler.type == comp_type) {
-        printf("MATCH: msg_type=%d, type=%d, handler.component_id=%d, component_id=%d, handler.command_id=%d, command_id=%d\n", 
-               handler.msg_type, handler.type, handler.component_id, component_id, handler.command_id, command_id);
-    }
-#endif
-
     return (handler.msg_type == msg_type) &&
            (handler.type == comp_type) &&
            (handler.component_id == component_id || handler.component_id == 0xFF || handler.component_id == 255) &&
