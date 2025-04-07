@@ -245,7 +245,8 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
 #ifdef PLATFORM_LINUX
     // log if msg_type, type and component_id match
     if (handler.msg_type == msg_type && handler.type == comp_type) {
-        printf("MATCH: %d, %d, %d, %d\n", handler.msg_type, handler.type, handler.component_id, component_id);
+        printf("MATCH: msg_type=%d, type=%d, handler.component_id=%d, component_id=%d, handler.command_id=%d, command_id=%d\n", 
+               handler.msg_type, handler.type, handler.component_id, component_id, handler.command_id, command_id);
     }
 #endif
 
