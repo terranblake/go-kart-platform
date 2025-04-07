@@ -143,6 +143,16 @@ public:
    */
   static int32_t unpackValue(kart_common_ValueType type, const uint8_t* data, uint8_t length);
 
+    // Helper function to check if a message matches a handler's criteria
+  static bool matchesHandler(kart_common_MessageType handler_msg_type,
+                     kart_common_ComponentType handler_comp_type,
+                     uint8_t handler_component_id,
+                     uint8_t handler_command_id,
+                     kart_common_MessageType msg_type,
+                     kart_common_ComponentType comp_type,
+                     uint8_t component_id,
+                     uint8_t command_id);
+
 private:
   struct HandlerEntry {
     kart_common_MessageType msg_type;
@@ -159,16 +169,6 @@ private:
   
   // Debug logging helper
   void logMessage(const char *prefix, uint16_t message_id, int32_t value);
-
-  // Helper function to check if a message matches a handler's criteria
-  static bool matchesHandler(kart_common_MessageType handler_msg_type,
-                     kart_common_ComponentType handler_comp_type,
-                     uint8_t handler_component_id,
-                     uint8_t handler_command_id,
-                     kart_common_MessageType msg_type,
-                     kart_common_ComponentType comp_type,
-                     uint8_t component_id,
-                     uint8_t command_id);
 };
 
 #endif // PROTOBUF_CAN_INTERFACE_H 
