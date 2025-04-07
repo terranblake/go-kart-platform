@@ -26,12 +26,6 @@ void setupLightsForTesting();
 // todo: this should be pulled from EEPROM as a unique id
 ProtobufCANInterface canInterface(0x01);
 
-#if DEBUG_MODE
-
-char serialCommandBuffer[SERIAL_COMMAND_BUFFER_SIZE];
-
-#endif
-
 void setup()
 {
 #if DEBUG_MODE
@@ -51,21 +45,13 @@ void setup()
   lightState.mode = 0; // Lights disabled by default
   clearLights(leds, NUM_LEDS);
 
+  // Register handlers with the new format
   canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_CONTROLS, kart_controls_ControlComponentId_DIAGNOSTIC, kart_controls_ControlCommandId_MODE, handleLightTest);
-
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_MODE, handleLightMode);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_SIGNAL, handleLightSignal);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_BRAKE, handleLightBrake);
-
-  // todo: remove these in favor of EEPROM-supported node identification
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, kart_lights_LightComponentId_ALL, kart_lights_LightCommandId_LOCATION, handleLightLocation);
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, 0xFF, kart_lights_LightCommandId_MODE, handleLightMode);
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, 0xFF, kart_lights_LightCommandId_SIGNAL, handleLightSignal);
+  canInterface.registerHandler(kart_common_MessageType_COMMAND, kart_common_ComponentType_LIGHTS, 0xFF, kart_lights_LightCommandId_BRAKE, handleLightBrake);
 
   Serial.println(F("Go-Kart Lights"));
-
-// #if DEBUG_MODE
-//   setupLightsForTesting();
-// #endif
 }
 
 void loop()
@@ -82,14 +68,6 @@ void loop()
   // Small delay to prevent flickering
   delay(10);
   canInterface.process();
-
-#if DEBUG_MODE
-  if (testModeActive)
-  {
-    // Run the test sequence if in test mode
-    runTestSequence();
-  }
-#endif
 }
 
 void updateLights(CRGB *leds, int numLeds, LightState &lightState)
@@ -375,24 +353,14 @@ void clearLights(CRGB *leds, int numLeds)
   fill_solid(leds, numLeds, CRGB::Black);
 }
 
-void handleLightMode(kart_common_MessageType msg_type,
-                     kart_common_ComponentType comp_type,
-                     uint8_t component_id,
-                     uint8_t command_id,
-                     kart_common_ValueType value_type,
-                     int32_t value)
+void handleLightMode(int32_t value)
 {
   lightState.mode = value;
   Serial.print(F("Light mode: "));
   Serial.println(lightState.mode);
 }
 
-void handleLightSignal(kart_common_MessageType msg_type,
-                       kart_common_ComponentType comp_type,
-                       uint8_t component_id,
-                       uint8_t command_id,
-                       kart_common_ValueType value_type,
-                       int32_t value)
+void handleLightSignal(int32_t value)
 {
   switch (value)
   {
@@ -415,24 +383,14 @@ void handleLightSignal(kart_common_MessageType msg_type,
   Serial.println(lightState.turnRight);
 }
 
-void handleLightBrake(kart_common_MessageType msg_type,
-                      kart_common_ComponentType comp_type,
-                      uint8_t component_id,
-                      uint8_t command_id,
-                      kart_common_ValueType value_type,
-                      int32_t value)
+void handleLightBrake(int32_t value)
 {
   lightState.braking = (value == 1) ? 1 : 0;
   Serial.print(F("Brake: "));
   Serial.println(lightState.braking);
 }
 
-void handleLightTest(kart_common_MessageType msg_type,
-                     kart_common_ComponentType comp_type,
-                     uint8_t component_id,
-                     uint8_t command_id,
-                     kart_common_ValueType value_type,
-                     int32_t value)
+void handleLightTest(int32_t value)
 {
   testModeActive = (value == kart_controls_ControlModeValue_TEST);
   Serial.print(F("Test mode: "));
@@ -443,390 +401,10 @@ void handleLightTest(kart_common_MessageType msg_type,
   Serial.println(testModeActive);
 }
 
-void handleLightLocation(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value)
+void handleLightLocation(int32_t value)
 {
   updateFrontLights = (value == 1);
   locationSelected = true;
   Serial.print(F("Light location: "));
   Serial.println(updateFrontLights ? F("Front") : F("Rear"));
 }
-
-#if DEBUG_MODE
-
-void setupLightsForTesting()
-{
-  Serial.println("Sending message to set location to front");
-  // log result of sendMessage
-  bool result = canInterface.sendMessage(
-      kart_common_MessageType_COMMAND,
-      kart_common_ComponentType_LIGHTS,
-      kart_lights_LightComponentId_ALL,
-      kart_lights_LightCommandId_LOCATION,
-      kart_common_ValueType_INT8,
-      0);
-  Serial.print("Result: ");
-  Serial.println(result);
-
-  Serial.println("Sending message to set testing to true");
-  canInterface.sendMessage(
-      kart_common_MessageType_COMMAND,
-      kart_common_ComponentType_CONTROLS,
-      kart_controls_ControlComponentId_DIAGNOSTIC,
-      kart_controls_ControlCommandId_MODE,
-      kart_common_ValueType_INT8,
-      kart_controls_ControlModeValue_TEST);
-  Serial.println("Lights set up for testing");
-}
-
-void runTestSequence()
-{
-  static unsigned long lastStateChange = 0;
-  static uint8_t testState = 0;
-  const uint8_t numTestStates = 12;
-  const unsigned long testInterval = 3000; // 3 seconds per state
-
-  unsigned long currentMillis = millis();
-
-  // Check if it's time to change state
-  if (currentMillis - lastStateChange > testInterval)
-  {
-    lastStateChange = currentMillis;
-    testState = (testState + 1) % numTestStates;
-
-    // Reset all states before each test
-    updateFrontLights = true;
-    lightState.turnLeft = 0;
-    lightState.turnRight = 0;
-    lightState.braking = 0;
-    lightState.sweepPosition = 0;
-    lightState.animation = 0;
-
-    switch (testState)
-    {
-    case 0:
-      // Startup front - lights on
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      break;
-
-    case 1:
-      // Shutdown front
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_OFF);
-      break;
-
-    case 2:
-      // Low mode with left turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal value
-      break;
-
-    case 3:
-      // Low mode with right turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal value
-      break;
-
-    case 4:
-      // High mode with left turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_BRIGHT);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal value
-      break;
-
-    case 5:
-      // High mode with right turn signal
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_FRONT,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_BRIGHT);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal value
-      break;
-
-    case 6:
-      // Hazard lights (both turn signals)
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_HAZARD);
-      break;
-
-    case 7:
-      // Set to rear lights and hazard
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_HAZARD); // Using FLASH as equivalent to HAZARD
-      break;
-
-    case 8:
-      // Brake lights test
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          true); // Brake ON
-      break;
-
-    case 9:
-      // Brake lights with left turn signals
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          1); // Brake ON
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_LEFT); // Left signal
-      break;
-
-    case 10:
-      // Brake lights with right turn signals
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_ON);
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_BRAKE,
-          kart_common_ValueType_BOOLEAN,
-          1); // Brake ON
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_ALL,
-          kart_lights_LightCommandId_SIGNAL,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightSignalValue_RIGHT); // Right signal
-      break;
-
-    case 11:
-      // Shutdown rear animation
-      updateFrontLights = false;
-      canInterface.sendMessage(
-          kart_common_MessageType_COMMAND,
-          kart_common_ComponentType_LIGHTS,
-          kart_lights_LightComponentId_REAR,
-          kart_lights_LightCommandId_MODE,
-          kart_common_ValueType_UINT8,
-          kart_lights_LightModeValue_OFF);
-      break;
-    }
-
-    Serial.print(F("TS:"));
-    Serial.println(testState);
-  }
-
-  updateLights(leds, NUM_LEDS, lightState);
-  FastLED.show();
-}
-
-// Process commands received over Serial
-void processSerialCommands()
-{
-  static int bufferIndex = 0;
-
-  // Check if data is available
-  while (Serial.available() > 0)
-  {
-    char c = Serial.read();
-
-    // Handle newline as command terminator
-    if (c == '\n' || c == '\r')
-    {
-      if (bufferIndex > 0)
-      {
-        // Null-terminate the buffer
-        serialCommandBuffer[bufferIndex] = '\0';
-
-        // Process the command
-        executeSerialCommand(serialCommandBuffer);
-
-        // Reset buffer index
-        bufferIndex = 0;
-      }
-    }
-    // Add character to buffer if there's room
-    else if (bufferIndex < SERIAL_COMMAND_BUFFER_SIZE - 1)
-    {
-      serialCommandBuffer[bufferIndex++] = c;
-    }
-  }
-}
-
-void executeSerialCommand(const char *command)
-{
-  // Process CAN message simulation with Protocol Buffer format
-  if (strncmp(command, "CAN:", 4) == 0)
-  {
-    char *ptr = (char *)command + 4;
-
-    // Parse component type
-    uint8_t componentType = strtoul(ptr, &ptr, 10);
-    if (*ptr == ':')
-    {
-      ptr++;
-
-      // Parse component ID
-      uint8_t componentId = strtoul(ptr, &ptr, 10);
-      if (*ptr == ':')
-      {
-        ptr++;
-
-        // Parse command ID
-        uint8_t commandId = strtoul(ptr, &ptr, 10);
-
-        // Parse optional value (default to 0)
-        int16_t value = 0;
-        if (*ptr == ':')
-        {
-          ptr++;
-          value = strtol(ptr, NULL, 10);
-        }
-
-        // Send the message using our new overload
-        bool success = canInterface.sendMessage(
-            kart_common_MessageType_COMMAND,
-            (kart_common_ComponentType)componentType,
-            componentId,
-            commandId,
-            kart_common_ValueType_INT8,
-            value);
-
-        if (success)
-        {
-          Serial.print(F("Serial->CAN: "));
-          Serial.print(componentType);
-          Serial.print(F(":"));
-          Serial.print(componentId);
-          Serial.print(F(":"));
-          Serial.print(commandId);
-          Serial.print(F("="));
-          Serial.println(value);
-        }
-        else
-        {
-          Serial.println(F("Failed to send message"));
-        }
-      }
-    }
-  }
-  // Toggle test sequence
-  else if (strcmp(command, "TEST:START") == 0)
-  {
-    testModeActive = true;
-    Serial.println(F("Test sequence started"));
-  }
-  else if (strcmp(command, "TEST:STOP") == 0)
-  {
-    testModeActive = false;
-    Serial.println(F("Test sequence stopped"));
-  }
-  // Simple ping command to test serial connectivity
-  else if (strcmp(command, "PING") == 0)
-  {
-    Serial.println(F("PONG"));
-  }
-  else
-  {
-    Serial.println(F("Unsupported command"));
-  }
-}
-
-#endif

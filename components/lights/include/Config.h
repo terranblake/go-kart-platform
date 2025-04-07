@@ -32,36 +32,11 @@ typedef struct
 } LightState;
 
 // Function prototypes for command handlers
-void handleLightMode(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightSignal(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightBrake(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightTest(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
-void handleLightLocation(kart_common_MessageType msg_type,
-                         kart_common_ComponentType comp_type,
-                         uint8_t component_id,
-                         uint8_t command_id,
-                         kart_common_ValueType value_type,
-                         int32_t value);
+void handleLightMode(int32_t value);
+void handleLightSignal(int32_t value);
+void handleLightBrake(int32_t value);
+void handleLightTest(int32_t value);
+void handleLightLocation(int32_t value);
 
 // Forward declarations for functions
 void clearLights(CRGB *leds, int numLeds);

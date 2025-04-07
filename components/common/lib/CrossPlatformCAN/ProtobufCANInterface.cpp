@@ -5,7 +5,7 @@
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
 #include <string.h>
-
+#include <stdint.h>
 #ifdef PLATFORM_ARDUINO
 #include <Arduino.h>
 #endif
@@ -40,7 +40,7 @@ void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,
                                           MessageHandler handler)
 {
     if (m_numHandlers >= MAX_HANDLERS) {
-        logMessage("MAX_HANDLERS_ERROR", msg_type, type, component_id, command_id, kart_common_ValueType_BOOLEAN, 0);
+        logMessage("MAX_HANDLERS_ERROR", 0, 0);
         return;
     }
 
@@ -51,9 +51,8 @@ void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,
     m_handlers[m_numHandlers].handler = handler;
     m_numHandlers++;
     
-    // Always log registrations, not just in debug mode
 #if DEBUG_MODE
-    logMessage("REGD", msg_type, type, component_id, command_id, kart_common_ValueType_BOOLEAN, false);
+    logMessage("REGD", packMessageId(msg_type, type, component_id, command_id, kart_common_ValueType_BOOLEAN), 0);
 #endif
 }
 
@@ -62,32 +61,19 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
                                       uint8_t component_id, uint8_t command_id, 
                                       kart_common_ValueType value_type, int32_t value) {
   
-#if DEBUG_MODE
-    logMessage("SEND", message_type, component_type, component_id, command_id, value_type, value);
-#endif
-
-    // Pack first byte (message type and component type)
-    uint8_t header = packHeader(message_type, component_type);
+    // Pack message ID into CAN ID
+    uint16_t message_id = packMessageId(message_type, component_type, component_id, command_id, value_type);
     
-    // Pack the value based on its type
-    uint32_t packed_value = packValue(value_type, value);
-    
-    // Prepare CAN message (8 bytes)
+    // Prepare CAN message
     CANMessage msg;
-    msg.id = m_nodeId;   // Use node ID as CAN ID
-    msg.length = 8;      // Always use 8 bytes for consistency
+    msg.id = message_id;
     
-    msg.data[0] = header;
-    msg.data[1] = 0;                                  // Reserved
-    msg.data[2] = component_id;
-    msg.data[3] = command_id;
-    msg.data[4] = static_cast<uint8_t>(value_type) << 4; // Value type in high nibble
-    msg.data[5] = (packed_value >> 16) & 0xFF;           // Value byte 2 (MSB)
-    msg.data[6] = (packed_value >> 8) & 0xFF;            // Value byte 1
-    msg.data[7] = packed_value & 0xFF;                   // Value byte 0 (LSB)
+    // Pack value into data field
+    packValue(value_type, value, msg.data, msg.length);
     
 #if DEBUG_MODE
-    printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Data:", msg.id);
+    logMessage("SEND", message_id, value);
+    printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Length: %d, Data:", msg.id, msg.length);
     for (int i = 0; i < msg.length; i++) {
         printf(" %02X", msg.data[i]);
     }
@@ -110,48 +96,36 @@ void ProtobufCANInterface::process()
     if (!m_canInterface.receiveMessage(msg)) {
         return; // No message available
     }
-    
-    // Message must be 8 bytes for our protocol
-    if (msg.length != 8) {
-        return;
-    }
-
-    // Unpack header
-    kart_common_MessageType msg_type;
-    kart_common_ComponentType comp_type;
-    unpackHeader(msg.data[0], msg_type, comp_type);
-
-    // Extract other fields
-    uint8_t component_id = msg.data[2];
-    uint8_t command_id = msg.data[3];
-    kart_common_ValueType value_type = static_cast<kart_common_ValueType>(msg.data[4] >> 4);
-
-    // Unpack value
-    uint32_t packed_value = (static_cast<uint32_t>(msg.data[5]) << 16) |
-                           (static_cast<uint32_t>(msg.data[6]) << 8) |
-                           msg.data[7];
-    int32_t value = unpackValue(value_type, packed_value);
 
 #ifdef PLATFORM_ARDUINO
-    // Remove filtering of STATUS messages - we'll check message types in handler matching
-    if (msg_type == kart_common_MessageType_STATUS) {
+    // On Arduino, drop all status messages immediately
+    if ((msg.id >> MSG_TYPE_SHIFT) & MSG_TYPE_MASK) { // If MSB is 1, it's a status message
         return;
     }
 #endif
-
+    
+    // Unpack message ID
+    kart_common_MessageType msg_type;
+    kart_common_ComponentType comp_type;
+    uint8_t component_id;
+    uint8_t command_id;
+    kart_common_ValueType value_type;
+    unpackMessageId(msg.id, msg_type, comp_type, component_id, command_id, value_type);
+    
+    // Unpack value
+    int32_t value = unpackValue(value_type, msg.data, msg.length);
+    
 #if DEBUG_MODE
-    logMessage("RECV", msg_type, comp_type, component_id, command_id, value_type, value);
+    logMessage("RECV", msg.id, value);
 #endif
 
-    // Find and execute matching handlers - now checking message type as well
+    // Find and execute matching handlers
     bool handlerFound = false;
     for (int i = 0; i < m_numHandlers; i++) {
-        if (!matchesHandler(m_handlers[i], msg_type, comp_type, component_id, command_id)) {
-            continue;
+        if (matchesHandler(m_handlers[i], msg_type, comp_type, component_id, command_id)) {
+            handlerFound = true;
+            m_handlers[i].handler(value);
         }
-
-        handlerFound = true;
-        m_handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
     }
 
     // Echo status if this was a command (optional)
@@ -160,90 +134,134 @@ void ProtobufCANInterface::process()
     }
 }
 
-uint8_t ProtobufCANInterface::packHeader(kart_common_MessageType type, kart_common_ComponentType component)
+uint16_t ProtobufCANInterface::packMessageId(kart_common_MessageType msg_type,
+                                           kart_common_ComponentType comp_type,
+                                           uint8_t component_id,
+                                           uint8_t command_id,
+                                           kart_common_ValueType value_type)
 {
-    uint8_t type_bits = static_cast<uint8_t>(type) << 6;
-    uint8_t comp_bits = (static_cast<uint8_t>(component) & 0x07) << 3;
-    uint8_t result = type_bits | comp_bits; 
-    return result;
+    uint16_t id = 0;
+    id |= (static_cast<uint16_t>(msg_type) & MSG_TYPE_MASK) << MSG_TYPE_SHIFT;
+    id |= (static_cast<uint16_t>(comp_type) & COMP_TYPE_MASK) << COMP_TYPE_SHIFT;
+    id |= (static_cast<uint16_t>(component_id) & COMP_ID_MASK) << COMP_ID_SHIFT;
+    id |= (static_cast<uint16_t>(command_id) & CMD_ID_MASK) << CMD_ID_SHIFT;
+    id |= (static_cast<uint16_t>(value_type) & VALUE_TYPE_MASK) << VALUE_TYPE_SHIFT;
+    return id;
 }
 
-void ProtobufCANInterface::unpackHeader(uint8_t header, kart_common_MessageType &type, kart_common_ComponentType &component)
+void ProtobufCANInterface::unpackMessageId(uint16_t message_id,
+                                         kart_common_MessageType& msg_type,
+                                         kart_common_ComponentType& comp_type,
+                                         uint8_t& component_id,
+                                         uint8_t& command_id,
+                                         kart_common_ValueType& value_type)
 {
-    type = static_cast<kart_common_MessageType>((header >> 6) & 0x03);
-    component = static_cast<kart_common_ComponentType>((header >> 3) & 0x07);
+    msg_type = static_cast<kart_common_MessageType>((message_id >> MSG_TYPE_SHIFT) & MSG_TYPE_MASK);
+    comp_type = static_cast<kart_common_ComponentType>((message_id >> COMP_TYPE_SHIFT) & COMP_TYPE_MASK);
+    component_id = static_cast<uint8_t>((message_id >> COMP_ID_SHIFT) & COMP_ID_MASK);
+    command_id = static_cast<uint8_t>((message_id >> CMD_ID_SHIFT) & CMD_ID_MASK);
+    value_type = static_cast<kart_common_ValueType>((message_id >> VALUE_TYPE_SHIFT) & VALUE_TYPE_MASK);
 }
 
-uint32_t ProtobufCANInterface::packValue(kart_common_ValueType type, int32_t value)
+uint8_t ProtobufCANInterface::getValueLength(kart_common_ValueType type)
 {
-    // Truncate and mask based on kart_common_ValueType
     switch (type) {
-    case kart_common_ValueType_BOOLEAN:
-        return value ? 1 : 0;
-    case kart_common_ValueType_INT8:
-        return static_cast<uint8_t>(value) & 0xFF;
-    case kart_common_ValueType_UINT8:
-        return static_cast<uint8_t>(value) & 0xFF;
-    case kart_common_ValueType_INT16:
-        return static_cast<uint16_t>(value) & 0xFFFF;
-    case kart_common_ValueType_UINT16:
-        return static_cast<uint16_t>(value) & 0xFFFF;
-    case kart_common_ValueType_INT24:
-    case kart_common_ValueType_UINT24:
-    default:
-        return static_cast<uint32_t>(value) & 0xFFFFFF;
+        case kart_common_ValueType_BOOLEAN:
+            return 1;
+        case kart_common_ValueType_UINT8:
+            return 1;
+        case kart_common_ValueType_UINT16:
+            return 2;
+        case kart_common_ValueType_FLOAT16:
+            return 2;
+        default:
+            return 0;
     }
 }
 
-int32_t ProtobufCANInterface::unpackValue(kart_common_ValueType type, uint32_t packed_value)
+void ProtobufCANInterface::packValue(kart_common_ValueType type, int32_t value, uint8_t* data, uint8_t& length)
 {
-    // Sign extend and interpret based on kart_common_ValueType
+    length = getValueLength(type);
     switch (type) {
-    case kart_common_ValueType_BOOLEAN:
-        return packed_value & 0x01;
-    case kart_common_ValueType_INT8:
-        return (packed_value & 0x80) ? (packed_value | 0xFFFFFF00) : packed_value;
-    case kart_common_ValueType_UINT8:
-        return packed_value & 0xFF;
-    case kart_common_ValueType_INT16:
-        return (packed_value & 0x8000) ? (packed_value | 0xFFFF0000) : packed_value;
-    case kart_common_ValueType_UINT16:
-        return packed_value & 0xFFFF;
-    case kart_common_ValueType_INT24:
-        return (packed_value & 0x800000) ? (packed_value | 0xFF000000) : packed_value;
-    case kart_common_ValueType_UINT24:
-    default:
-        return packed_value & 0xFFFFFF;
+        case kart_common_ValueType_BOOLEAN:
+            data[0] = value ? 1 : 0;
+            break;
+        case kart_common_ValueType_UINT8:
+            data[0] = static_cast<uint8_t>(value);
+            break;
+        case kart_common_ValueType_UINT16:
+            data[0] = (value >> 8) & 0xFF;
+            data[1] = value & 0xFF;
+            break;
+        case kart_common_ValueType_FLOAT16:
+            // Convert float to 16-bit fixed point
+            int16_t fixed = static_cast<int16_t>(value * 100.0f);
+            data[0] = (fixed >> 8) & 0xFF;
+            data[1] = fixed & 0xFF;
+            break;
+        default:
+            length = 0;
+            break;
     }
 }
 
-void ProtobufCANInterface::logMessage(const char* prefix, kart_common_MessageType message_type, 
-                                     kart_common_ComponentType component_type,
-                                     uint8_t component_id, uint8_t command_id, 
-                                     kart_common_ValueType value_type, int32_t value)
+int32_t ProtobufCANInterface::unpackValue(kart_common_ValueType type, const uint8_t* data, uint8_t length)
+{
+    switch (type) {
+        case kart_common_ValueType_BOOLEAN:
+            return data[0] ? 1 : 0;
+        case kart_common_ValueType_UINT8:
+            return static_cast<uint8_t>(data[0]);
+        case kart_common_ValueType_UINT16:
+            return (static_cast<uint16_t>(data[0]) << 8) | data[1];
+        case kart_common_ValueType_FLOAT16:
+            // Convert 16-bit fixed point to float
+            int16_t fixed = (static_cast<int16_t>(data[0]) << 8) | data[1];
+            return static_cast<int32_t>(fixed / 100.0f);
+        default:
+            return 0;
+    }
+}
+
+void ProtobufCANInterface::logMessage(const char *prefix, uint16_t message_id, int32_t value)
 {
 #ifdef PLATFORM_ARDUINO
     char buffer[128];
     snprintf(buffer, sizeof(buffer), 
-             "%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%ld", 
-             prefix, (int)message_type, (int)component_type, 
-             component_id, command_id, (int)value_type, (long)value);
+             "%s: ID=0x%04X, Val=%ld", 
+             prefix, static_cast<unsigned int>(message_id), static_cast<long>(value));
     Serial.println(buffer);
 #else
-    printf("%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%d\n", 
-           prefix, (int)message_type, (int)component_type, 
-           component_id, command_id, (int)value_type, value);
+    printf("%s: ID=0x%04X, Val=%d\n", 
+           prefix, static_cast<unsigned int>(message_id), static_cast<int>(value));
 #endif
 }
 
-// Helper function to check if a message matches a handler's criteria
 bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
                                         kart_common_MessageType msg_type,
                                         kart_common_ComponentType comp_type,
                                         uint8_t component_id,
-                                        uint8_t command_id) {
-    return (handler.msg_type == msg_type) &&
-           (handler.type == comp_type) &&
-           (handler.component_id == component_id || handler.component_id == 0xFF || handler.component_id == 255) &&
-           (handler.command_id == command_id);
-} 
+                                        uint8_t command_id)
+{
+    // Check if message type matches
+    if (handler.msg_type != msg_type) {
+        return false;
+    }
+
+    // Check if component type matches
+    if (handler.type != comp_type) {
+        return false;
+    }
+
+    // Check if component ID matches (0xFF means match all)
+    if (handler.component_id != 0xFF && handler.component_id != component_id) {
+        return false;
+    }
+
+    // Check if command ID matches (0xFF means match all)
+    if (handler.command_id != 0xFF && handler.command_id != command_id) {
+        return false;
+    }
+
+    return true;
+}

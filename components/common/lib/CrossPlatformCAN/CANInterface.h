@@ -35,7 +35,7 @@
 
 // Common CAN message structure
 typedef struct {
-  uint32_t id;       // CAN ID
+  uint16_t id;       // CAN ID (16 bits)
   uint8_t length;    // Data length (0-8)
   uint8_t data[8];   // Data bytes
 } CANMessage;

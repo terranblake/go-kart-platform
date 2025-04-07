@@ -12,29 +12,20 @@
 /* Enum definitions */
 /* Control component IDs */
 typedef enum _kart_controls_ControlComponentId {
-    kart_controls_ControlComponentId_THROTTLE = 0,
-    kart_controls_ControlComponentId_BRAKE = 1,
-    kart_controls_ControlComponentId_STEERING = 2,
-    kart_controls_ControlComponentId_TRANSMISSION = 3,
-    kart_controls_ControlComponentId_SUSPENSION = 4,
-    kart_controls_ControlComponentId_COOLING = 5,
-    kart_controls_ControlComponentId_USER_INTERFACE = 6,
-    kart_controls_ControlComponentId_SECURITY = 7,
-    kart_controls_ControlComponentId_DIAGNOSTIC = 8,
-    kart_controls_ControlComponentId_AUTONOMOUS = 9,
-    kart_controls_ControlComponentId_ALL = 10
+    kart_controls_ControlComponentId_SUSPENSION = 0,
+    kart_controls_ControlComponentId_COOLING = 1,
+    kart_controls_ControlComponentId_USER_INTERFACE = 2,
+    kart_controls_ControlComponentId_SECURITY = 3,
+    kart_controls_ControlComponentId_DIAGNOSTIC = 4,
+    kart_controls_ControlComponentId_AUTONOMOUS = 5
 } kart_controls_ControlComponentId;
 
 /* Control command IDs */
 typedef enum _kart_controls_ControlCommandId {
-    kart_controls_ControlCommandId_ENABLE = 0,
-    kart_controls_ControlCommandId_DISABLE = 1,
-    kart_controls_ControlCommandId_RESET = 2,
-    kart_controls_ControlCommandId_MODE = 3,
-    kart_controls_ControlCommandId_PARAMETER = 4,
-    kart_controls_ControlCommandId_LIMIT = 5,
-    kart_controls_ControlCommandId_CALIBRATE = 6,
-    kart_controls_ControlCommandId_EMERGENCY = 7
+    kart_controls_ControlCommandId_MODE = 0,
+    kart_controls_ControlCommandId_LIMIT = 1,
+    kart_controls_ControlCommandId_CALIBRATE = 2,
+    kart_controls_ControlCommandId_EMERGENCY = 3
 } kart_controls_ControlCommandId;
 
 /* Control mode values */
@@ -67,11 +58,11 @@ extern "C" {
 #endif
 
 /* Helper constants for enums */
-#define _kart_controls_ControlComponentId_MIN kart_controls_ControlComponentId_THROTTLE
-#define _kart_controls_ControlComponentId_MAX kart_controls_ControlComponentId_ALL
-#define _kart_controls_ControlComponentId_ARRAYSIZE ((kart_controls_ControlComponentId)(kart_controls_ControlComponentId_ALL+1))
+#define _kart_controls_ControlComponentId_MIN kart_controls_ControlComponentId_SUSPENSION
+#define _kart_controls_ControlComponentId_MAX kart_controls_ControlComponentId_AUTONOMOUS
+#define _kart_controls_ControlComponentId_ARRAYSIZE ((kart_controls_ControlComponentId)(kart_controls_ControlComponentId_AUTONOMOUS+1))
 
-#define _kart_controls_ControlCommandId_MIN kart_controls_ControlCommandId_ENABLE
+#define _kart_controls_ControlCommandId_MIN kart_controls_ControlCommandId_MODE
 #define _kart_controls_ControlCommandId_MAX kart_controls_ControlCommandId_EMERGENCY
 #define _kart_controls_ControlCommandId_ARRAYSIZE ((kart_controls_ControlCommandId)(kart_controls_ControlCommandId_EMERGENCY+1))
 

@@ -5,10 +5,12 @@
 
 import sys
 import os
-import re
 import argparse
-import subprocess
+import socket
+import struct
+import time
 from binascii import unhexlify
+from datetime import datetime, timedelta
 
 # Add the protocol directory to the Python path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,9 +30,47 @@ except ImportError as e:
     print("Make sure the protocol buffer definitions are generated.")
     sys.exit(1)
 
-# Regular expression pattern to parse candump output
-# Example: can0  123   [8]  11 22 33 44 55 66 77 88
-CANDUMP_PATTERN = re.compile(r'(\w+)\s+([0-9A-F]+)\s+\[\d+\]\s+([0-9A-F\s]+)')
+# CAN frame format (from linux/can.h)
+CAN_MTU = 16  # sizeof(struct can_frame)
+CAN_FRAME_FORMAT = "=IB3x8s"  # struct can_frame format
+
+# CAN bus constants
+CAN_OVERHEAD_BITS = 47  # Standard CAN frame overhead (SOF, ID, Control, CRC, etc.)
+CAN_EOF_BITS = 7  # End of frame bits
+CAN_INTERFRAME_BITS = 3  # Interframe spacing bits
+
+class BusStats:
+    def __init__(self, bitrate):
+        self.bitrate = bitrate
+        self.start_time = datetime.now()
+        self.last_update = self.start_time
+        self.total_bits = 0
+        self.frame_count = 0
+        
+    def update(self, frame_length):
+        now = datetime.now()
+        self.frame_count += 1
+        
+        # Calculate bits for this frame:
+        # - 47 bits overhead (SOF, ID, Control, CRC, etc.)
+        # - 8 bits per data byte
+        # - 7 bits EOF
+        # - 3 bits interframe spacing
+        frame_bits = CAN_OVERHEAD_BITS + (frame_length * 8) + CAN_EOF_BITS + CAN_INTERFRAME_BITS
+        self.total_bits += frame_bits
+        
+        # Update every second
+        if (now - self.last_update) >= timedelta(seconds=1):
+            elapsed = (now - self.start_time).total_seconds()
+            bits_per_second = self.total_bits / elapsed
+            kb_per_second = bits_per_second / 1000
+            utilization = (bits_per_second / self.bitrate) * 100
+            
+            print(f"\r{' '*80}\r", end='')  # Clear current line
+            print(f"Bus Stats: {utilization:.1f}% utilized | {kb_per_second:.1f} kb/s | {self.frame_count} frames", end='')
+            sys.stdout.flush()
+            
+            self.last_update = now
 
 def get_enum_name(enum_obj, value, default="UNKNOWN"):
     """Get the name for an enum value from its EnumTypeWrapper object"""
@@ -45,46 +85,30 @@ def get_enum_name(enum_obj, value, default="UNKNOWN"):
         pass
     return f"{default}({value})"
 
-def parse_can_message(data_str):
+def parse_can_message(can_id, data, length, bus_stats):
     """Parse a CAN message using the protocol definitions"""
     try:
-        # Remove spaces and convert to bytes
-        data_str = data_str.replace(" ", "")
-        if len(data_str) < 16:  # Need at least 8 bytes
-            print(f"Invalid data length: {len(data_str)}")
-            return
-            
-        data_bytes = unhexlify(data_str)
+        # Update bus statistics
+        bus_stats.update(length)
         
-        # Extract bytes according to protocol definition
-        byte0 = data_bytes[0]
-        byte1 = data_bytes[1]
-        byte2 = data_bytes[2]
-        byte3 = data_bytes[3]
-        byte4 = data_bytes[4]
-        
-        # Extract message type (2 bits from byte0)
-        msg_type = byte0 >> 6
+        # Extract fields from CAN ID
+        msg_type = (can_id >> MSG_TYPE_SHIFT) & MSG_TYPE_MASK
         msg_type_str = get_enum_name(common_pb2.MessageType, msg_type)
         
-        # Extract component type (3 bits from byte0)
-        comp_type = (byte0 >> 3) & 0x07
+        comp_type = (can_id >> COMP_TYPE_SHIFT) & COMP_TYPE_MASK
         comp_type_str = get_enum_name(common_pb2.ComponentType, comp_type)
         
-        # Extract component ID (byte2)
-        comp_id = byte2
+        comp_id = (can_id >> COMP_ID_SHIFT) & COMP_ID_MASK
         comp_id_str = str(comp_id)  # Default value
         
-        # Extract command ID (byte3)
-        cmd_id = byte3
+        cmd_id = (can_id >> CMD_ID_SHIFT) & CMD_ID_MASK
         cmd_id_str = str(cmd_id)  # Default value
         
-        # Extract value type (4 bits from byte4)
-        value_type = byte4 >> 4
+        value_type = (can_id >> VALUE_TYPE_SHIFT) & VALUE_TYPE_MASK
         value_type_str = get_enum_name(common_pb2.ValueType, value_type)
         
-        # Calculate value (bytes 5-7)
-        value = int.from_bytes(data_bytes[5:8], byteorder='big')
+        # Calculate value from data bytes
+        value = int.from_bytes(data[:length], byteorder='big')
         value_display = value  # Default display value
         
         # Map component ID to string based on component type
@@ -150,59 +174,49 @@ def parse_can_message(data_str):
                 value_display = get_enum_name(controls_pb2.ControlEmergencyValue, value, str(value))
         
         # Format the output
-        print(f"{msg_type_str:<10} | {comp_type_str:<10} | {comp_id_str:<15} | {cmd_id_str:<15} | {value_type_str:<10} | {value_display}")
+        print(f"\n{msg_type_str:<10} | {comp_type_str:<10} | {comp_id_str:<15} | {cmd_id_str:<15} | {value_type_str:<10} | {value_display}")
         
     except Exception as e:
         print(f"Error parsing message: {e}")
-        print(f"Raw data: {data_str}")
+        print(f"Raw CAN ID: 0x{can_id:04X}, Length: {length}, Data: {data.hex()}")
 
-def debug_protocol_enums():
-    """Print information about all direct enums"""
-    print("\nCommon Enums:")
-    print(f"  MessageType: {list(common_pb2.MessageType.items())}")
-    print(f"  ComponentType: {list(common_pb2.ComponentType.items())}")
-    print(f"  ValueType: {list(common_pb2.ValueType.items())}")
-    
-    print("\nLights Enums:")
-    print(f"  LightComponentId: {list(lights_pb2.LightComponentId.items())}")
-    print(f"  LightCommandId: {list(lights_pb2.LightCommandId.items())}")
-    print(f"  LightModeValue: {list(lights_pb2.LightModeValue.items())}")
-    
-    print("\nDirect Constants:")
-    print(f"  LIGHTS = {common_pb2.LIGHTS}")
-    print(f"  MOTORS = {common_pb2.MOTORS}")
-    print(f"  SENSORS = {common_pb2.SENSORS}")
-    print(f"  STATUS = {common_pb2.STATUS}")
-    print(f"  COMMAND = {common_pb2.COMMAND}")
-    
-    print("\nLights Constants:")
-    print(f"  MODE = {lights_pb2.MODE}")
-    print(f"  SIGNAL = {lights_pb2.SIGNAL}")
-    print(f"  FRONT = {lights_pb2.FRONT}")
-    print(f"  REAR = {lights_pb2.REAR}")
-
-def monitor_can_bus(interface):
-    """Monitor the CAN bus using candump and parse messages"""
+def monitor_can_bus(interface, bitrate):
+    """Monitor the CAN bus using SocketCAN"""
     # Print header
     print(f"{'MSG_TYPE':<10} | {'COMP_TYPE':<10} | {'COMPONENT':<15} | {'COMMAND':<15} | {'VAL_TYPE':<10} | {'VALUE':<15}")
     print("-" * 80)
     
     try:
-        # Start candump process
-        process = subprocess.Popen(
-            ['candump', interface],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Create a raw CAN socket
+        sock = socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
         
-        # Process output
-        for line in process.stdout:
-            line = line.strip()
-            match = CANDUMP_PATTERN.search(line)
-            if match:
-                _, can_id, data = match.groups()
-                parse_can_message(data)
+        # Bind to the interface
+        sock.bind((interface,))
+        
+        # Set non-blocking mode
+        sock.setblocking(False)
+        
+        # Initialize bus statistics
+        bus_stats = BusStats(bitrate)
+        
+        print(f"Monitoring CAN interface {interface} at {bitrate/1000} kb/s...")
+        print("Press Ctrl+C to exit")
+        print("")
+        
+        while True:
+            try:
+                # Try to receive a frame
+                frame = sock.recv(CAN_MTU)
+                if frame:
+                    # Unpack the CAN frame
+                    can_id, length, data = struct.unpack(CAN_FRAME_FORMAT, frame)
+                    
+                    # Parse and display the message
+                    parse_can_message(can_id, data, length, bus_stats)
+            
+            except socket.error:
+                # No data available, sleep briefly
+                time.sleep(0.001)
     
     except KeyboardInterrupt:
         print("\nCAN monitoring stopped by user")
@@ -210,26 +224,14 @@ def monitor_can_bus(interface):
         print(f"Error monitoring CAN bus: {e}")
     finally:
         # Clean up
-        if 'process' in locals():
-            process.terminate()
-            process.wait()
-
-def check_dependencies():
-    """Check if required dependencies are installed"""
-    try:
-        subprocess.run(['candump', '--version'], 
-                      stdout=subprocess.PIPE, 
-                      stderr=subprocess.PIPE, 
-                      check=False)
-    except FileNotFoundError:
-        print("Error: candump not found. Please install can-utils.")
-        return False
-    return True
+        if 'sock' in locals():
+            sock.close()
 
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description='Monitor CAN bus and interpret messages using protocol definitions')
     parser.add_argument('interface', nargs='?', default='can0', help='CAN interface to monitor (default: can0)')
+    parser.add_argument('--bitrate', type=int, default=500000, help='CAN bus bitrate in bits/second (default: 500000)')
     parser.add_argument('--debug', action='store_true', help='Print debug information about protocol enums')
     args = parser.parse_args()
     
@@ -237,14 +239,8 @@ def main():
         debug_protocol_enums()
         return
     
-    if not check_dependencies():
-        sys.exit(1)
-    
     print(f"Starting CAN monitor on interface {args.interface}...")
-    print("Press Ctrl+C to exit")
-    print("")
-    
-    monitor_can_bus(args.interface)
+    monitor_can_bus(args.interface, args.bitrate)
 
 if __name__ == '__main__':
     main()

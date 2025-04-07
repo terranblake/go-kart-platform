@@ -102,44 +102,22 @@ public:
   /**
    * Handle incoming CAN messages related to sensors
    * 
-   * @param messageType Message type (command/status)
-   * @param componentType Component type (should be SENSORS)
-   * @param locationId Sensor location ID
-   * @param commandId Sensor command ID (sensor type)
-   * @param valueType Type of the value
    * @param value The value received
    */
-  void handleMessage(
-      kart_common_MessageType messageType,
-      kart_common_ComponentType componentType,
-      uint8_t locationId,
-      uint8_t commandId,
-      kart_common_ValueType valueType,
-      int32_t value) {
-    
-    // Only process commands to the SENSORS component
-    if (componentType != kart_common_ComponentType_SENSORS) {
-      return;
-    }
-    
+  void handleMessage(int32_t value) {
     // Get the target sensor
-    Sensor* sensor = getSensor(commandId, locationId);
+    Sensor* sensor = getSensor(kart_sensors_SensorCommandId_STATUS, 0);
     if (!sensor) {
       // Sensor not found
       return;
     }
     
-    // Handle different message types
-    if (messageType == kart_common_MessageType_COMMAND) {
-      // Process command (currently we just support enable/disable)
-      // We use commandId 9 (STATUS) with value 0 (ENABLE) or 1 (DISABLE)
-      if (commandId == 9) {  // STATUS command
-        if (value == 0) {    // ENABLE
-          sensor->setEnabled(true);
-        } else if (value == 1) { // DISABLE
-          sensor->setEnabled(false);
-        }
-      }
+    // Process command (currently we just support enable/disable)
+    // We use commandId 9 (STATUS) with value 0 (ENABLE) or 1 (DISABLE)
+    if (value == 0) {    // ENABLE
+      sensor->setEnabled(true);
+    } else if (value == 1) { // DISABLE
+      sensor->setEnabled(false);
     }
   }
   

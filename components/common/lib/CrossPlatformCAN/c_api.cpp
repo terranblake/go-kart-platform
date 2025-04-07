@@ -9,7 +9,7 @@
 
 // Store pointers to handler functions
 struct HandlerWrapper {
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
+    can_message_handler_t handler;
 };
 
 #define MAX_WRAPPERS 128
@@ -17,29 +17,16 @@ static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
 // Global wrapper function for message handlers
-static void global_message_handler(kart_common_MessageType msg_type,
-                               kart_common_ComponentType comp_type,
-                               uint8_t comp_id,
-                               uint8_t cmd_id,
-                               kart_common_ValueType val_type,
-                               int32_t val) {
-    
+static void global_message_handler(uint16_t message_id, int32_t value) {
 #ifdef PLATFORM_LINUX
-    printf("C API: global_message_handler called with msg_type=%d, comp_type=%d, comp_id=%d, cmd_id=%d, val_type=%d, val=%d\n", 
-           msg_type, comp_type, comp_id, cmd_id, val_type, val);
+    printf("C API: global_message_handler called with message_id=0x%X, value=%d\n", 
+           message_id, value);
 #endif
 
     // Find and call the appropriate handler
     for (int i = 0; i < g_num_handlers; i++) {
         if (g_handlers[i].handler) {
-            g_handlers[i].handler(
-                static_cast<int>(msg_type),
-                static_cast<int>(comp_type),
-                comp_id,
-                cmd_id,
-                static_cast<int>(val_type),
-                val
-            );
+            g_handlers[i].handler(message_id, value);
             break;
         }
     }
@@ -80,14 +67,23 @@ EXPORT void can_interface_register_handler(
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+    can_message_handler_t handler
 ) {
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_register_handler\n");
         return;
     }
 
+    if (g_num_handlers >= MAX_WRAPPERS) {
+        printf("C API ERROR: Maximum number of handlers reached\n");
+        return;
+    }
+
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
+    
+    // Store the handler
+    g_handlers[g_num_handlers].handler = handler;
+    g_num_handlers++;
     
     interface->registerHandler(
         static_cast<kart_common_MessageType>(msg_type),

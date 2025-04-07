@@ -86,11 +86,7 @@ public:
       );
       
       _lastUpdateTime = currentTime;
-      
-    //   Serial.print(F("Sent sensor successfully: "));
-    //   Serial.println(result);
-
-      return true;
+      return result;
     }
     
     return false;
@@ -152,16 +148,12 @@ protected:
     switch (getValueType()) {
       case kart_common_ValueType_BOOLEAN:
         return value.bool_value ? 1 : 0;
-      case kart_common_ValueType_INT8:
-        return value.int8_value;
       case kart_common_ValueType_UINT8:
         return value.uint8_value;
-      case kart_common_ValueType_INT16:
-        return value.int16_value;
       case kart_common_ValueType_UINT16:
         return value.uint16_value;
-      case kart_common_ValueType_UINT24:
-        return value.uint24_value;
+      case kart_common_ValueType_FLOAT16:
+        return static_cast<int32_t>(value.float_value * 100.0f); // Convert to fixed point
       default:
         return 0;
     }

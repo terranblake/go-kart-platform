@@ -84,8 +84,6 @@ public:
    * @param status Status value (from SensorStatusValue enum)
    */
   void broadcastStatus(uint8_t status) {
-    Serial.println("Broadcasting status");
-
     for (uint8_t i = 0; i < _sensorCount; i++) {
       if (_sensors[i]) {
         _canInterface.sendMessage(

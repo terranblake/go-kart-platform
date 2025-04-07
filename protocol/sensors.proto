@@ -13,8 +13,6 @@ enum SensorCommandId {
   POSITION = 5;             // Position sensors
   ACCELERATION = 6;         // Accelerometer
   GYROSCOPE = 7;            // Gyroscope
-  SAFETY = 8;               // Safety-critical sensors
-  STATUS = 9;               // Sensor status message
 }
 
 // Sensor status values

@@ -7,8 +7,6 @@ package kart.common;
 enum MessageType {
   COMMAND = 0;
   STATUS = 1;
-  ACK = 2;
-  ERROR = 3;
 }
 
 // Component types (3 bits - allows 8 types)
@@ -16,7 +14,7 @@ enum ComponentType {
   LIGHTS = 0;
   MOTORS = 1;
   SENSORS = 2;
-  BATTERY = 3;
+  BATTERIES = 3;
   CONTROLS = 4;
   // Reserved space for 3 more types
 }
@@ -24,14 +22,9 @@ enum ComponentType {
 // Value types (4 bits - allows 16 types)
 enum ValueType {
   BOOLEAN = 0;
-  INT8 = 1;
-  UINT8 = 2;
-  INT16 = 3;
-  UINT16 = 4;
-  INT24 = 5;
-  UINT24 = 6;
-  FLOAT16 = 7;
-  // Reserved space for 8 more types
+  UINT8 = 1;
+  UINT16 = 2;
+  FLOAT16 = 3;
 }
 
 // Special value for addressing all components of a type

@@ -9,7 +9,6 @@ enum MotorComponentId {
   STEERING = 2;             // Steering motor if electric
   FAN = 3;                  // Cooling fan motor
   PUMP = 4;                 // Liquid cooling pump
-  ALL = 255;                // All motors (broadcast)
 }
 
 // Motor command IDs
@@ -18,11 +17,7 @@ enum MotorCommandId {
   DIRECTION = 1;            // Forward/reverse
   BRAKE = 2;                // Brake control
   MODE = 3;                 // Speed mode (low/mid/high)
-  ENABLE = 4;               // Enable/disable motor
-  EMERGENCY = 5;            // Emergency commands
-  TORQUE = 6;               // Torque control
-  CALIBRATE = 7;            // Calibration
-  TEMPERATURE = 8;          // Temperature reading/limit
+  CALIBRATE = 4;            // Calibration
 }
 
 // Motor direction values
@@ -50,14 +45,6 @@ enum MotorModeValue {
   OFF = 6;                  // Off mode
 }
 
-// Motor emergency command values
-enum MotorEmergencyValue {
-  NORMAL = 0;               // Normal operation
-  STOP = 1;                 // Emergency stop
-  LIMP_HOME = 2;            // Limp home mode (reduced power)
-  SHUTDOWN = 3;             // Complete shutdown
-}
-
 // Motor calibration values
 enum MotorCalibrateValue {
   CAL_START = 0;            // Start calibration
@@ -72,8 +59,6 @@ enum MotorStatusValue {
   ERROR_OVERVOLTAGE = 2;    // Overvoltage error
   ERROR_UNDERVOLTAGE = 3;   // Undervoltage error
   ERROR_OVERTEMP = 4;       // Overtemperature error
-  ERROR_HALL_SENSOR = 5;   // Hall sensor error
-  ERROR_COMMUNICATION = 6; // Communication error
-  ERROR_GENERAL = 7;       // General error
-  STATUS_UNKNOWN = 8;      // Unknown status
+  ERROR_GENERAL = 5;       // General error
+  STATUS_UNKNOWN = 6;      // Unknown status
 } 

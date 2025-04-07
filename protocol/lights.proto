@@ -7,43 +7,27 @@ package kart.lights;
 enum LightComponentId {
   FRONT = 0;
   REAR = 1;
-  INTERIOR = 4;
-//   currently brake lights are the same component as front/rear
-//   BRAKE = 5;
-//   INDICATOR = 6;
-//   hazard is a mode 
-//   HAZARD = 7;
-  AUXILIARY = 8;
-  UNDERGLOW = 9;
-
-//   todo: somehow need to make this a global concept, but 255 would be reserved for comptype-specific broadcasted messages 
-  ALL = 255;
+  INTERIOR = 2;
+  AUXILIARY = 3;
+  UNDERGLOW = 4;
 }
 
 // Light command IDs
 enum LightCommandId {
   MODE = 0;
   SIGNAL = 1; // turn signals
-  INTENSITY = 2;
-  PATTERN = 3;
-  COLOR = 4;
-  DURATION = 5;
-  TOGGLE = 6;
-  SEQUENCE = 7;
-  BRAKE = 8;
-  LOCATION = 9; // lights that share code can set this to determine where on the kart they are
+  DURATION = 3;
+  BRAKE = 4;
 }
 
 // Light mode values
 enum LightModeValue {
   OFF = 0;
   ON = 1;
+  // uses sensors to determine if it should be on or off
   AUTO = 2;
   DIM = 3;
   BRIGHT = 4;
-  FLASH = 5;
-  PULSE = 6;
-  FADE = 7;
   HAZARD = 8;
 }
 
@@ -51,36 +35,4 @@ enum LightSignalValue {
     NONE = 0;
     LEFT = 1;
     RIGHT = 2;
-}
-
-// Light pattern values
-enum LightPatternValue {
-  SOLID = 0;
-  BLINK_SLOW = 1;
-  BLINK_FAST = 2;
-  STROBE = 3;
-  WAVE = 4;
-  CHASE = 5;
-  SOS = 6;
-}
-
-// Light color values
-enum LightColorValue {
-  WHITE = 0;
-  RED = 1;
-  GREEN = 2;
-  BLUE = 3;
-  AMBER = 4;
-  PURPLE = 5;
-  CYAN = 6;
-  CUSTOM = 7;
-}
-
-// Light sequence values
-enum LightSequenceValue {
-  SEQ1 = 0;
-  SEQ2 = 1;
-  SEQ3 = 2;
-  SEQ4 = 3;
-  RANDOM = 4;
 }

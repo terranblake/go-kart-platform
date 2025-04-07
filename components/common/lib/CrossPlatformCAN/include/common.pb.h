@@ -13,9 +13,7 @@
 /* Message types (2 bits - allows 4 types) */
 typedef enum _kart_common_MessageType {
     kart_common_MessageType_COMMAND = 0,
-    kart_common_MessageType_STATUS = 1,
-    kart_common_MessageType_ACK = 2,
-    kart_common_MessageType_ERROR = 3
+    kart_common_MessageType_STATUS = 1
 } kart_common_MessageType;
 
 /* Component types (3 bits - allows 8 types) */
@@ -23,20 +21,16 @@ typedef enum _kart_common_ComponentType {
     kart_common_ComponentType_LIGHTS = 0,
     kart_common_ComponentType_MOTORS = 1,
     kart_common_ComponentType_SENSORS = 2,
-    kart_common_ComponentType_BATTERY = 3,
+    kart_common_ComponentType_BATTERIES = 3,
     kart_common_ComponentType_CONTROLS = 4 /* Reserved space for 3 more types */
 } kart_common_ComponentType;
 
 /* Value types (4 bits - allows 16 types) */
 typedef enum _kart_common_ValueType {
     kart_common_ValueType_BOOLEAN = 0,
-    kart_common_ValueType_INT8 = 1,
-    kart_common_ValueType_UINT8 = 2,
-    kart_common_ValueType_INT16 = 3,
-    kart_common_ValueType_UINT16 = 4,
-    kart_common_ValueType_INT24 = 5,
-    kart_common_ValueType_UINT24 = 6,
-    kart_common_ValueType_FLOAT16 = 7 /* Reserved space for 8 more types */
+    kart_common_ValueType_UINT8 = 1,
+    kart_common_ValueType_UINT16 = 2,
+    kart_common_ValueType_FLOAT16 = 3
 } kart_common_ValueType;
 
 /* Struct definitions */
@@ -62,8 +56,8 @@ extern "C" {
 
 /* Helper constants for enums */
 #define _kart_common_MessageType_MIN kart_common_MessageType_COMMAND
-#define _kart_common_MessageType_MAX kart_common_MessageType_ERROR
-#define _kart_common_MessageType_ARRAYSIZE ((kart_common_MessageType)(kart_common_MessageType_ERROR+1))
+#define _kart_common_MessageType_MAX kart_common_MessageType_STATUS
+#define _kart_common_MessageType_ARRAYSIZE ((kart_common_MessageType)(kart_common_MessageType_STATUS+1))
 
 #define _kart_common_ComponentType_MIN kart_common_ComponentType_LIGHTS
 #define _kart_common_ComponentType_MAX kart_common_ComponentType_CONTROLS

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmotors.proto\x12\x0bkart.motors*\\\n\x10MotorComponentId\x12\x0e\n\nMAIN_DRIVE\x10\x00\x12\r\n\tAUXILIARY\x10\x01\x12\x0c\n\x08STEERING\x10\x02\x12\x07\n\x03\x46\x41N\x10\x03\x12\x08\n\x04PUMP\x10\x04\x12\x08\n\x03\x41LL\x10\xff\x01*\x86\x01\n\x0eMotorCommandId\x12\t\n\x05SPEED\x10\x00\x12\r\n\tDIRECTION\x10\x01\x12\t\n\x05\x42RAKE\x10\x02\x12\x08\n\x04MODE\x10\x03\x12\n\n\x06\x45NABLE\x10\x04\x12\r\n\tEMERGENCY\x10\x05\x12\n\n\x06TORQUE\x10\x06\x12\r\n\tCALIBRATE\x10\x07\x12\x0f\n\x0bTEMPERATURE\x10\x08*<\n\x13MotorDirectionValue\x12\x0b\n\x07\x46ORWARD\x10\x00\x12\x0b\n\x07REVERSE\x10\x01\x12\x0b\n\x07NEUTRAL\x10\x02*?\n\x0fMotorBrakeValue\x12\r\n\tBRAKE_OFF\x10\x00\x12\r\n\tBRAKE_LOW\x10\x01\x12\x0e\n\nBRAKE_HIGH\x10\x02*X\n\x0eMotorModeValue\x12\x07\n\x03LOW\x10\x00\x12\n\n\x06MEDIUM\x10\x01\x12\x08\n\x04HIGH\x10\x02\x12\x07\n\x03\x45\x43O\x10\x03\x12\t\n\x05SPORT\x10\x04\x12\n\n\x06\x43USTOM\x10\x05\x12\x07\n\x03OFF\x10\x06*H\n\x13MotorEmergencyValue\x12\n\n\x06NORMAL\x10\x00\x12\x08\n\x04STOP\x10\x01\x12\r\n\tLIMP_HOME\x10\x02\x12\x0c\n\x08SHUTDOWN\x10\x03*A\n\x13MotorCalibrateValue\x12\r\n\tCAL_START\x10\x00\x12\x0c\n\x08\x43\x41L_STOP\x10\x01\x12\r\n\tCAL_RESET\x10\x02*\xd2\x01\n\x10MotorStatusValue\x12\r\n\tSTATUS_OK\x10\x00\x12\x15\n\x11\x45RROR_OVERCURRENT\x10\x01\x12\x15\n\x11\x45RROR_OVERVOLTAGE\x10\x02\x12\x16\n\x12\x45RROR_UNDERVOLTAGE\x10\x03\x12\x12\n\x0e\x45RROR_OVERTEMP\x10\x04\x12\x15\n\x11\x45RROR_HALL_SENSOR\x10\x05\x12\x17\n\x13\x45RROR_COMMUNICATION\x10\x06\x12\x11\n\rERROR_GENERAL\x10\x07\x12\x12\n\x0eSTATUS_UNKNOWN\x10\x08\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmotors.proto\x12\x0bkart.motors*R\n\x10MotorComponentId\x12\x0e\n\nMAIN_DRIVE\x10\x00\x12\r\n\tAUXILIARY\x10\x01\x12\x0c\n\x08STEERING\x10\x02\x12\x07\n\x03\x46\x41N\x10\x03\x12\x08\n\x04PUMP\x10\x04*N\n\x0eMotorCommandId\x12\t\n\x05SPEED\x10\x00\x12\r\n\tDIRECTION\x10\x01\x12\t\n\x05\x42RAKE\x10\x02\x12\x08\n\x04MODE\x10\x03\x12\r\n\tCALIBRATE\x10\x04*<\n\x13MotorDirectionValue\x12\x0b\n\x07\x46ORWARD\x10\x00\x12\x0b\n\x07REVERSE\x10\x01\x12\x0b\n\x07NEUTRAL\x10\x02*?\n\x0fMotorBrakeValue\x12\r\n\tBRAKE_OFF\x10\x00\x12\r\n\tBRAKE_LOW\x10\x01\x12\x0e\n\nBRAKE_HIGH\x10\x02*X\n\x0eMotorModeValue\x12\x07\n\x03LOW\x10\x00\x12\n\n\x06MEDIUM\x10\x01\x12\x08\n\x04HIGH\x10\x02\x12\x07\n\x03\x45\x43O\x10\x03\x12\t\n\x05SPORT\x10\x04\x12\n\n\x06\x43USTOM\x10\x05\x12\x07\n\x03OFF\x10\x06*A\n\x13MotorCalibrateValue\x12\r\n\tCAL_START\x10\x00\x12\x0c\n\x08\x43\x41L_STOP\x10\x01\x12\r\n\tCAL_RESET\x10\x02*\xa2\x01\n\x10MotorStatusValue\x12\r\n\tSTATUS_OK\x10\x00\x12\x15\n\x11\x45RROR_OVERCURRENT\x10\x01\x12\x15\n\x11\x45RROR_OVERVOLTAGE\x10\x02\x12\x16\n\x12\x45RROR_UNDERVOLTAGE\x10\x03\x12\x12\n\x0e\x45RROR_OVERTEMP\x10\x04\x12\x11\n\rERROR_GENERAL\x10\x05\x12\x12\n\x0eSTATUS_UNKNOWN\x10\x06\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,19 +32,17 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'motors_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_MOTORCOMPONENTID']._serialized_start=29
-  _globals['_MOTORCOMPONENTID']._serialized_end=121
-  _globals['_MOTORCOMMANDID']._serialized_start=124
-  _globals['_MOTORCOMMANDID']._serialized_end=258
-  _globals['_MOTORDIRECTIONVALUE']._serialized_start=260
-  _globals['_MOTORDIRECTIONVALUE']._serialized_end=320
-  _globals['_MOTORBRAKEVALUE']._serialized_start=322
-  _globals['_MOTORBRAKEVALUE']._serialized_end=385
-  _globals['_MOTORMODEVALUE']._serialized_start=387
-  _globals['_MOTORMODEVALUE']._serialized_end=475
-  _globals['_MOTOREMERGENCYVALUE']._serialized_start=477
-  _globals['_MOTOREMERGENCYVALUE']._serialized_end=549
-  _globals['_MOTORCALIBRATEVALUE']._serialized_start=551
-  _globals['_MOTORCALIBRATEVALUE']._serialized_end=616
-  _globals['_MOTORSTATUSVALUE']._serialized_start=619
-  _globals['_MOTORSTATUSVALUE']._serialized_end=829
+  _globals['_MOTORCOMPONENTID']._serialized_end=111
+  _globals['_MOTORCOMMANDID']._serialized_start=113
+  _globals['_MOTORCOMMANDID']._serialized_end=191
+  _globals['_MOTORDIRECTIONVALUE']._serialized_start=193
+  _globals['_MOTORDIRECTIONVALUE']._serialized_end=253
+  _globals['_MOTORBRAKEVALUE']._serialized_start=255
+  _globals['_MOTORBRAKEVALUE']._serialized_end=318
+  _globals['_MOTORMODEVALUE']._serialized_start=320
+  _globals['_MOTORMODEVALUE']._serialized_end=408
+  _globals['_MOTORCALIBRATEVALUE']._serialized_start=410
+  _globals['_MOTORCALIBRATEVALUE']._serialized_end=475
+  _globals['_MOTORSTATUSVALUE']._serialized_start=478
+  _globals['_MOTORSTATUSVALUE']._serialized_end=640
 # @@protoc_insertion_point(module_scope)

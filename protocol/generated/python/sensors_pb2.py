@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rsensors.proto\x12\x0ckart.sensors*\x9a\x01\n\x0fSensorCommandId\x12\x0f\n\x0bTEMPERATURE\x10\x00\x12\x07\n\x03RPM\x10\x01\x12\x0b\n\x07VOLTAGE\x10\x02\x12\x0b\n\x07\x43URRENT\x10\x03\x12\x0c\n\x08PRESSURE\x10\x04\x12\x0c\n\x08POSITION\x10\x05\x12\x10\n\x0c\x41\x43\x43\x45LERATION\x10\x06\x12\r\n\tGYROSCOPE\x10\x07\x12\n\n\x06SAFETY\x10\x08\x12\n\n\x06STATUS\x10\t*\x9f\x01\n\x11SensorStatusValue\x12\x06\n\x02OK\x10\x00\x12\x14\n\x10\x45RROR_CONNECTION\x10\x01\x12\x11\n\rERROR_TIMEOUT\x10\x02\x12\x0f\n\x0b\x45RROR_RANGE\x10\x03\x12\x15\n\x11\x45RROR_CALIBRATION\x10\x04\x12\x0c\n\x08\x44ISABLED\x10\x05\x12\x10\n\x0cINITIALIZING\x10\x06\x12\x11\n\rERROR_GENERAL\x10\x07\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rsensors.proto\x12\x0ckart.sensors*\x82\x01\n\x0fSensorCommandId\x12\x0f\n\x0bTEMPERATURE\x10\x00\x12\x07\n\x03RPM\x10\x01\x12\x0b\n\x07VOLTAGE\x10\x02\x12\x0b\n\x07\x43URRENT\x10\x03\x12\x0c\n\x08PRESSURE\x10\x04\x12\x0c\n\x08POSITION\x10\x05\x12\x10\n\x0c\x41\x43\x43\x45LERATION\x10\x06\x12\r\n\tGYROSCOPE\x10\x07*\x9f\x01\n\x11SensorStatusValue\x12\x06\n\x02OK\x10\x00\x12\x14\n\x10\x45RROR_CONNECTION\x10\x01\x12\x11\n\rERROR_TIMEOUT\x10\x02\x12\x0f\n\x0b\x45RROR_RANGE\x10\x03\x12\x15\n\x11\x45RROR_CALIBRATION\x10\x04\x12\x0c\n\x08\x44ISABLED\x10\x05\x12\x10\n\x0cINITIALIZING\x10\x06\x12\x11\n\rERROR_GENERAL\x10\x07\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,7 +32,7 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'sensors_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_SENSORCOMMANDID']._serialized_start=32
-  _globals['_SENSORCOMMANDID']._serialized_end=186
-  _globals['_SENSORSTATUSVALUE']._serialized_start=189
-  _globals['_SENSORSTATUSVALUE']._serialized_end=348
+  _globals['_SENSORCOMMANDID']._serialized_end=162
+  _globals['_SENSORSTATUSVALUE']._serialized_start=165
+  _globals['_SENSORSTATUSVALUE']._serialized_end=324
 # @@protoc_insertion_point(module_scope)

@@ -55,7 +55,7 @@ public:
    * Get sensor command ID (RPM)
    */
   uint8_t getSensorCommandId() const override {
-    return 1; // RPM = 1 from sensors.proto
+    return kart_sensors_SensorCommandId_RPM;
   }
   
   /**
@@ -132,11 +132,6 @@ private:
     // RPM = (pulses / 6) * (60000 / milliseconds)
     // For Kunray MY1020 with ~4 pole pairs, divide by 4 to get true mechanical RPM
     _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL));
-    
-    // Simple sanity check - cap at reasonable maximum
-    // if (_lastRPM > 6000) {
-    //   _lastRPM = 0; // Likely an erroneous reading
-    // }
     
     // Store values for next calculation
     _lastCalcTime = currentTime;

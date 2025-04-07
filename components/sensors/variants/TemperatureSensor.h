@@ -59,23 +59,23 @@ public:
     // Read temperature
     _lastTemp = readTemperature();
     
-    // Store in SensorValue (as INT16 in tenths of a degree)
-    _sensorValue.int16_value = (int16_t)(_lastTemp * 10.0);
+    // Store in SensorValue as float
+    _sensorValue.float_value = _lastTemp;
     return _sensorValue;
   }
   
   /**
-   * Get value type (INT16 - temperature in tenths of a degree)
+   * Get value type (FLOAT16)
    */
   uint8_t getValueType() const override {
-    return kart_common_ValueType_INT16;
+    return kart_common_ValueType_FLOAT16;
   }
   
   /**
    * Get sensor command ID (TEMPERATURE)
    */
   uint8_t getSensorCommandId() const override {
-    return 0; // TEMPERATURE = 0 from sensors.proto
+    return kart_sensors_SensorCommandId_TEMPERATURE;
   }
   
   /**

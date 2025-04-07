@@ -20,9 +20,7 @@ typedef enum _kart_sensors_SensorCommandId {
     kart_sensors_SensorCommandId_PRESSURE = 4, /* Pressure sensors */
     kart_sensors_SensorCommandId_POSITION = 5, /* Position sensors */
     kart_sensors_SensorCommandId_ACCELERATION = 6, /* Accelerometer */
-    kart_sensors_SensorCommandId_GYROSCOPE = 7, /* Gyroscope */
-    kart_sensors_SensorCommandId_SAFETY = 8, /* Safety-critical sensors */
-    kart_sensors_SensorCommandId_STATUS = 9 /* Sensor status message */
+    kart_sensors_SensorCommandId_GYROSCOPE = 7 /* Gyroscope */
 } kart_sensors_SensorCommandId;
 
 /* Sensor status values
@@ -44,8 +42,8 @@ extern "C" {
 
 /* Helper constants for enums */
 #define _kart_sensors_SensorCommandId_MIN kart_sensors_SensorCommandId_TEMPERATURE
-#define _kart_sensors_SensorCommandId_MAX kart_sensors_SensorCommandId_STATUS
-#define _kart_sensors_SensorCommandId_ARRAYSIZE ((kart_sensors_SensorCommandId)(kart_sensors_SensorCommandId_STATUS+1))
+#define _kart_sensors_SensorCommandId_MAX kart_sensors_SensorCommandId_GYROSCOPE
+#define _kart_sensors_SensorCommandId_ARRAYSIZE ((kart_sensors_SensorCommandId)(kart_sensors_SensorCommandId_GYROSCOPE+1))
 
 #define _kart_sensors_SensorStatusValue_MIN kart_sensors_SensorStatusValue_OK
 #define _kart_sensors_SensorStatusValue_MAX kart_sensors_SensorStatusValue_ERROR_GENERAL

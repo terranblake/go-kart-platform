@@ -121,7 +121,7 @@ class TestProtocolRegistry(unittest.TestCase):
         self.assertGreater(len(value_types), 0)
         
         # Expected value types from the protocol
-        expected_types = ['BOOLEAN', 'INT8', 'UINT8', 'INT16', 'UINT16', 'INT24', 'UINT24', 'FLOAT16']
+        expected_types = ['BOOLEAN', 'UINT8', 'UINT16', 'FLOAT16']
         
         # Check that at least some expected types are present
         for expected_type in expected_types:

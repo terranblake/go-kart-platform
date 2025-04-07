@@ -14,42 +14,27 @@
 typedef enum _kart_lights_LightComponentId {
     kart_lights_LightComponentId_FRONT = 0,
     kart_lights_LightComponentId_REAR = 1,
-    kart_lights_LightComponentId_INTERIOR = 4,
-    /* currently brake lights are the same component as front/rear
-   BRAKE = 5;
-   INDICATOR = 6;
-   hazard is a mode 
-   HAZARD = 7; */
-    kart_lights_LightComponentId_AUXILIARY = 8,
-    kart_lights_LightComponentId_UNDERGLOW = 9,
-    /* todo: somehow need to make this a global concept, but 255 would be reserved for comptype-specific broadcasted messages */
-    kart_lights_LightComponentId_ALL = 255
+    kart_lights_LightComponentId_INTERIOR = 2,
+    kart_lights_LightComponentId_AUXILIARY = 3,
+    kart_lights_LightComponentId_UNDERGLOW = 4
 } kart_lights_LightComponentId;
 
 /* Light command IDs */
 typedef enum _kart_lights_LightCommandId {
     kart_lights_LightCommandId_MODE = 0,
     kart_lights_LightCommandId_SIGNAL = 1, /* turn signals */
-    kart_lights_LightCommandId_INTENSITY = 2,
-    kart_lights_LightCommandId_PATTERN = 3,
-    kart_lights_LightCommandId_COLOR = 4,
-    kart_lights_LightCommandId_DURATION = 5,
-    kart_lights_LightCommandId_TOGGLE = 6,
-    kart_lights_LightCommandId_SEQUENCE = 7,
-    kart_lights_LightCommandId_BRAKE = 8,
-    kart_lights_LightCommandId_LOCATION = 9 /* lights that share code can set this to determine where on the kart they are */
+    kart_lights_LightCommandId_DURATION = 3,
+    kart_lights_LightCommandId_BRAKE = 4
 } kart_lights_LightCommandId;
 
 /* Light mode values */
 typedef enum _kart_lights_LightModeValue {
     kart_lights_LightModeValue_OFF = 0,
     kart_lights_LightModeValue_ON = 1,
+    /* uses sensors to determine if it should be on or off */
     kart_lights_LightModeValue_AUTO = 2,
     kart_lights_LightModeValue_DIM = 3,
     kart_lights_LightModeValue_BRIGHT = 4,
-    kart_lights_LightModeValue_FLASH = 5,
-    kart_lights_LightModeValue_PULSE = 6,
-    kart_lights_LightModeValue_FADE = 7,
     kart_lights_LightModeValue_HAZARD = 8
 } kart_lights_LightModeValue;
 
@@ -59,50 +44,18 @@ typedef enum _kart_lights_LightSignalValue {
     kart_lights_LightSignalValue_RIGHT = 2
 } kart_lights_LightSignalValue;
 
-/* Light pattern values */
-typedef enum _kart_lights_LightPatternValue {
-    kart_lights_LightPatternValue_SOLID = 0,
-    kart_lights_LightPatternValue_BLINK_SLOW = 1,
-    kart_lights_LightPatternValue_BLINK_FAST = 2,
-    kart_lights_LightPatternValue_STROBE = 3,
-    kart_lights_LightPatternValue_WAVE = 4,
-    kart_lights_LightPatternValue_CHASE = 5,
-    kart_lights_LightPatternValue_SOS = 6
-} kart_lights_LightPatternValue;
-
-/* Light color values */
-typedef enum _kart_lights_LightColorValue {
-    kart_lights_LightColorValue_WHITE = 0,
-    kart_lights_LightColorValue_RED = 1,
-    kart_lights_LightColorValue_GREEN = 2,
-    kart_lights_LightColorValue_BLUE = 3,
-    kart_lights_LightColorValue_AMBER = 4,
-    kart_lights_LightColorValue_PURPLE = 5,
-    kart_lights_LightColorValue_CYAN = 6,
-    kart_lights_LightColorValue_CUSTOM = 7
-} kart_lights_LightColorValue;
-
-/* Light sequence values */
-typedef enum _kart_lights_LightSequenceValue {
-    kart_lights_LightSequenceValue_SEQ1 = 0,
-    kart_lights_LightSequenceValue_SEQ2 = 1,
-    kart_lights_LightSequenceValue_SEQ3 = 2,
-    kart_lights_LightSequenceValue_SEQ4 = 3,
-    kart_lights_LightSequenceValue_RANDOM = 4
-} kart_lights_LightSequenceValue;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Helper constants for enums */
 #define _kart_lights_LightComponentId_MIN kart_lights_LightComponentId_FRONT
-#define _kart_lights_LightComponentId_MAX kart_lights_LightComponentId_ALL
-#define _kart_lights_LightComponentId_ARRAYSIZE ((kart_lights_LightComponentId)(kart_lights_LightComponentId_ALL+1))
+#define _kart_lights_LightComponentId_MAX kart_lights_LightComponentId_UNDERGLOW
+#define _kart_lights_LightComponentId_ARRAYSIZE ((kart_lights_LightComponentId)(kart_lights_LightComponentId_UNDERGLOW+1))
 
 #define _kart_lights_LightCommandId_MIN kart_lights_LightCommandId_MODE
-#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_LOCATION
-#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_LOCATION+1))
+#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_BRAKE
+#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_BRAKE+1))
 
 #define _kart_lights_LightModeValue_MIN kart_lights_LightModeValue_OFF
 #define _kart_lights_LightModeValue_MAX kart_lights_LightModeValue_HAZARD
@@ -111,18 +64,6 @@ extern "C" {
 #define _kart_lights_LightSignalValue_MIN kart_lights_LightSignalValue_NONE
 #define _kart_lights_LightSignalValue_MAX kart_lights_LightSignalValue_RIGHT
 #define _kart_lights_LightSignalValue_ARRAYSIZE ((kart_lights_LightSignalValue)(kart_lights_LightSignalValue_RIGHT+1))
-
-#define _kart_lights_LightPatternValue_MIN kart_lights_LightPatternValue_SOLID
-#define _kart_lights_LightPatternValue_MAX kart_lights_LightPatternValue_SOS
-#define _kart_lights_LightPatternValue_ARRAYSIZE ((kart_lights_LightPatternValue)(kart_lights_LightPatternValue_SOS+1))
-
-#define _kart_lights_LightColorValue_MIN kart_lights_LightColorValue_WHITE
-#define _kart_lights_LightColorValue_MAX kart_lights_LightColorValue_CUSTOM
-#define _kart_lights_LightColorValue_ARRAYSIZE ((kart_lights_LightColorValue)(kart_lights_LightColorValue_CUSTOM+1))
-
-#define _kart_lights_LightSequenceValue_MIN kart_lights_LightSequenceValue_SEQ1
-#define _kart_lights_LightSequenceValue_MAX kart_lights_LightSequenceValue_RANDOM
-#define _kart_lights_LightSequenceValue_ARRAYSIZE ((kart_lights_LightSequenceValue)(kart_lights_LightSequenceValue_RANDOM+1))
 
 
 #ifdef __cplusplus

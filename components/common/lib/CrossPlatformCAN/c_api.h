@@ -21,14 +21,19 @@ void can_interface_destroy(can_interface_t handle);
 
 // Member function wrappers
 bool can_interface_begin(can_interface_t handle, long baudrate, const char* device);
+
+// Handler function type - matches the C++ MessageHandler type
+typedef void (*can_message_handler_t)(uint16_t message_id, int32_t value);
+
 void can_interface_register_handler(
     can_interface_t handle,
     int msg_type,
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+    can_message_handler_t handler
 );
+
 bool can_interface_send_message(
     can_interface_t handle,
     int msg_type,
@@ -38,6 +43,7 @@ bool can_interface_send_message(
     int value_type,
     int32_t value
 );
+
 void can_interface_process(can_interface_t handle);
 
 #ifdef __cplusplus

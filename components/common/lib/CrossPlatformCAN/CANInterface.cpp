@@ -78,11 +78,12 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   struct can_frame frame;
   memset(&frame, 0, sizeof(frame));
   
-  frame.can_id = msg.id;
+  // Mask ID to 16 bits
+  frame.can_id = msg.id & 0xFFFF;
   frame.can_dlc = msg.length;
   memcpy(frame.data, msg.data, msg.length);
   
-  printf("Debug: Sending CAN frame - ID: 0x%X, DLC: %d, Data:", 
+  printf("Debug: Sending CAN frame - ID: 0x%04X, DLC: %d, Data:", 
          frame.can_id, frame.can_dlc);
   for (int i = 0; i < frame.can_dlc; i++) {
     printf(" %02X", frame.data[i]);
@@ -162,7 +163,7 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   }
   
   // Read the packet
-  msg.id = CAN.packetId();
+  msg.id = CAN.packetId() & 0xFFFF;  // Mask to 16 bits
   msg.length = 0;
   
   while (CAN.available() && msg.length < 8) {
@@ -191,12 +192,12 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
 
   // Validate frame length before copying
   if (frame.can_dlc > 8) {
-    printf("Debug: CAN frame received with invalid DLC (%d bytes) ID: 0x%X\n", frame.can_dlc, frame.can_id);
+    printf("Debug: CAN frame received with invalid DLC (%d bytes) ID: 0x%04X\n", frame.can_dlc, frame.can_id);
     return false;
   }
   
-  // Copy validated frame data
-  msg.id = frame.can_id;
+  // Copy validated frame data and mask ID to 16 bits
+  msg.id = frame.can_id & 0xFFFF;
   msg.length = frame.can_dlc;
   memcpy(msg.data, frame.data, frame.can_dlc);
   
