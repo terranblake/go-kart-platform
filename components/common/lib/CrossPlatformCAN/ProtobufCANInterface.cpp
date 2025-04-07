@@ -251,6 +251,6 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
 
     return (handler.msg_type == msg_type) &&
            (handler.type == comp_type) &&
-           (handler.component_id == component_id || handler.component_id == 0xFF) &&
+           (handler.component_id == component_id || handler.component_id == 0xFF || handler.component_id == 255) &&
            (handler.command_id == command_id);
 } 
