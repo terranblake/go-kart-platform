@@ -104,19 +104,6 @@ void setup() {
                              kart_motors_MotorComponentId_MAIN_DRIVE, 
                              kart_motors_MotorCommandId_MODE, 
                              handleModeCommand);
-  
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, 
-                             kart_common_ComponentType_MOTORS, 
-                             kart_motors_MotorComponentId_MAIN_DRIVE, 
-                             kart_motors_MotorCommandId_EMERGENCY, 
-                             handleEmergencyCommand);
-                             
-  // Also handle broadcast commands
-  canInterface.registerHandler(kart_common_MessageType_COMMAND, 
-                             kart_common_ComponentType_MOTORS, 
-                             kart_motors_MotorComponentId_ALL, 
-                             kart_motors_MotorCommandId_EMERGENCY, 
-                             handleEmergencyCommand);
 
   // Initialize temperature sensors
   batteryTempSensor = new TemperatureSensor(
@@ -431,7 +418,7 @@ void emergencyShutdown() {
 }
 
 // Command handlers
-void handleSpeedCommand(int32_t value) {
+void handleSpeedCommand(uint16_t message_id, int32_t value) {
   // Validate input (0-100%)
   if (value < 0) value = 0;
   if (value > 100) value = 100;
@@ -440,12 +427,12 @@ void handleSpeedCommand(int32_t value) {
   setThrottle(value);
 }
 
-void handleDirectionCommand(int32_t value) {
+void handleDirectionCommand(uint16_t message_id, int32_t value) {
   // Set direction
   setDirection(static_cast<kart_motors_MotorDirectionValue>(value));
 }
 
-void handleBrakeCommand(int32_t value) {
+void handleBrakeCommand(uint16_t message_id, int32_t value) {
   // Bit 0 = Low brake, Bit 1 = High brake
   bool lowBrake = (value & 0x01) != 0;
   bool highBrake = (value & 0x02) != 0;
@@ -454,7 +441,7 @@ void handleBrakeCommand(int32_t value) {
   setHighBrake(highBrake);
 }
 
-void handleModeCommand(int32_t value) {
+void handleModeCommand(uint16_t message_id, int32_t value) {
   // Map from protocol speed modes to controller speed modes
   uint8_t speedMode;
   
@@ -481,31 +468,31 @@ void handleModeCommand(int32_t value) {
   setSpeedMode(speedMode);
 }
 
-void handleEmergencyCommand(int32_t value) {
-  switch (value) {
-    case kart_motors_MotorEmergencyValue_STOP:
-      emergencyStop();
-      break;
+void handleEmergencyCommand(uint16_t message_id, int32_t value) {
+  // switch (value) {
+  //   case kart_controls_ControlEmergencyValue_STOP:
+  //     emergencyStop();
+  //     break;
       
-    case kart_motors_MotorEmergencyValue_SHUTDOWN:
-      emergencyShutdown();
-      break;
+  //   case kart_controls_ControlEmergencyValue_SHUTDOWN:
+  //     emergencyShutdown();
+  //     break;
       
-    case kart_motors_MotorEmergencyValue_LIMP_HOME:
-      // Limit speed and set to LOW mode
-      setSpeedMode(1); // LOW speed
-      // Limit throttle to 30%
-      if (currentThrottle > 75) {
-        setThrottle(75);
-      }
-      break;
+  //   case kart_controls_ControlEmergencyValue_LIMP_HOME:
+  //     // Limit speed and set to LOW mode
+  //     setSpeedMode(1); // LOW speed
+  //     // Limit throttle to 30%
+  //     if (currentThrottle > 75) {
+  //       setThrottle(75);
+  //     }
+  //     break;
       
-    case kart_motors_MotorEmergencyValue_NORMAL:
-      // Return to normal operation
-      setLowBrake(false);
-      setHighBrake(false);
-      break;
-  }
+  //   case kart_controls_ControlEmergencyValue_NORMAL:
+  //     // Return to normal operation
+  //     setLowBrake(false);
+  //     setHighBrake(false);
+  //     break;
+  // }
 }
 
 // Serial command processing for testing

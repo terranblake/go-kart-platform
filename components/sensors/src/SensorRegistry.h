@@ -78,26 +78,6 @@ public:
     return nullptr;
   }
   
-  /**
-   * Broadcast status of all registered sensors
-   * 
-   * @param status Status value (from SensorStatusValue enum)
-   */
-  void broadcastStatus(uint8_t status) {
-    for (uint8_t i = 0; i < _sensorCount; i++) {
-      if (_sensors[i]) {
-        _canInterface.sendMessage(
-          kart_common_MessageType_STATUS,
-          _componentType,
-          _sensors[i]->getLocationId(),
-          kart_sensors_SensorCommandId_STATUS,
-          kart_common_ValueType_UINT8,
-          status
-        );
-      }
-    }
-  }
-  
 private:
   static const uint8_t MAX_SENSORS = 16;
   

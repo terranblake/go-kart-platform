@@ -73,18 +73,10 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     
 #if DEBUG_MODE
     logMessage("SEND", message_id, value);
-    printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Length: %d, Data:", msg.id, msg.length);
-    for (int i = 0; i < msg.length; i++) {
-        printf(" %02X", msg.data[i]);
-    }
-    printf("\n");
 #endif
     
     // Send using base class
     bool result = m_canInterface.sendMessage(msg);
-#if DEBUG_MODE
-    printf("ProtobufCANInterface: sendMessage %s\n", result ? "succeeded" : "failed");
-#endif
     return result;
 }
 
@@ -143,11 +135,15 @@ uint16_t ProtobufCANInterface::packMessageId(kart_common_MessageType msg_type,
                                            kart_common_ValueType value_type)
 {
     uint16_t id = 0;
+    
+    // Pack into CAN ID:
+    // [1 bit msg_type][3 bits comp_type][3 bits comp_id][2 bits cmd_id][2 bits val_type]
     id |= (static_cast<uint16_t>(msg_type) & MSG_TYPE_MASK) << MSG_TYPE_SHIFT;
     id |= (static_cast<uint16_t>(comp_type) & COMP_TYPE_MASK) << COMP_TYPE_SHIFT;
     id |= (static_cast<uint16_t>(component_id) & COMP_ID_MASK) << COMP_ID_SHIFT;
     id |= (static_cast<uint16_t>(command_id) & CMD_ID_MASK) << CMD_ID_SHIFT;
     id |= (static_cast<uint16_t>(value_type) & VALUE_TYPE_MASK) << VALUE_TYPE_SHIFT;
+    
     return id;
 }
 
@@ -229,15 +225,29 @@ int32_t ProtobufCANInterface::unpackValue(kart_common_ValueType type, const uint
 
 void ProtobufCANInterface::logMessage(const char *prefix, uint16_t message_id, int32_t value)
 {
+
+    // Unpack message ID
+    kart_common_MessageType msg_type;
+    kart_common_ComponentType comp_type;
+    uint8_t component_id;
+    uint8_t command_id;
+    kart_common_ValueType value_type;
+    unpackMessageId(message_id, msg_type, comp_type, component_id, command_id, value_type);
 #ifdef PLATFORM_ARDUINO
     char buffer[128];
+
+    // print message type, component type, component id, command id, value type
     snprintf(buffer, sizeof(buffer), 
-             "%s: ID=0x%04X, Val=%ld", 
-             prefix, static_cast<unsigned int>(message_id), static_cast<long>(value));
-    Serial.println(buffer);
+             "%s: MsgType=%d, CompType=%d, CompId=%d, CmdId=%d, ValType=%d, Val=%d\n", 
+             prefix, static_cast<int>(msg_type), static_cast<int>(comp_type), 
+             static_cast<int>(component_id), static_cast<int>(command_id), 
+             static_cast<int>(value_type), static_cast<int>(value));
+    Serial.print(buffer);
 #else
-    printf("%s: ID=0x%04X, Val=%d\n", 
-           prefix, static_cast<unsigned int>(message_id), static_cast<int>(value));
+    printf("%s: MsgType=%d, CompType=%d, CompId=%d, CmdId=%d, ValType=%d, Val=%d\n", 
+           prefix, static_cast<int>(msg_type), static_cast<int>(comp_type), 
+           static_cast<int>(component_id), static_cast<int>(command_id), 
+           static_cast<int>(value_type), static_cast<int>(value));
 #endif
 }
 

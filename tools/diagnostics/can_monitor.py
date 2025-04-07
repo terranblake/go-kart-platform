@@ -39,6 +39,19 @@ CAN_OVERHEAD_BITS = 47  # Standard CAN frame overhead (SOF, ID, Control, CRC, et
 CAN_EOF_BITS = 7  # End of frame bits
 CAN_INTERFRAME_BITS = 3  # Interframe spacing bits
 
+# CAN ID field bit shifts and masks (matching ProtobufCANInterface.h)
+MSG_TYPE_SHIFT = 10
+COMP_TYPE_SHIFT = 7
+COMP_ID_SHIFT = 4
+CMD_ID_SHIFT = 2
+VALUE_TYPE_SHIFT = 0
+
+MSG_TYPE_MASK = 0x1
+COMP_TYPE_MASK = 0x7
+COMP_ID_MASK = 0x7
+CMD_ID_MASK = 0x3
+VALUE_TYPE_MASK = 0x3
+
 class BusStats:
     def __init__(self, bitrate):
         self.bitrate = bitrate
@@ -59,18 +72,13 @@ class BusStats:
         frame_bits = CAN_OVERHEAD_BITS + (frame_length * 8) + CAN_EOF_BITS + CAN_INTERFRAME_BITS
         self.total_bits += frame_bits
         
-        # Update every second
-        if (now - self.last_update) >= timedelta(seconds=1):
-            elapsed = (now - self.start_time).total_seconds()
-            bits_per_second = self.total_bits / elapsed
-            kb_per_second = bits_per_second / 1000
-            utilization = (bits_per_second / self.bitrate) * 100
-            
-            print(f"\r{' '*80}\r", end='')  # Clear current line
-            print(f"Bus Stats: {utilization:.1f}% utilized | {kb_per_second:.1f} kb/s | {self.frame_count} frames", end='')
-            sys.stdout.flush()
-            
-            self.last_update = now
+        # Calculate current utilization stats
+        elapsed = (now - self.start_time).total_seconds()
+        bits_per_second = self.total_bits / elapsed
+        kb_per_second = bits_per_second / 1000
+        utilization = (bits_per_second / self.bitrate) * 100
+        
+        return f"{utilization:.1f}% | {kb_per_second:.1f}kb/s | {self.frame_count}"
 
 def get_enum_name(enum_obj, value, default="UNKNOWN"):
     """Get the name for an enum value from its EnumTypeWrapper object"""
@@ -88,8 +96,8 @@ def get_enum_name(enum_obj, value, default="UNKNOWN"):
 def parse_can_message(can_id, data, length, bus_stats):
     """Parse a CAN message using the protocol definitions"""
     try:
-        # Update bus statistics
-        bus_stats.update(length)
+        # Update bus statistics and get stats string
+        stats_str = bus_stats.update(length)
         
         # Extract fields from CAN ID
         msg_type = (can_id >> MSG_TYPE_SHIFT) & MSG_TYPE_MASK
@@ -173,8 +181,8 @@ def parse_can_message(can_id, data, length, bus_stats):
             elif cmd_id == controls_pb2.EMERGENCY:  # EMERGENCY
                 value_display = get_enum_name(controls_pb2.ControlEmergencyValue, value, str(value))
         
-        # Format the output
-        print(f"\n{msg_type_str:<10} | {comp_type_str:<10} | {comp_id_str:<15} | {cmd_id_str:<15} | {value_type_str:<10} | {value_display}")
+        # Format the output with bus stats
+        print(f"{msg_type_str:<10} | {comp_type_str:<10} | {comp_id_str:<15} | {cmd_id_str:<15} | {value_type_str:<10} | {value_display:<15} | {stats_str}")
         
     except Exception as e:
         print(f"Error parsing message: {e}")
@@ -183,8 +191,8 @@ def parse_can_message(can_id, data, length, bus_stats):
 def monitor_can_bus(interface, bitrate):
     """Monitor the CAN bus using SocketCAN"""
     # Print header
-    print(f"{'MSG_TYPE':<10} | {'COMP_TYPE':<10} | {'COMPONENT':<15} | {'COMMAND':<15} | {'VAL_TYPE':<10} | {'VALUE':<15}")
-    print("-" * 80)
+    print(f"{'MSG_TYPE':<10} | {'COMP_TYPE':<10} | {'COMPONENT':<15} | {'COMMAND':<15} | {'VAL_TYPE':<10} | {'VALUE':<15} | {'BUS STATS'}")
+    print("-" * 120)
     
     try:
         # Create a raw CAN socket

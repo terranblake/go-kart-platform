@@ -89,46 +89,9 @@ void emergencyStop();
 void emergencyShutdown();
 
 // Command handlers
-void handleSpeedCommand(kart_common_MessageType msg_type,
-                       kart_common_ComponentType comp_type,
-                       uint8_t component_id,
-                       uint8_t command_id,
-                       kart_common_ValueType value_type,
-                       int32_t value);
-
-void handleDirectionCommand(kart_common_MessageType msg_type,
-                           kart_common_ComponentType comp_type,
-                           uint8_t component_id,
-                           uint8_t command_id,
-                           kart_common_ValueType value_type,
-                           int32_t value);
-
-void handleBrakeCommand(kart_common_MessageType msg_type,
-                       kart_common_ComponentType comp_type,
-                       uint8_t component_id,
-                       uint8_t command_id,
-                       kart_common_ValueType value_type,
-                       int32_t value);
-
-void handleModeCommand(kart_common_MessageType msg_type,
-                      kart_common_ComponentType comp_type,
-                      uint8_t component_id,
-                      uint8_t command_id,
-                      kart_common_ValueType value_type,
-                      int32_t value);
-
-void handleEmergencyCommand(kart_common_MessageType msg_type,
-                           kart_common_ComponentType comp_type,
-                           uint8_t component_id,
-                           uint8_t command_id,
-                           kart_common_ValueType value_type,
-                           int32_t value);
-
-void handleStatusCommand(kart_common_MessageType msg_type,
-                        kart_common_ComponentType comp_type,
-                        uint8_t component_id,
-                        uint8_t command_id,
-                        kart_common_ValueType value_type,
-                        int32_t value);
+void handleSpeedCommand(uint16_t message_id, int32_t value);
+void handleDirectionCommand(uint16_t message_id, int32_t value);
+void handleBrakeCommand(uint16_t message_id, int32_t value);
+void handleModeCommand(uint16_t message_id, int32_t value);
 
 #endif // CONFIG_H

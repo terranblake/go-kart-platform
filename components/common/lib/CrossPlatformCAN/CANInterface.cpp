@@ -66,12 +66,27 @@ void CANInterface::end() {
 
 bool CANInterface::sendMessage(const CANMessage& msg) {
 #ifdef PLATFORM_ARDUINO
+  Serial.print("Debug: Sending CAN message - ID: 0x");
+  Serial.print(msg.id, HEX);
+  Serial.print(", DLC: ");
+  Serial.print(msg.length);
+  Serial.print(", Data: ");
+  for (int i = 0; i < msg.length; i++) {
+    Serial.print(" ");
+    Serial.print(msg.data[i], HEX);
+  }
+  Serial.println("");
+
   // Arduino implementation
   if (!CAN.beginPacket(msg.id)) {
+    Serial.println("Debug: Failed to start packet");
     return false;
   }
-  
+
+  Serial.println("Debug: Writing data");
   CAN.write(msg.data, msg.length);
+
+  Serial.println("Debug: Ending packet");
   return CAN.endPacket();
 #elif defined PLATFORM_LINUX
   // Linux implementation
