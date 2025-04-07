@@ -89,7 +89,7 @@ def build_crossplatform_can():
                 "g++", "-shared", "-fPIC", 
                 "-I", include_dir,
                 "-I", nanopb_include_dir,
-                "-DPLATFORM_LINUX", "-DNON_ARDUINO", "-DDEBUG_MODE",
+                "-DPLATFORM_LINUX", "-DDEBUG_MODE",
                 "CANInterface.cpp", "ProtobufCANInterface.cpp", "c_api.cpp",
                 "-o", "libCrossPlatformCAN.so"
             ]
