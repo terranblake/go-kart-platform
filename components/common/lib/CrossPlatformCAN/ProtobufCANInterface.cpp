@@ -13,12 +13,17 @@
 ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
     : m_nodeId(nodeId), m_numHandlers(0)
 {
-    // Constructor implementation
+#if DEBUG_MODE
+    printf("ProtobufCANInterface: Constructor called with nodeId=%d\n", nodeId);
+#endif
 }
 
 // Initialize CAN interface
 bool ProtobufCANInterface::begin(long baudRate, const char* canDevice)
 {
+#if DEBUG_MODE
+    printf("ProtobufCANInterface: begin called with baudRate=%ld, canDevice=%s\n", baudRate, canDevice);
+#endif
     return m_canInterface.begin(baudRate, canDevice);
 }
 
@@ -28,18 +33,22 @@ void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,
                                           uint8_t command_id, 
                                           MessageHandler handler)
 {
-    if (m_numHandlers < MAX_HANDLERS) {
-        m_handlers[m_numHandlers].msg_type = msg_type;
-        m_handlers[m_numHandlers].type = type;
-        m_handlers[m_numHandlers].component_id = component_id;
-        m_handlers[m_numHandlers].command_id = command_id;
-        m_handlers[m_numHandlers].handler = handler;
-        m_numHandlers++;
-        
-        // Always log registrations, not just in debug mode
-        logMessage("REGD", msg_type, type, component_id, 
-                  command_id, kart_common_ValueType_BOOLEAN, false);
+    if (m_numHandlers >= MAX_HANDLERS) {
+        logMessage("MAX_HANDLERS_ERROR", msg_type, type, component_id, command_id, kart_common_ValueType_BOOLEAN, 0);
+        return;
     }
+
+    m_handlers[m_numHandlers].msg_type = msg_type;
+    m_handlers[m_numHandlers].type = type;
+    m_handlers[m_numHandlers].component_id = component_id;
+    m_handlers[m_numHandlers].command_id = command_id;
+    m_handlers[m_numHandlers].handler = handler;
+    m_numHandlers++;
+    
+    // Always log registrations, not just in debug mode
+#if DEBUG_MODE
+    logMessage("REGD", msg_type, type, component_id, command_id, kart_common_ValueType_BOOLEAN, false);
+#endif
 }
 
 bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type, 
@@ -71,15 +80,19 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     msg.data[6] = (packed_value >> 8) & 0xFF;            // Value byte 1
     msg.data[7] = packed_value & 0xFF;                   // Value byte 0 (LSB)
     
+#if DEBUG_MODE
     printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Data:", msg.id);
     for (int i = 0; i < msg.length; i++) {
         printf(" %02X", msg.data[i]);
     }
     printf("\n");
+#endif
     
     // Send using base class
     bool result = m_canInterface.sendMessage(msg);
+#if DEBUG_MODE
     printf("ProtobufCANInterface: sendMessage %s\n", result ? "succeeded" : "failed");
+#endif
     return result;
 }
 

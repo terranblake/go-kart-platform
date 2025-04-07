@@ -10,7 +10,11 @@
 #include "common.pb.h"
 
 // Max number of message handlers
+#ifdef PLATFORM_ARDUINO || PLATFORM_EMBEDDED
 #define MAX_HANDLERS 32
+#else
+#define MAX_HANDLERS 128
+#endif
 
 // Function pointer type for message handlers
 typedef void (*MessageHandler)(kart_common_MessageType, kart_common_ComponentType, 

@@ -188,20 +188,17 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
     printf("Debug: Incomplete CAN frame received (%d bytes)\n", nbytes);
     return false;
   }
+
+  // Validate frame length before copying
+  if (frame.can_dlc > 8) {
+    printf("Debug: CAN frame received with invalid DLC (%d bytes) ID: 0x%X\n", frame.can_dlc, frame.can_id);
+    return false;
+  }
   
+  // Copy validated frame data
   msg.id = frame.can_id;
   msg.length = frame.can_dlc;
   memcpy(msg.data, frame.data, frame.can_dlc);
-  
-  // Extract message details for more helpful debugging
-  if (msg.length > 8) {
-    printf("Debug: CAN frame received (%d bytes) is larger than expected (8 bytes) ID: 0x%X, DLC: %d, Data: ", msg.length, msg.id, msg.length);
-    for (int i = 0; i < msg.length; i++) {
-      printf(" %02X", msg.data[i]);
-    }
-    printf("\n");
-    return false;
-  }
   
   return true;
 #endif

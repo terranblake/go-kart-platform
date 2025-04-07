@@ -43,14 +43,11 @@ extern "C" {
 
 // Constructor and destructor wrappers
 EXPORT can_interface_t can_interface_create(uint32_t node_id) {
-    printf("C API: can_interface_create called with node_id=0x%X\n", node_id);
     ProtobufCANInterface* interface = new ProtobufCANInterface(node_id);
-    printf("C API: interface created at address %p\n", interface);
     return interface;
 }
 
 EXPORT void can_interface_destroy(can_interface_t handle) {
-    printf("C API: can_interface_destroy called with handle=%p\n", handle);
     if (handle) {
         ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
         delete interface;
@@ -62,17 +59,13 @@ EXPORT void can_interface_destroy(can_interface_t handle) {
 
 // Member function wrappers
 EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const char* device) {
-    printf("C API: can_interface_begin called with handle=%p, baudrate=%ld, device=%s\n", 
-           handle, baudrate, device ? device : "null");
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_begin\n");
         return false;
     }
     
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
-    bool result = interface->begin(baudrate, device);
-    printf("C API: can_interface_begin %s\n", result ? "succeeded" : "failed");
-    return result;
+    return interface->begin(baudrate, device);
 }
 
 EXPORT void can_interface_register_handler(
@@ -83,22 +76,11 @@ EXPORT void can_interface_register_handler(
     uint8_t command_id,
     void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
 ) {
-    printf("C API: can_interface_register_handler called with handle=%p, msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
-           handle, msg_type, comp_type, component_id, command_id);
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_register_handler\n");
         return;
     }
-    
-    // Store the handler in our global array
-    if (g_num_handlers < MAX_WRAPPERS) {
-        g_handlers[g_num_handlers].handler = handler;
-        g_num_handlers++;
-    } else {
-        printf("C API ERROR: Too many handlers registered\n");
-        return;
-    }
-    
+
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
     interface->registerHandler(
@@ -108,8 +90,6 @@ EXPORT void can_interface_register_handler(
         command_id,
         global_message_handler
     );
-    printf("C API: handler registered successfully for msg_type=%d, comp_type=%d, component_id=%u, command_id=%u\n", 
-           msg_type, comp_type, component_id, command_id);
 }
 
 EXPORT bool can_interface_send_message(
