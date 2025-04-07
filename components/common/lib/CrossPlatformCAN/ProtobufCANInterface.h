@@ -161,7 +161,7 @@ private:
   void logMessage(const char *prefix, uint16_t message_id, int32_t value);
 
   // Helper function to check if a message matches a handler's criteria
-  bool matchesHandler(kart_common_MessageType handler_msg_type,
+  static bool matchesHandler(kart_common_MessageType handler_msg_type,
                      kart_common_ComponentType handler_comp_type,
                      uint8_t handler_component_id,
                      uint8_t handler_command_id,
