@@ -8,12 +8,10 @@
 #define EXPORT __attribute__((visibility("default")))
 
 // Store pointers to handler functions
-struct HandlerWrapper {
-    can_message_handler_t handler;
-};
+can_message_handler_t handler;
 
 #define MAX_WRAPPERS 128
-static HandlerWrapper g_handlers[MAX_WRAPPERS];
+static can_message_handler_t g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
 // Global wrapper function for message handlers
