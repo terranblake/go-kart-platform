@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if PLATFORM_ARDUINO == 1
+#if defined(PLATFORM_ARDUINO) && PLATFORM_ARDUINO == 1
 #include <Arduino.h>
 #endif
 
@@ -222,7 +222,7 @@ void ProtobufCANInterface::logMessage(const char* prefix, kart_common_MessageTyp
                                      uint8_t component_id, uint8_t command_id, 
                                      kart_common_ValueType value_type, int32_t value)
 {
-#if PLATFORM_ARDUINO == 1
+#if defined(PLATFORM_ARDUINO) && PLATFORM_ARDUINO == 1
     char buffer[128];
     snprintf(buffer, sizeof(buffer), 
              "%s: Type=%d, Comp=%d, ID=%d, Cmd=%d, ValType=%d, Val=%ld", 
@@ -242,7 +242,7 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
                                         kart_common_ComponentType comp_type,
                                         uint8_t component_id,
                                         uint8_t command_id) {
-#if PLATFORM_LINUX == 1
+#if defined(PLATFORM_LINUX) && PLATFORM_LINUX == 1
     // log if msg_type, type and component_id match
     if (handler.msg_type == msg_type && handler.type == comp_type && handler.component_id == component_id) {
         printf("MATCH: %d, %d, %d\n", handler.msg_type, handler.type, handler.component_id);
