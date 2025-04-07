@@ -17,17 +17,29 @@ static HandlerWrapper g_handlers[MAX_WRAPPERS];
 static int g_num_handlers = 0;
 
 // Global wrapper function for message handlers
-static void global_message_handler(int32_t value) {
+static void global_message_handler(uint16_t message_id, int32_t value) {
 #ifdef PLATFORM_LINUX
-    printf("C API: global_message_handler called with value=%d\n", value);
+    printf("C API: global_message_handler called with message_id=0x%X, value=%d\n", 
+           message_id, value);
 #endif
 
     // Find and call the appropriate handler
     for (int i = 0; i < g_num_handlers; i++) {
-        if (g_handlers[i].handler) {
-            g_handlers[i].handler(0, value); // Pass 0 as message_id since it's not used in C++ interface
-            break;
+        // compare the message_id with the handler's message_id using protobuf_can_interface.cpp::matchesHandler
+        // need to unpack the message_id into the components
+        kart_common_MessageType msg_type;
+        kart_common_ComponentType comp_type;
+        uint8_t component_id;
+        uint8_t command_id;
+        kart_common_ValueType value_type;
+        unpackMessageId(message_id, msg_type, comp_type, component_id, command_id, value_type);
+        
+        if (!ProtobufCANInterface::matchesHandler(g_handlers[i].handler, msg_type, comp_type, component_id, command_id)) {
+            continue;
         }
+
+        g_handlers[i].handler(message_id, value);
+        break;
     }
 }
 
