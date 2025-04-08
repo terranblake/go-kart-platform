@@ -81,12 +81,13 @@
             timeCell.textContent = formatTimestamp(state.timestamp || Date.now()/1000);
             row.appendChild(timeCell);
             
-            // Add other state fields
+            // Add other state fields - using let instead of const for the cell variables
+            let cell;
             {% for field in state_fields %}
                 {% if field != 'timestamp' %}
-                const cellElement = document.createElement('td');
-                cellElement.textContent = state['{{ field }}'] !== undefined ? state['{{ field }}'] : 'N/A';
-                row.appendChild(cellElement);
+                cell = document.createElement('td');
+                cell.textContent = state['{{ field }}'] !== undefined ? state['{{ field }}'] : 'N/A';
+                row.appendChild(cell);
                 {% endif %}
             {% endfor %}
             
