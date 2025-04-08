@@ -76,11 +76,11 @@ EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const cha
 
 EXPORT void can_interface_register_handler(
     can_interface_t handle,
-    int msg_type,
-    int comp_type,
+    kart_common_MessageType msg_type,
+    kart_common_ComponentType comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+    void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
 ) {
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_register_handler\n");
@@ -90,11 +90,11 @@ EXPORT void can_interface_register_handler(
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
     
     interface->registerHandler(
-        static_cast<kart_common_MessageType>(msg_type),
-        static_cast<kart_common_ComponentType>(comp_type),
+        msg_type,
+        comp_type,
         component_id,
         command_id,
-        global_message_handler
+        handler
     );
 }
 

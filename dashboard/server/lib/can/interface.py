@@ -55,7 +55,7 @@ ffi.cdef("""
         int comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+        void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
     );
     
     // Message sending
@@ -222,7 +222,7 @@ class CANInterfaceWrapper:
             'value': value
         }
         
-        state_data = GoKartState(**state_data).to_dict()
+        state_data = GoKartState(**state_data)
         self.telemetry_store.update_state(state_data)
     
     def _register_default_handlers(self):
@@ -267,7 +267,7 @@ class CANInterfaceWrapper:
         message_type = self.protocol_registry.get_message_type(message_type)
         if self.has_can_hardware:
             # Create a CFFI callback function - make sure signature matches C API
-            cb = ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)", handler)
+            cb = ffi.callback("void(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)", handler)
             self.callbacks.append(cb)  # Keep a reference to prevent garbage collection
 
             # Register with the CAN interface
