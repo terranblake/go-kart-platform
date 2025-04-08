@@ -2,7 +2,7 @@
 API routes for getting telemetry data from the go-kart
 """
 
-from flask import jsonify, Blueprint
+from flask import jsonify, Blueprint, render_template
 import logging
 import time
 from datetime import datetime
@@ -56,6 +56,24 @@ def register_telemetry_routes(app, telemetry_store: TelemetryStore, can_interfac
             return jsonify(status)
         except Exception as e:
             logger.error(f"Error getting telemetry status: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+        
+    @telemetry_bp.route('/stream', methods=['GET'])
+    def get_telemetry_stream():
+        """Display a real-time telemetry stream"""
+        try:
+            # Get initial state fields to determine table columns
+            current_state = telemetry_store.get_current_state()
+            state_fields = []
+            if current_state:
+                # Get a list of fields we want to display
+                state_fields = ['timestamp', 'message_type', 'component_type', 
+                               'component_id', 'command_id', 'value_type', 'value']
+            
+            return render_template('telemetry_stream.html', 
+                                  state_fields=state_fields)
+        except Exception as e:
+            logger.error(f"Error rendering telemetry stream: {e}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     # Register the blueprint with the app

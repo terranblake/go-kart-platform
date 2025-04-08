@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-Kart Telemetry Stream</title>
+    <style>
+        body, html {
+            font-family: monospace;
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th {
+            background-color: #111;
+            padding: 5px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 3px 5px;
+            border-bottom: 1px solid #222;
+        }
+        .container {
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <table id="telemetry-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    {% for field in state_fields %}
+                        {% if field != 'timestamp' %}
+                        <th>{{ field }}</th>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="telemetry-data">
+                <!-- Telemetry data will be appended here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Connect to Socket.IO server
+        const socket = io();
+        const tableBody = document.getElementById('telemetry-data');
+        
+        // Function to format timestamp
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                fractionalSecondDigits: 3 
+            });
+        }
+        
+        // Listen for state_update events
+        socket.on('state_update', function(state) {
+            // Create a new row
+            const row = document.createElement('tr');
+            
+            // Add timestamp
+            const timeCell = document.createElement('td');
+            timeCell.textContent = formatTimestamp(state.timestamp || Date.now()/1000);
+            row.appendChild(timeCell);
+            
+            // Add other state fields
+            {% for field in state_fields %}
+                {% if field != 'timestamp' %}
+                const cellElement = document.createElement('td');
+                cellElement.textContent = state['{{ field }}'] !== undefined ? state['{{ field }}'] : 'N/A';
+                row.appendChild(cellElement);
+                {% endif %}
+            {% endfor %}
+            
+            // Insert at the beginning of the table (most recent at top)
+            if (tableBody.firstChild) {
+                tableBody.insertBefore(row, tableBody.firstChild);
+            } else {
+                tableBody.appendChild(row);
+            }
+            
+            // Limit number of rows to prevent performance issues
+            if (tableBody.children.length > 1000) {
+                tableBody.removeChild(tableBody.lastChild);
+            }
+        });
+        
+        // Listen for connection
+        socket.on('connect', function() {
+            console.log('Connected to telemetry server');
+        });
+        
+        // Listen for disconnection
+        socket.on('disconnect', function() {
+            console.log('Disconnected from telemetry server');
+        });
+    </script>
+</body>
+</html> 

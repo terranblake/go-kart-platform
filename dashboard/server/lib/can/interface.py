@@ -207,8 +207,6 @@ class CANInterfaceWrapper:
         comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
         val_type_name = self._get_type_name(self.value_types_by_value, val_type)
         
-        logger.info(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
-                    f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
         if not self.telemetry_store:
             logger.error("Telemetry store is not set, dropping message")

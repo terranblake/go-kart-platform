@@ -8,42 +8,6 @@
 #define EXPORT __attribute__((visibility("default")))
 
 // Store pointers to handler functions
-struct HandlerWrapper {
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t);
-};
-
-#define MAX_WRAPPERS 128
-static HandlerWrapper g_handlers[MAX_WRAPPERS];
-static int g_num_handlers = 0;
-
-// Global wrapper function for message handlers
-static void global_message_handler(kart_common_MessageType msg_type,
-                               kart_common_ComponentType comp_type,
-                               uint8_t comp_id,
-                               uint8_t cmd_id,
-                               kart_common_ValueType val_type,
-                               int32_t val) {
-    
-#ifdef PLATFORM_LINUX
-    printf("C API: global_message_handler called with msg_type=%d, comp_type=%d, comp_id=%d, cmd_id=%d, val_type=%d, val=%d\n", 
-           msg_type, comp_type, comp_id, cmd_id, val_type, val);
-#endif
-
-    // Find and call the appropriate handler
-    for (int i = 0; i < g_num_handlers; i++) {
-        if (g_handlers[i].handler) {
-            g_handlers[i].handler(
-                static_cast<int>(msg_type),
-                static_cast<int>(comp_type),
-                comp_id,
-                cmd_id,
-                static_cast<int>(val_type),
-                val
-            );
-            break;
-        }
-    }
-}
 
 extern "C" {
 
@@ -88,7 +52,6 @@ EXPORT void can_interface_register_handler(
     }
 
     ProtobufCANInterface* interface = static_cast<ProtobufCANInterface*>(handle);
-    
     interface->registerHandler(
         msg_type,
         comp_type,
