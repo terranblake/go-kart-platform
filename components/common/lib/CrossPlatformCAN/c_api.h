@@ -27,7 +27,7 @@ void can_interface_register_handler(
     int comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+    void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
 );
 bool can_interface_send_message(
     can_interface_t handle,
