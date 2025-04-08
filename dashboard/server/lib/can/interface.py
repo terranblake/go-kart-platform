@@ -202,22 +202,17 @@ class CANInterfaceWrapper:
     
     def _handle_message(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
         """Default message handler that logs messages and processes them through the protocol registry"""
-        # Convert numeric types to names for better logging
-        msg_type_name = self._get_type_name(self.message_types_by_value, msg_type)
-        comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
-        val_type_name = self._get_type_name(self.value_types_by_value, val_type)
-        
         
         if not self.telemetry_store:
             logger.error("Telemetry store is not set, dropping message")
             return
 
         state_data = {
-            'message_type': msg_type_name,
-            'component_type': comp_type_name,
+            'message_type': msg_type,
+            'component_type': comp_type,
             'component_id': comp_id,
             'command_id': cmd_id,
-            'value_type': val_type_name,
+            'value_type': val_type,
             'value': value
         }
         
