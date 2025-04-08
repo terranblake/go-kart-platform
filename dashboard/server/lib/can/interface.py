@@ -38,38 +38,39 @@ logger = logging.getLogger(__name__)
 
 # Define the C API for the CrossPlatformCAN library
 ffi = FFI()
+
+# When using dlopen(), CFFI needs to know the types of the functions we're calling
+# We must define the necessary types for the function signatures
 ffi.cdef("""
+    // Opaque handle to the C++ ProtobufCANInterface
     typedef void* can_interface_t;
     
-    // Constructor/destructor
+    // Use the enum types directly - CFFI will understand them from the shared library
+    typedef int kart_common_MessageType;
+    typedef int kart_common_ComponentType;
+    typedef int kart_common_ValueType;
+    
+    // Function declarations
     can_interface_t can_interface_create(uint32_t node_id);
     void can_interface_destroy(can_interface_t handle);
-    
-    // Member function wrappers
     bool can_interface_begin(can_interface_t handle, long baudrate, const char* device);
-    
-    // Handler registration
     void can_interface_register_handler(
         can_interface_t handle,
-        int msg_type,
-        int comp_type,
+        kart_common_MessageType msg_type,
+        kart_common_ComponentType comp_type,
         uint8_t component_id,
         uint8_t command_id,
         void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
     );
-    
-    // Message sending
     bool can_interface_send_message(
         can_interface_t handle,
-        int msg_type,
-        int comp_type,
+        kart_common_MessageType msg_type,
+        kart_common_ComponentType comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        int value_type,
+        kart_common_ValueType value_type,
         int32_t value
     );
-    
-    // Message processing
     void can_interface_process(can_interface_t handle);
 """)
 
