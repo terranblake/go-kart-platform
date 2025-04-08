@@ -64,11 +64,11 @@ ffi.cdef("""
     );
     bool can_interface_send_message(
         can_interface_t handle,
-        kart_common_MessageType msg_type,
-        kart_common_ComponentType comp_type,
+        int msg_type,
+        int comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        kart_common_ValueType value_type,
+        int value_type,
         int32_t value
     );
     void can_interface_process(can_interface_t handle);
@@ -207,7 +207,7 @@ class CANInterfaceWrapper:
         comp_type_name = self._get_type_name(self.component_types_by_value, comp_type)
         val_type_name = self._get_type_name(self.value_types_by_value, val_type)
         
-        logger.debug(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
+        logger.info(f"Received CAN message: {msg_type_name}, {comp_type_name}, Component ID: {comp_id}, "
                     f"Command ID: {cmd_id}, Value Type: {val_type_name}, Value: {value}")
         
         if not self.telemetry_store:
