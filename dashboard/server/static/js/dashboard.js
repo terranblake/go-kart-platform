@@ -178,9 +178,22 @@ const chart = new Chart(ctx, {
 const chartData = {
     timestamps: [], // Array of unique timestamps
     // Object to hold values for each metric, indexed by timestamp
-    speed: {},
-    motor_temp: {},
-    battery_voltage: {}
+    speed: {},      // motor_main/rpm
+    motor_temp: {}, // motor_main/temperature
+    battery_voltage: {} // battery/voltage
+};
+
+// Mapping of component/command to chart properties
+const dataMapping = {
+    'sensors': {
+        'motor_main': {
+            'rpm': { metric: 'speed', conversion: val => parseInt(val) / 100 }, // Convert RPM to approximate speed
+            'temperature': { metric: 'motor_temp', conversion: val => parseFloat(val) }
+        },
+        'battery': {
+            'voltage': { metric: 'battery_voltage', conversion: val => parseFloat(val) }
+        }
+    }
 };
 
 // Helper function to find or add timestamp in sorted array
@@ -226,18 +239,26 @@ function updateChart() {
     chart.update('none');
 }
 
-// Helper function to add or update a data point
-function updateDataPoint(timestamp, metric, value) {
-    const { timeStr } = findOrAddTimestamp(timestamp);
+// Helper function to add or update a data point based on component_type, component_id, and command_id
+function updateDataPointFromState(state) {
+    // Check if this state update is for a telemetry value we chart
+    const componentMapping = dataMapping[state.component_type];
+    if (!componentMapping) return false;
     
-    // Update the specific metric at the timestamp
-    if (metric === 'speed') {
-        chartData.speed[timeStr] = value;
-    } else if (metric === 'motor_temp') {
-        chartData.motor_temp[timeStr] = value;
-    } else if (metric === 'battery_voltage') {
-        chartData.battery_voltage[timeStr] = value;
-    }
+    const commandMapping = componentMapping[state.component_id];
+    if (!commandMapping) return false;
+    
+    const valueMapping = commandMapping[state.command_id];
+    if (!valueMapping) return false;
+    
+    // Convert string value to appropriate numeric type
+    const value = valueMapping.conversion(state.value);
+    
+    // Find or add timestamp slot
+    const { timeStr } = findOrAddTimestamp(state.timestamp);
+    
+    // Update the specific metric
+    chartData[valueMapping.metric][timeStr] = value;
     
     // Enforce data point limit (keep last 600 timestamps)
     if (chartData.timestamps.length > 600) {
@@ -246,6 +267,8 @@ function updateDataPoint(timestamp, metric, value) {
         delete chartData.motor_temp[removed];
         delete chartData.battery_voltage[removed];
     }
+    
+    return true;
 }
 
 // Fetch historical data on load
@@ -255,21 +278,17 @@ fetch('/api/telemetry/history')
         if (data.length === 0) return;
         
         // Process each data point
+        let dataUpdated = false;
         data.forEach(item => {
-            // Update data points based on available metrics
-            if ('speed' in item) {
-                updateDataPoint(item.timestamp, 'speed', item.speed);
-            }
-            if ('motor_temp' in item) {
-                updateDataPoint(item.timestamp, 'motor_temp', item.motor_temp);
-            }
-            if ('battery_voltage' in item) {
-                updateDataPoint(item.timestamp, 'battery_voltage', item.battery_voltage);
+            if (updateDataPointFromState(item)) {
+                dataUpdated = true;
             }
         });
         
-        // Update chart with processed data
-        updateChart();
+        // Update chart if we processed any data
+        if (dataUpdated) {
+            updateChart();
+        }
         
         console.log(`Loaded ${data.length} historical data points`);
     })
@@ -279,60 +298,70 @@ fetch('/api/telemetry/history')
 
 // Listen for real-time updates
 socket.on('state_update', (state) => {
-    // Update dashboard metrics
-    if ('speed' in state) {
-        speedValue.textContent = parseFloat(state.speed).toFixed(2);
-        updateDataPoint(state.timestamp, 'speed', state.speed);
+    // Update data point if it's a chartable metric
+    let chartUpdated = updateDataPointFromState(state);
+    
+    // Update dashboard metrics based on the component_type, component_id, and command_id
+    if (state.component_type === 'sensors') {
+        if (state.component_id === 'motor_main') {
+            if (state.command_id === 'rpm') {
+                speedValue.textContent = (parseInt(state.value) / 100).toFixed(2); // Convert RPM to speed
+            } else if (state.command_id === 'temperature') {
+                tempValue.textContent = parseFloat(state.value).toFixed(2);
+            } else if (state.command_id === 'throttle') {
+                throttleValue.textContent = parseInt(state.value);
+            }
+        } else if (state.component_id === 'battery') {
+            if (state.command_id === 'voltage') {
+                batteryValue.textContent = parseFloat(state.value).toFixed(2);
+            }
+        } else if (state.component_id === 'brake') {
+            if (state.command_id === 'pressure') {
+                brakeValue.textContent = parseFloat(state.value).toFixed(2);
+            }
+        } else if (state.component_id === 'steering') {
+            if (state.command_id === 'angle') {
+                steeringValue.textContent = parseFloat(state.value).toFixed(2);
+            }
+        }
+    } else if (state.component_type === 'lights') {
+        const isRear = state.component_id === 'rear';
+        const isFront = state.component_id === 'front';
+        
+        // Only handle light updates for the current active location
+        const activeLocation = getLocation();
+        if ((isFront && activeLocation === 'FRONT') || (isRear && activeLocation === 'REAR')) {
+            if (state.command_id === 'mode') {
+                const modeValue = parseInt(state.value);
+                // Map mode values to button indices
+                const buttonIndex = modeValue === 0 ? 0 : // Off
+                                   modeValue === 1 ? 1 : // Low
+                                   modeValue === 2 ? 2 : // High
+                                   modeValue === 8 ? 3 : 0; // Hazard
+                                   
+                lightModeButtons.forEach((btn, idx) => {
+                    btn.classList.toggle('active', idx === buttonIndex);
+                });
+            } else if (state.command_id === 'signal') {
+                const signalValue = parseInt(state.value);
+                signalButtons.forEach((btn, idx) => {
+                    btn.classList.toggle('active', idx === signalValue);
+                });
+            } else if (state.command_id === 'brake') {
+                const brakeValue = parseInt(state.value) === 1;
+                brakeToggle.checked = brakeValue;
+                brakeStatus.textContent = brakeValue ? 'On' : 'Off';
+            }
+        }
+    } else if (state.component_type === 'controls' && state.component_id === 'diagnostic' && state.command_id === 'mode') {
+        const testValue = parseInt(state.value) === 1;
+        testToggle.checked = testValue;
+        testStatus.textContent = testValue ? 'On' : 'Off';
     }
     
-    if ('throttle' in state) {
-        throttleValue.textContent = parseInt(state.throttle);
-    }
-    
-    if ('battery_voltage' in state) {
-        batteryValue.textContent = parseFloat(state.battery_voltage).toFixed(2);
-        updateDataPoint(state.timestamp, 'battery_voltage', state.battery_voltage);
-    }
-    
-    if ('motor_temp' in state) {
-        tempValue.textContent = parseFloat(state.motor_temp).toFixed(2);
-        updateDataPoint(state.timestamp, 'motor_temp', state.motor_temp);
-    }
-    
-    if ('brake_pressure' in state) {
-        brakeValue.textContent = parseFloat(state.brake_pressure).toFixed(2);
-    }
-    
-    if ('steering_angle' in state) {
-        steeringValue.textContent = parseFloat(state.steering_angle).toFixed(2);
-    }
-    
-    // Update chart whenever we get a telemetry update
-    if ('timestamp' in state && ('speed' in state || 'motor_temp' in state || 'battery_voltage' in state)) {
+    // Update chart if necessary
+    if (chartUpdated) {
         updateChart();
-    }
-    
-    // Update light controls
-    if ('light_mode' in state) {
-        lightModeButtons.forEach((btn, idx) => {
-            btn.classList.toggle('active', idx === state.light_mode);
-        });
-    }
-    
-    if ('light_signal' in state) {
-        signalButtons.forEach((btn, idx) => {
-            btn.classList.toggle('active', idx === state.light_signal);
-        });
-    }
-    
-    if ('light_brake' in state) {
-        brakeToggle.checked = state.light_brake === 1;
-        brakeStatus.textContent = state.light_brake === 1 ? 'On' : 'Off';
-    }
-    
-    if ('light_test' in state) {
-        testToggle.checked = state.light_test === 1;
-        testStatus.textContent = state.light_test === 1 ? 'On' : 'Off';
     }
 });
 

@@ -5,6 +5,7 @@ import time
 class TelemetryStore:
     def __init__(self, protocol: ProtocolRegistry):     
         self.state = GoKartState()
+        self.protocol = protocol
         self.history = []
         self.last_update_time = time.time()
 
