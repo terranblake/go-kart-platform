@@ -27,7 +27,6 @@ def register_command_routes(app, can_interface: CANInterfaceWrapper):
             command_name = command_data.get('command_name')
             value_name = command_data.get('value_name')
             direct_value = command_data.get('direct_value')
-            cmd_data = command_data.get('command_data', {})
             
             # For backward compatibility with older frontend
             if 'value' in command_data and direct_value is None:
