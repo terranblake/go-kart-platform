@@ -110,11 +110,11 @@ class MockCANInterface:
         self.logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
         return True
         
-    def register_handler(self, comp_type, comp_id, cmd_id, handler):
+    def register_handler(self, msg_type, comp_type, comp_id, cmd_id, handler):
         """Mock implementation of register_handler()"""
-        key = (comp_type, comp_id, cmd_id)
+        key = (msg_type, comp_type, comp_id, cmd_id)
         self.handlers[key] = handler
-        self.logger.debug(f"Registered mock handler for comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
+        self.logger.debug(f"Registered mock handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
         return True
         
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):

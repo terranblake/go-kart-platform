@@ -298,12 +298,19 @@ const brakeStatus = document.getElementById('brake-status');
 const testToggle = document.getElementById('test-toggle');
 const testStatus = document.getElementById('test-status');
 
+function getLocation() {
+    // findIndex is not a function on the locationButtons object
+    const index = Array.from(locationButtons).findIndex(btn => btn.classList.contains('active'));
+    // todo: make more generic for more locations to be added in the future
+    return index === 0 ? 'FRONT' : 'REAR';
+}
+
 // Light mode control
 lightModeButtons.forEach((button, index) => {
     button.addEventListener('click', () => {
         lightModeButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
-        
+
         fetch('/api/command', {
             method: 'POST',
             headers: {
@@ -311,7 +318,7 @@ lightModeButtons.forEach((button, index) => {
             },
             body: JSON.stringify({
                 component_type: 'LIGHTS',
-                component_name: 'ALL',
+                component_name: getLocation(),
                 command_name: 'MODE',
                 direct_value: index
             }),
@@ -332,7 +339,7 @@ signalButtons.forEach((button, index) => {
             },
             body: JSON.stringify({
                 component_type: 'LIGHTS',
-                component_name: 'ALL',
+                component_name: getLocation(),
                 command_name: 'SIGNAL',
                 direct_value: index
             }),
@@ -344,6 +351,8 @@ signalButtons.forEach((button, index) => {
 brakeToggle.addEventListener('change', () => {
     const isOn = brakeToggle.checked;
     brakeStatus.textContent = isOn ? 'On' : 'Off';
+
+    // get location from location buttons
     
     fetch('/api/command', {
             method: 'POST',
@@ -352,7 +361,7 @@ brakeToggle.addEventListener('change', () => {
             },
             body: JSON.stringify({
                 component_type: 'LIGHTS',
-                component_name: 'ALL',
+                component_name: getLocation(),
                 command_name: 'BRAKE',
                 direct_value: isOn ? 1 : 0
             }),
@@ -391,7 +400,7 @@ locationButtons.forEach((button, index) => {
             },
             body: JSON.stringify({
                 component_type: 'LIGHTS',
-                component_name: 'ALL',
+                component_name: getLocation(),
                 command_name: 'LOCATION',
                 direct_value: index === 0 ? 0 : 1 // 0 for FRONT, 1 for REAR
             }),
