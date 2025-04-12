@@ -391,27 +391,59 @@ class ProtocolRegistry:
     
     def get_message_type_name(self, message_type: int) -> str:
         """Get message type name by value"""
-        return self.registry['message_types'].get(message_type)
+        # iterate over the values in the message_types dictionary
+        for key, value in self.registry['message_types'].items():
+            if value == message_type:
+                return key
+        return None
     
     def get_component_type_name(self, component_type: int) -> str:
         """Get component type name by value"""
-        return self.registry['component_types'].get(component_type)
+        # iterate over the values in the component_types dictionary
+        for key, value in self.registry['component_types'].items():
+            if value == component_type:
+                return key
+        return None
     
     def get_component_id_name(self, component_type: str, component_id: int) -> str:
         """Get component ID name by value"""
-        return self.registry['components'][component_type].get(component_id)
+        component_type_name = self.get_component_type_name(component_type).lower()
+        components_by_type = self.registry['components'].get(component_type_name)
+
+        # iterate over the values in the components_by_type dictionary
+        for key, value in components_by_type.items():
+            if value == component_id:
+                return key
+        return None
     
     def get_command_name(self, component_type: str, command_id: int) -> str:
         """Get command name by value"""
-        return self.registry['commands'][component_type].get(command_id)
+        component_type_name = self.get_component_type_name(component_type).lower()
+
+        # iterate over the commands for this types and check the id value matches the command id
+        for key, value in self.registry['commands'][component_type_name].items():
+            if value['id'] == command_id:
+                return key
+        return None
     
     def get_command_value_name(self, component_type: str, command_id: int, value_id: int) -> str:
         """Get command value name by value"""
-        return self.registry['commands'][component_type][command_id]['values'].get(value_id)
+        component_type_name = self.get_component_type_name(component_type).lower()
+        command_name = self.get_command_name(component_type, command_id)
+
+        # iterate over the values in the command's values dictionary
+        for key, value in self.registry['commands'][component_type_name][command_name.upper()]['values'].items():
+            if value == value_id:
+                return key
+        return None
     
     def get_value_type_name(self, value_type: int) -> str:
         """Get value type name by value"""
-        return self.registry['value_types'].get(value_type)
+        # iterate over the values in the value_types dictionary
+        for key, value in self.registry['value_types'].items():
+            if value == value_type:
+                return key
+        return None
     
     def dump_registry(self) -> Dict:
         """Return a copy of the complete registry"""
