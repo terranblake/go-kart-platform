@@ -130,7 +130,7 @@ def send_updates():
             # Sleep a bit to avoid hogging CPU
             time.sleep(0.01)
         except Exception as e:
-            logger.error(f"Error in update thread: {e}")
+            logger.error(f"Error in update thread:", e, exc_info=True)
             time.sleep(1.0)  # Longer sleep on error
     
     logger.info("Update thread stopped")
