@@ -45,10 +45,14 @@ class TelemetryStore:
                 readable_dict[key] = self.protocol.get_message_type_name(value)
             elif key == 'component_type':
                 readable_dict[key] = self.protocol.get_component_type_name(value)
+            elif key == 'component_id':
+                readable_dict[key] = self.protocol.get_component_id_name(self.state.component_type, value)
             elif key == 'command_id':
-                readable_dict[key] = self.protocol.get_command_name(value)
+                readable_dict[key] = self.protocol.get_command_name(self.state.component_type, value)
             elif key == 'value_type':
                 readable_dict[key] = self.protocol.get_value_type_name(value)
+            elif key == 'value':
+                readable_dict[key] = self.protocol.get_command_value_name(self.state.component_type, self.state.command_id, value)
             else:
                 readable_dict[key] = value
         return readable_dict

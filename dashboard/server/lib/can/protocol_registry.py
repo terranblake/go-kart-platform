@@ -389,6 +389,30 @@ class ProtocolRegistry:
         
         return (msg_type, comp_type, comp_id, cmd_id, val_type, val)
     
+    def get_message_type_name(self, message_type: int) -> str:
+        """Get message type name by value"""
+        return self.registry['message_types'].get(message_type)
+    
+    def get_component_type_name(self, component_type: int) -> str:
+        """Get component type name by value"""
+        return self.registry['component_types'].get(component_type)
+    
+    def get_component_id_name(self, component_type: str, component_id: int) -> str:
+        """Get component ID name by value"""
+        return self.registry['components'][component_type].get(component_id)
+    
+    def get_command_name(self, component_type: str, command_id: int) -> str:
+        """Get command name by value"""
+        return self.registry['commands'][component_type].get(command_id)
+    
+    def get_command_value_name(self, component_type: str, command_id: int, value_id: int) -> str:
+        """Get command value name by value"""
+        return self.registry['commands'][component_type][command_id]['values'].get(value_id)
+    
+    def get_value_type_name(self, value_type: int) -> str:
+        """Get value type name by value"""
+        return self.registry['value_types'].get(value_type)
+    
     def dump_registry(self) -> Dict:
         """Return a copy of the complete registry"""
         return self.registry.copy()
