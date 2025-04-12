@@ -19,8 +19,8 @@ from lib.telemetry.store import TelemetryStore
 protocol_path = None
 
 # Create telemetry store and protocol registry
-telemetry_store = TelemetryStore()
 protocol_registry = ProtocolRegistry(pb_path=protocol_path)
+telemetry_store = TelemetryStore(protocol=protocol_registry)
 
 # Initialize CAN interface with telemetry store reference and protocol registry
 can_interface = CANInterfaceWrapper(
@@ -99,6 +99,7 @@ def handle_disconnect():
     # Check if there are still clients connected
     clients_connected = len(socketio.server.manager.rooms.get('/', [])) > 0
 
+
 def send_updates():
     """Send periodic state updates to connected clients."""
     global running, clients_connected
@@ -115,7 +116,7 @@ def send_updates():
             # Get the current state from telemetry store
             current_time = time.time()
             if current_time - last_update >= UPDATE_INTERVAL:
-                state = telemetry_store.get_current_state()
+                state = telemetry_store.get_current_state(readable=True)
                 
                 # Send the state to all connected clients
                 socketio.emit('state_update', state)

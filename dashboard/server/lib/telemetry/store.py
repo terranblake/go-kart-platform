@@ -1,17 +1,21 @@
 from lib.telemetry.state import GoKartState
+from lib.can.protocol_registry import ProtocolRegistry
 import time
 
 class TelemetryStore:
-    def __init__(self):     
+    def __init__(self, protocol: ProtocolRegistry):     
         self.state = GoKartState()
         self.history = []
         self.last_update_time = time.time()
 
-    def get_current_state(self):
+    def get_current_state(self, readable=False):
         """Return the current state as a dictionary with updated timestamp"""
         state_dict = self.state.to_dict()
         # Ensure timestamps are always updated when requested
         state_dict['timestamp'] = self.last_update_time
+        if readable:
+            # convert the state_dict to a readable format
+            state_dict = self.to_readable_dict()
         return state_dict
 
     def get_history(self):
@@ -30,3 +34,20 @@ class TelemetryStore:
             self.history.pop(0)
         
         return state_dict
+    
+    def to_readable_dict(self):
+        """Convert the state to a readable format"""
+        # use the protocol to convert the state_dict to a readable format
+        readable_dict = {}
+        for key, value in self.state.to_dict().items():
+            if key == 'message_type':
+                readable_dict[key] = self.protocol.get_message_type_name(value)
+            elif key == 'component_type':
+                readable_dict[key] = self.protocol.get_component_type_name(value)
+            elif key == 'command_id':
+                readable_dict[key] = self.protocol.get_command_name(value)
+            elif key == 'value_type':
+                readable_dict[key] = self.protocol.get_value_type_name(value)
+            else:
+                readable_dict[key] = value
+        return readable_dict

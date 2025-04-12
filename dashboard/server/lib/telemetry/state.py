@@ -35,15 +35,3 @@ class GoKartState:
         state_dict['timestamp_formatted'] = datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
         return state_dict
-    
-    def from_dict(self, data):
-        """Update state from dictionary"""
-        for key, value in data.items():
-            if hasattr(self, key) and not key.startswith('_'):
-                setattr(self, key, value)
-        
-        # Update timestamp
-        self.timestamp = time.time()
-        self.last_update = self.timestamp
-        
-        return self
