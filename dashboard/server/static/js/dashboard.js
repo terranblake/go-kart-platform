@@ -444,7 +444,7 @@ lightModeButtons.forEach((button, index) => {
             : mode === 'low'
                 ? 1
                 : mode === 'high'
-                    ? 2
+                    ? 4
                     : mode === 'hazard' ? 8 : 0;
 
         fetch('/api/command', {
