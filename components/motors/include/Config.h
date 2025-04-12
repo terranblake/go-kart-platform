@@ -15,7 +15,7 @@
 #define THROTTLE_PIN 5        // PWM output for throttle control
 #define DIRECTION_PIN 6       // Reverse wire: HIGH = forward, LOW = reverse
 
-#define MIN_THROTTLE 60
+#define MIN_THROTTLE 40
 #define MAX_THROTTLE 200
 
 // There are 3 speed modes, controlled by a single 3-speed connector (L M H)

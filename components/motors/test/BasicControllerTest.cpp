@@ -19,14 +19,14 @@
  * - High Brake has a single ORANGE (signal) wire
  * - Hall sensors (usually 3 wires per sensor: VCC, GND, Signal)
  * - Common ground must be established between Arduino and controller
- * - DO NOT connect Arduino 5V to throttle's RED wire - controller provides its own 5V
+ * - DO NOT connect Arduino/ESP32 5V to throttle's RED wire - controller provides its own 5V
  * 
  * CAN WIRING NOTES:
- * - MCP2515 CS -> Arduino D10
- * - MCP2515 INT -> Arduino D3
- * - MCP2515 SCK -> Arduino D13
- * - MCP2515 MISO -> Arduino D12
- * - MCP2515 MOSI -> Arduino D11
+ * - MCP2515 CS -> Arduino D10 / ESP32 GPIO5
+ * - MCP2515 INT -> Arduino D3 / ESP32 GPIO15
+ * - MCP2515 SCK -> Arduino D13 / ESP32 GPIO18
+ * - MCP2515 MISO -> Arduino D12 / ESP32 GPIO19
+ * - MCP2515 MOSI -> Arduino D11 / ESP32 GPIO23
  * - MCP2515 VCC -> 5V
  * - MCP2515 GND -> GND
  */
@@ -59,7 +59,32 @@
 // The protocol headers are already included by CrossPlatformCAN
 
 // PIN DEFINITIONS - must match your actual wiring
-#if defined(ESP8266)
+#if defined(ESP32S_WVROOM)
+// ESP32S WVROOM 38-pin variant (primary recommended option)
+#define THROTTLE_PIN 13        // PWM output to GREEN wire of throttle connector
+#define DIRECTION_PIN 12       // Signal to BLUE wire of reverse connector: HIGH = forward, LOW = reverse
+
+// Speed mode pins - connect to separate wires on 3-speed connector
+#define SPEED_MODE_1_PIN 14    // Connect to WHITE wire (Speed 1)
+#define SPEED_MODE_2_PIN 27    // Connect to BLUE wire (Speed 2)
+
+// Brake controls
+#define LOW_BRAKE_PIN 25       // Controls transistor for Low Brake (YELLOW wire)
+                              // HIGH = brake engaged, LOW = normal operation
+#define HIGH_BRAKE_PIN 26      // High level brake signal (to ORANGE wire)
+                              // LOW = normal operation, HIGH = brake engaged
+
+// Hall sensor pins - connect to the controller's hall feedback
+#define HALL_A_PIN 32          // Hall sensor A (with interrupt)
+#define HALL_B_PIN 33          // Hall sensor B (with interrupt)
+#define HALL_C_PIN 34          // Hall sensor C (with interrupt)
+
+// Temperature sensor pins
+#define TEMP_SENSOR_BATTERY 36  // ADC1_0
+#define TEMP_SENSOR_CONTROLLER 39  // ADC1_3
+#define TEMP_SENSOR_MOTOR 35   // ADC1_7
+
+#elif defined(ESP8266)
 // ESP8266 NodeMCU pin mapping
 #define THROTTLE_PIN D1        // PWM output to GREEN wire of throttle connector (GPIO5)
 #define DIRECTION_PIN D2       // Signal to BLUE wire of reverse connector: HIGH = forward, LOW = reverse (GPIO4)
@@ -79,6 +104,26 @@
 #define HALL_A_PIN D8          // Hall sensor A (GPIO15)
 #define HALL_B_PIN D9          // Hall sensor B (GPIO3/RX)
 #define HALL_C_PIN D10         // Hall sensor C (GPIO1/TX)
+
+#elif defined(ESP32)
+// Standard ESP32 pin mapping
+#define THROTTLE_PIN 13        // PWM output to GREEN wire of throttle connector
+#define DIRECTION_PIN 12       // Signal to BLUE wire of reverse connector: HIGH = forward, LOW = reverse
+
+// Speed mode pins - connect to separate wires on 3-speed connector
+#define SPEED_MODE_1_PIN 14    // Connect to WHITE wire (Speed 1)
+#define SPEED_MODE_2_PIN 27    // Connect to BLUE wire (Speed 2)
+
+// Brake controls
+#define LOW_BRAKE_PIN 26       // Controls transistor for Low Brake (YELLOW wire)
+                              // HIGH = brake engaged, LOW = normal operation
+#define HIGH_BRAKE_PIN 25      // High level brake signal (to ORANGE wire)
+                              // LOW = normal operation, HIGH = brake engaged
+
+// Hall sensor pins
+#define HALL_A_PIN 32          // Hall sensor A (with interrupt)
+#define HALL_B_PIN 33          // Hall sensor B (with interrupt)
+#define HALL_C_PIN 34          // Hall sensor C (with interrupt)
 
 #else
 // Arduino Nano pin mapping (original)
@@ -101,6 +146,11 @@
 #define HALL_A_PIN 2          // Hall sensor A (interrupt pin)
 #define HALL_B_PIN 3          // Hall sensor B (interrupt pin)
 #define HALL_C_PIN 4          // Hall sensor C (reading only)
+
+// Temperature sensor pins
+#define TEMP_SENSOR_BATTERY A0
+#define TEMP_SENSOR_CONTROLLER A1
+#define TEMP_SENSOR_MOTOR A2
 #endif
 
 // Controller type - uncomment the one being used
@@ -116,14 +166,18 @@
 #define RPM_UPDATE_INTERVAL 500 // How often to update RPM calculation (ms)
 
 // NTC Thermistor parameters for NTCLE100E3203JBD
-#define TEMP_SENSOR_BATTERY A0
-#define TEMP_SENSOR_CONTROLLER A1
-#define TEMP_SENSOR_MOTOR A2
 #define THERMISTOR_NOMINAL 10000   // Resistance at 25°C
 #define TEMPERATURE_NOMINAL 25     // Temperature for nominal resistance (°C)
 #define B_COEFFICIENT 3977         // Beta coefficient from datasheet
 #define SERIES_RESISTOR 10000      // Value of the series resistor
 
+// Temperature safety thresholds
+#define BATTERY_TEMP_WARNING 45.0
+#define BATTERY_TEMP_CRITICAL 55.0
+#define CONTROLLER_TEMP_WARNING 65.0
+#define CONTROLLER_TEMP_CRITICAL 80.0
+#define MOTOR_TEMP_WARNING 75.0
+#define MOTOR_TEMP_CRITICAL 90.0
 
 // Serial output settings
 #define SERIAL_BAUD 115200
@@ -406,13 +460,21 @@ void setupPins() {
   
   // Attach interrupts for hall sensors - use RISING edge only to reduce noise
   // and prevent overcounting (CHANGE detection counts each transition twice)
+#if defined(ESP32S_WVROOM) || defined(ESP32)
+  // For ESP32/ESP32S, we can use interrupts on all hall sensors
+  attachInterrupt(HALL_A_PIN, hallSensorA_ISR, RISING);
+  attachInterrupt(HALL_B_PIN, hallSensorB_ISR, RISING);
+  attachInterrupt(HALL_C_PIN, hallSensorC_ISR, RISING);
+#elif defined(ESP8266)
+  // For ESP8266, we can use interrupts on all hall sensors
   attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
   attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
-  
-  // For ESP8266, we can use interrupts on all hall sensors
-  // For Arduino Nano, pin 4 doesn't support interrupts
-#if defined(ESP8266)
   attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
+#else
+  // For Arduino Nano, only pins 2 and 3 support interrupts
+  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
+  // Pin 4 (HALL_C_PIN) doesn't support interrupts, will be polled
 #endif
   
   // Initialize to safe state
