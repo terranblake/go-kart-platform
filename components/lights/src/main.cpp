@@ -450,7 +450,7 @@ void handleLightLocation(kart_common_MessageType msg_type,
                          kart_common_ValueType value_type,
                          int32_t value)
 {
-  updateFrontLights = (value == 1);
+  updateFrontLights = (value == 0);
   locationSelected = true;
   Serial.print(F("Light location: "));
   Serial.println(updateFrontLights ? F("Front") : F("Rear"));
