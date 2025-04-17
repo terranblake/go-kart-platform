@@ -27,6 +27,12 @@ enum ControlCommandId {
   LIMIT = 5;
   CALIBRATE = 6;
   EMERGENCY = 7;
+
+  // Sensor readings
+  VOLTAGE = 8;
+  CURRENT = 9;
+  TEMPERATURE = 10;
+  PRESSURE = 11;
 }
 
 // Control mode values

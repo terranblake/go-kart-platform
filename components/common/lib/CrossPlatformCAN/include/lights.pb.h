@@ -37,7 +37,12 @@ typedef enum _kart_lights_LightCommandId {
     kart_lights_LightCommandId_TOGGLE = 6,
     kart_lights_LightCommandId_SEQUENCE = 7,
     kart_lights_LightCommandId_BRAKE = 8,
-    kart_lights_LightCommandId_LOCATION = 9 /* lights that share code can set this to determine where on the kart they are */
+    kart_lights_LightCommandId_LOCATION = 9, /* lights that share code can set this to determine where on the kart they are */
+    /* Sensor readings */
+    kart_lights_LightCommandId_VOLTAGE = 10,
+    kart_lights_LightCommandId_CURRENT = 11,
+    kart_lights_LightCommandId_TEMPERATURE = 12,
+    kart_lights_LightCommandId_PRESSURE = 13
 } kart_lights_LightCommandId;
 
 /* Light mode values */
@@ -101,8 +106,8 @@ extern "C" {
 #define _kart_lights_LightComponentId_ARRAYSIZE ((kart_lights_LightComponentId)(kart_lights_LightComponentId_ALL+1))
 
 #define _kart_lights_LightCommandId_MIN kart_lights_LightCommandId_MODE
-#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_LOCATION
-#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_LOCATION+1))
+#define _kart_lights_LightCommandId_MAX kart_lights_LightCommandId_PRESSURE
+#define _kart_lights_LightCommandId_ARRAYSIZE ((kart_lights_LightCommandId)(kart_lights_LightCommandId_PRESSURE+1))
 
 #define _kart_lights_LightModeValue_MIN kart_lights_LightModeValue_OFF
 #define _kart_lights_LightModeValue_MAX kart_lights_LightModeValue_HAZARD

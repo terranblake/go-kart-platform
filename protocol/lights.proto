@@ -1,4 +1,3 @@
-
 syntax = "proto3";
 
 package kart.lights;
@@ -32,6 +31,12 @@ enum LightCommandId {
   SEQUENCE = 7;
   BRAKE = 8;
   LOCATION = 9; // lights that share code can set this to determine where on the kart they are
+
+  // Sensor readings
+  VOLTAGE = 10;
+  CURRENT = 11;
+  TEMPERATURE = 12;
+  PRESSURE = 13;
 }
 
 // Light mode values

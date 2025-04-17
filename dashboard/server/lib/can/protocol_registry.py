@@ -85,7 +85,7 @@ class ProtocolRegistry:
         if not os.path.exists(self.pb_path):
             self.logger.error(f"Protocol directory does not exist: {self.pb_path}")
             return
-            
+
         # List modules in the directory
         modules_in_dir = [name for _, name, _ in pkgutil.iter_modules([self.pb_path])]
         self.logger.debug(f"Found modules in {self.pb_path}: {modules_in_dir}")

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package kart.batteries;
+
+// Battery component IDs
+enum BatteryComponentId {
+  ACCESSORY = 0;
+  MOTOR_LEFT_REAR = 1;
+  MOTOR_RIGHT_REAR = 2;
+  MOTOR_LEFT_FRONT = 3;
+  MOTOR_RIGHT_FRONT = 4;
+  ALL = 255;                // All batteries (broadcast)
+}
+
+// Battery command IDs
+enum BatteryCommandId {
+  VOLTAGE = 0;
+  CURRENT = 1;
+  TEMPERATURE = 2;
+}

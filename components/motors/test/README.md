@@ -37,37 +37,47 @@ This script is designed to test the most fundamental aspects of controller opera
 ### Wiring Diagram for ESP32S (38 pin WVROOM)
 
 ```
-ESP32S (38 pin WVROOM)          Kunray MY1020 Controller
-+----------------+             +----------------------+
-|                |             |  THROTTLE CONNECTOR  |
-| GPIO13         |------------>| Green (Signal)       |
-|                |             | Red (5V from controller)|
-|                |             |                      |
-|                |             |  REVERSE CONNECTOR   |
-| GPIO12         |------------>| Blue (Signal)        |
-|                |             |                      |
-|                |             |  3-SPEED CONNECTOR   |
-| GPIO14         |------------>| White (Speed 1)      |
-| GPIO27         |------------>| Blue (Speed 2)       |
-|                |             |                      |
-| GPIO26         |------------>| High Brake: Orange (Signal)|
-| GPIO25         |---[Transistor]->| Low Brake: Yellow (via transistor)|
-|                |             |                      |
-| GPIO32         |<------------| Hall Sensor A        |
-| GPIO33         |<------------| Hall Sensor B        |
-| GPIO34         |<------------| Hall Sensor C        |
-|                |             |                      |
-| GPIO36 (ADC1_0)|<--[VD]------| Temp Sensor - Battery|
-| GPIO39 (ADC1_3)|<--[VD]------| Temp Sensor - Controller|
-| GPIO35 (ADC1_7)|<--[VD]------| Temp Sensor - Motor  |
-|                |             |                      |
-| GND            |-+---------->| Black (GND) - Throttle   |
-|                | |           | Black (GND) - Reverse    |
-|                | |           | Black (GND) - 3-Speed    |
-|                | |           | Black (GND) - Hall Sensors |
-|                | +---------->| Black (GND) - Temp Sensors |
-+----------------+             +----------------------+
-                              
+ESP32S (38 pin WVROOM)          Kunray MY1020 Controller       MCP2515 CAN Module
++----------------+             +----------------------+      +----------------+
+|                |             |  THROTTLE CONNECTOR  |      |                |
+| GPIO13         |------------>| Green (Signal)       |      |                |
+|                |             | Red (5V from controller)|      |                |
+|                |             |                      |      |                |
+|                |             |  REVERSE CONNECTOR   |      |                |
+| GPIO12         |------------>| Blue (Signal)        |      |                |
+|                |             |                      |      |                |
+|                |             |  3-SPEED CONNECTOR   |      |                |
+| GPIO14         |------------>| White (Speed 1)      |      |                |
+| GPIO27         |------------>| Blue (Speed 2)       |      |                |
+|                |             |                      |      |                |
+| GPIO26         |------------>| High Brake: Orange (Signal)|      |                |
+| GPIO25         |---[Transistor]->| Low Brake: Yellow (via transistor)|      |                |
+|                |             |                      |      |                |
+| GPIO32         |<------------| Hall Sensor A        |      |                |
+| GPIO33         |<------------| Hall Sensor B        |      |                |
+| GPIO34         |<------------| Hall Sensor C        |      |                |
+|                |             |                      |      |                |
+| GPIO36 (ADC1_0)|<--[VD]------| Temp Sensor - Battery|      |                |
+| GPIO39 (ADC1_3)|<--[VD]------| Temp Sensor - Controller|      |                |
+| GPIO35 (ADC1_7)|<--[VD]------| Temp Sensor - Motor  |      |                |
+|                |             |                      |      |                |
+|                |             +----------------------+      |                |
+|                |                                            |                |
+| GPIO23 (MOSI)  |-------------------------------------------->| SI             |
+| GPIO19 (MISO)  |<--------------------------------------------| SO             |
+| GPIO18 (SCK)   |-------------------------------------------->| SCK            |
+| GPIO5  (CS)    |-------------------------------------------->| CS             |
+| GPIO21 (INT)   |<--------------------------------------------| INT            |
+|                |                                            |                |
+| 3.3V           |-------------------------------------------->| VCC            |
+|                |                                            |                |
+| GND            |-+---------->| Black (GND) - Throttle   |      |                |
+|                | |           | Black (GND) - Reverse    |      |                |
+|                | |           | Black (GND) - 3-Speed    |      |                |
+|                | |           | Black (GND) - Hall Sensors |      |                |
+|                | +---------->| Black (GND) - Temp Sensors |-+--->| GND            |
++----------------+             +----------------------+      +----------------+
+
            COMMON GROUND CONNECTION
 
 NOTE: Low Brake (Yellow wire) must remain DISCONNECTED for normal operation
@@ -75,21 +85,27 @@ OR use a transistor/relay circuit (see Low Brake Control section below)
 ```
 
 **ESP32S Pin Assignment Summary:**
-| Function             | ESP32S Pin  | Controller Connection    |
+| Function             | ESP32S Pin  | Connection               |
 |----------------------|-------------|--------------------------|
-| Throttle Signal      | GPIO13      | Green wire (Throttle)    |
-| Reverse Signal       | GPIO12      | Blue wire (Reverse)      |
-| Speed Mode 1         | GPIO14      | White wire (3-Speed)     |
-| Speed Mode 2         | GPIO27      | Blue wire (3-Speed)      |
-| High Brake           | GPIO26      | Orange wire              |
-| Low Brake (w/transistor) | GPIO25  | Yellow wire              |
-| Hall Sensor A        | GPIO32      | Hall Sensor A            |
-| Hall Sensor B        | GPIO33      | Hall Sensor B            |
-| Hall Sensor C        | GPIO34      | Hall Sensor C            |
+| Throttle Signal      | GPIO13      | Kunray: Green (Throttle) |
+| Reverse Signal       | GPIO12      | Kunray: Blue (Reverse)   |
+| Speed Mode 1         | GPIO14      | Kunray: White (3-Speed)  |
+| Speed Mode 2         | GPIO27      | Kunray: Blue (3-Speed)   |
+| High Brake           | GPIO26      | Kunray: Orange           |
+| Low Brake (w/transistor) | GPIO25  | Kunray: Yellow           |
+| Hall Sensor A        | GPIO32      | Kunray: Hall Sensor A    |
+| Hall Sensor B        | GPIO33      | Kunray: Hall Sensor B    |
+| Hall Sensor C        | GPIO34      | Kunray: Hall Sensor C    |
 | Battery Temp         | GPIO36      | NTC Thermistor (w/divider) |
 | Controller Temp      | GPIO39      | NTC Thermistor (w/divider) |
 | Motor Temp           | GPIO35      | NTC Thermistor (w/divider) |
-| Ground               | GND         | Common ground for all connections |
+| CAN MOSI             | GPIO23      | MCP2515: SI              |
+| CAN MISO             | GPIO19      | MCP2515: SO              |
+| CAN SCK              | GPIO18      | MCP2515: SCK             |
+| CAN CS               | GPIO5       | MCP2515: CS              |
+| CAN INT              | GPIO21      | MCP2515: INT             |
+| 3.3V Power           | 3.3V        | MCP2515: VCC             |
+| Ground               | GND         | Common ground            |
 
 **Important Power Notes:**
 - DO NOT connect ESP32S 3.3V or 5V to the throttle's red wire
@@ -330,8 +346,8 @@ The code uses the Steinhart-Hart equation to convert resistance to temperature:
 ```cpp
 float readTemperature(int pin) {
   float reading = analogRead(pin);
-  // Convert reading to resistance
-  reading = (1023 / reading) - 1;
+  // Convert reading to resistance using 12-bit ADC resolution (0-4095)
+  reading = (4095.0 / reading) - 1.0; // Use 4095.0 for ESP32 ADC
   reading = SERIES_RESISTOR / reading;
   
   // Steinhart-Hart equation for temperature
@@ -707,8 +723,8 @@ The code uses the Steinhart-Hart equation to convert resistance to temperature:
 ```cpp
 float readTemperature(int pin) {
   float reading = analogRead(pin);
-  // Convert reading to resistance
-  reading = (1023 / reading) - 1;
+  // Convert reading to resistance using 12-bit ADC resolution (0-4095)
+  reading = (4095.0 / reading) - 1.0; // Use 4095.0 for ESP32 ADC
   reading = SERIES_RESISTOR / reading;
   
   // Steinhart-Hart equation for temperature

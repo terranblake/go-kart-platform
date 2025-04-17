@@ -14,7 +14,9 @@ class TemperatureSensor : public Sensor {
 public:
   /**
    * Constructor
-   * @param locationId Location ID for this sensor (from TemperatureSensorLocation enum)
+   * @param componentType Component type for this sensor (from TemperatureSensorLocation enum)
+   * @param componentId Component ID for this sensor (from TemperatureSensorLocation enum)
+   * @param commandId Command ID for this sensor (from TemperatureSensorLocation enum)
    * @param pin Analog pin connected to the voltage divider
    * @param updateInterval Update interval in ms
    * @param seriesResistor Value of the series resistor (ohms)
@@ -23,21 +25,21 @@ public:
    * @param bCoefficient B coefficient from thermistor datasheet
    */
   TemperatureSensor(
-    uint8_t locationId, 
-    uint8_t pin, 
+    kart_common_ComponentType componentType,
+    uint8_t componentId,
+    uint8_t commandId,
+    uint8_t pin,
     uint16_t updateInterval = 1000,
     uint32_t seriesResistor = 10000,
     uint32_t thermistorNominal = 10000,
     float temperatureNominal = 25.0,
     float bCoefficient = 3950.0
-  ) : Sensor(locationId, updateInterval),
+  ) : Sensor(componentType, componentId, commandId, kart_common_ValueType_UINT16, updateInterval),
       _pin(pin),
       _seriesResistor(seriesResistor),
       _thermistorNominal(thermistorNominal),
       _temperatureNominal(temperatureNominal),
-      _bCoefficient(bCoefficient),
-      _lastTemp(0.0),
-      _sensorValue() {}
+      _bCoefficient(bCoefficient) {}
   
   /**
    * Initialize the temperature sensor
@@ -45,9 +47,6 @@ public:
   bool begin() override {
     // Set up analog pin
     pinMode(_pin, INPUT);
-    // Take initial reading
-    _lastTemp = readTemperature();
-    
     return true;
   }
   
@@ -57,33 +56,11 @@ public:
    */
   SensorValue read() override {
     // Read temperature
-    _lastTemp = readTemperature();
+    float lastTemp = readTemperature();
     
     // Store in SensorValue (as INT16 in tenths of a degree)
-    _sensorValue.int16_value = (int16_t)(_lastTemp * 10.0);
-    return _sensorValue;
-  }
-  
-  /**
-   * Get value type (INT16 - temperature in tenths of a degree)
-   */
-  uint8_t getValueType() const override {
-    return kart_common_ValueType_INT16;
-  }
-  
-  /**
-   * Get sensor command ID (TEMPERATURE)
-   */
-  uint8_t getSensorCommandId() const override {
-    return 0; // TEMPERATURE = 0 from sensors.proto
-  }
-  
-  /**
-   * Get the current temperature value
-   * @return Temperature in °C
-   */
-  float getTemperature() const {
-    return _lastTemp;
+    _baseSensorValue.int16_value = (int16_t)(lastTemp * 10.0);
+    return _baseSensorValue;
   }
   
 private:
@@ -92,9 +69,6 @@ private:
   uint32_t _thermistorNominal; // Resistance at nominal temperature (ohms)
   float _temperatureNominal;   // Nominal temperature (°C)
   float _bCoefficient;         // Beta coefficient from datasheet
-  float _lastTemp;             // Last temperature reading
-  SensorValue _sensorValue;    // Reusable sensor value object
-  
   /**
    * Read the current temperature
    * @return Temperature in °C

@@ -34,7 +34,12 @@ typedef enum _kart_controls_ControlCommandId {
     kart_controls_ControlCommandId_PARAMETER = 4,
     kart_controls_ControlCommandId_LIMIT = 5,
     kart_controls_ControlCommandId_CALIBRATE = 6,
-    kart_controls_ControlCommandId_EMERGENCY = 7
+    kart_controls_ControlCommandId_EMERGENCY = 7,
+    /* Sensor readings */
+    kart_controls_ControlCommandId_VOLTAGE = 8,
+    kart_controls_ControlCommandId_CURRENT = 9,
+    kart_controls_ControlCommandId_TEMPERATURE = 10,
+    kart_controls_ControlCommandId_PRESSURE = 11
 } kart_controls_ControlCommandId;
 
 /* Control mode values */
@@ -72,8 +77,8 @@ extern "C" {
 #define _kart_controls_ControlComponentId_ARRAYSIZE ((kart_controls_ControlComponentId)(kart_controls_ControlComponentId_ALL+1))
 
 #define _kart_controls_ControlCommandId_MIN kart_controls_ControlCommandId_ENABLE
-#define _kart_controls_ControlCommandId_MAX kart_controls_ControlCommandId_EMERGENCY
-#define _kart_controls_ControlCommandId_ARRAYSIZE ((kart_controls_ControlCommandId)(kart_controls_ControlCommandId_EMERGENCY+1))
+#define _kart_controls_ControlCommandId_MAX kart_controls_ControlCommandId_PRESSURE
+#define _kart_controls_ControlCommandId_ARRAYSIZE ((kart_controls_ControlCommandId)(kart_controls_ControlCommandId_PRESSURE+1))
 
 #define _kart_controls_ControlModeValue_MIN kart_controls_ControlModeValue_MANUAL
 #define _kart_controls_ControlModeValue_MAX kart_controls_ControlModeValue_TEST

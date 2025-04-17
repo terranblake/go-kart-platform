@@ -3,13 +3,13 @@
 #include "../include/Config.h"
 #include "common.pb.h"
 #include "motors.pb.h"
+#include "batteries.pb.h"
 
 // Add sensor framework includes for integration
 #include "Sensor.h"
 #include "SensorRegistry.h"
 #include "TemperatureSensor.h"
 #include "RpmSensor.h"
-
 
 // Add platform-specific defines
 #if defined(ESP8266) || defined(ESP32)
@@ -34,15 +34,6 @@ volatile unsigned long lastHallTime = 0;
 unsigned long lastRpmUpdate = 0;
 unsigned int currentRpm = 0;
 byte hallState = 0;
-
-// Global variables for temperature readings
-float batteryTemp = 0.0;
-float controllerTemp = 0.0;
-float motorTemp = 0.0;
-bool tempWarningActive = false;
-bool tempCriticalActive = false;
-unsigned long lastTempUpdate = 0;
-unsigned long lastStatusUpdate = 0;
 
 // Brake state variables - define these externally as they're declared in Config.h
 bool currentLowBrake = false;
@@ -77,39 +68,34 @@ void setup() {
   } else {
     Serial.println(F("CAN interface initialized"));
   }
-  
-// #if DEBUG_MODE
-  
-// #endif
-
-  // Register command handlers
+    // Register command handlers
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 
                                kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, 
-                               kart_motors_MotorCommandId_SPEED, 
-                               handleSpeedCommand);
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 
+                               kart_motors_MotorCommandId_THROTTLE, 
+                               handleThrottleCommand);
   
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 
                                kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 
                                kart_motors_MotorCommandId_DIRECTION, 
                                handleDirectionCommand);
   
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 
                                kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 
                                kart_motors_MotorCommandId_BRAKE, 
                                handleBrakeCommand);
   
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 
                                kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 
                                kart_motors_MotorCommandId_MODE, 
                                handleModeCommand);
   
   canInterface.registerHandler(kart_common_MessageType_COMMAND, 
                                kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 
                                kart_motors_MotorCommandId_EMERGENCY, 
                                handleEmergencyCommand);
                                
@@ -122,7 +108,9 @@ void setup() {
 
   // Initialize temperature sensors
   batteryTempSensor = new TemperatureSensor(
-    2,                         // Location ID (BATTERY=2)
+    kart_common_ComponentType_BATTERIES,
+    kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
+    kart_batteries_BatteryCommandId_TEMPERATURE,
     TEMP_SENSOR_BATTERY,       // Pin
     2000,                      // Update interval (2 seconds)
     SERIES_RESISTOR,
@@ -131,18 +119,21 @@ void setup() {
     B_COEFFICIENT
   );
   
-  controllerTempSensor = new TemperatureSensor(
-    1,                         // Location ID (CONTROLLER=1)
-    TEMP_SENSOR_CONTROLLER,    // Pin
-    2000,                      // Update interval (2 seconds)
-    SERIES_RESISTOR,
-    THERMISTOR_NOMINAL,
-    TEMPERATURE_NOMINAL,
-    B_COEFFICIENT
-  );
+  // todo: how to support controller sensors?
+  // controllerTempSensor = new TemperatureSensor(
+  //   1,                         // Location ID (CONTROLLER=1)
+  //   TEMP_SENSOR_CONTROLLER,    // Pin
+  //   2000,                      // Update interval (2 seconds)
+  //   SERIES_RESISTOR,
+  //   THERMISTOR_NOMINAL,
+  //   TEMPERATURE_NOMINAL,
+  //   B_COEFFICIENT
+  // );
   
   motorTempSensor = new TemperatureSensor(
-    0,                         // Location ID (MOTOR=0)
+    kart_common_ComponentType_MOTORS,
+    kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
+    kart_motors_MotorCommandId_TEMPERATURE,
     TEMP_SENSOR_MOTOR,         // Pin
     2000,                      // Update interval (2 seconds)
     SERIES_RESISTOR,
@@ -153,14 +144,14 @@ void setup() {
 
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new RpmSensor(
-    kart_motors_MotorComponentId_MAIN_DRIVE, // Use motor component ID
-    100                                      // Update interval 100ms
+    kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
+    100
   );
   
   // Register the sensors with the registry
   sensorRegistry.registerSensor(motorRpmSensor);
   sensorRegistry.registerSensor(batteryTempSensor);
-  sensorRegistry.registerSensor(controllerTempSensor);
+  // sensorRegistry.registerSensor(controllerTempSensor);
   sensorRegistry.registerSensor(motorTempSensor);
   
 #if DEBUG_MODE
@@ -193,29 +184,10 @@ void setupPins() {
   pinMode(LOW_BRAKE_PIN, OUTPUT);
   pinMode(HIGH_BRAKE_PIN, OUTPUT);
   
-  // Set up hall sensor pins
-  pinMode(HALL_A_PIN, INPUT_PULLUP);
-  pinMode(HALL_B_PIN, INPUT_PULLUP);
-  pinMode(HALL_C_PIN, INPUT_PULLUP);
-  
-  // Attach interrupts for hall sensors - use RISING edge only to reduce noise
-  // and prevent overcounting (CHANGE detection counts each transition twice)
-  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
-  
-  // Conditionally attach interrupt for hall sensor C based on platform
-#if defined(ESP8266) || defined(ESP32)
-  // ESP8266/ESP32 can use interrupts on all pins
-  attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
-#endif
-  
   // Initialize to safe state
-  digitalWrite(DIRECTION_PIN, HIGH);     // Forward
-  digitalWrite(SPEED_MODE_PIN_1, LOW);   // Speed mode OFF
-  digitalWrite(SPEED_MODE_PIN_2, LOW);   // Speed mode OFF
-  setLowBrake(false);                    // Low brake disengaged (normal operation)
-  digitalWrite(HIGH_BRAKE_PIN, LOW);     // High brake disengaged
-  analogWrite(THROTTLE_PIN, 0);          // Zero throttle
+  setDirection(DEFAULT_DIRECTION);
+  setMode(DEFAULT_MODE);
+  setBrake(DEFAULT_BRAKE);
 }
 
 void setThrottle(uint8_t level) {
@@ -260,26 +232,21 @@ void setDirection(kart_motors_MotorDirectionValue direction) {
 #endif
 }
 
-void setSpeedMode(uint8_t mode) {
-  // Validate mode (0=OFF, 1=LOW, 2=HIGH)
-  if (mode > 2) {
-    mode = 0; // Default to OFF for invalid values
-  }
-  
+void setMode(kart_motors_MotorModeValue mode) {
   currentSpeedMode = mode;
   
   switch (mode) {
-    case 0: // OFF
+    case kart_motors_MotorModeValue_OFF: // OFF
       digitalWrite(SPEED_MODE_PIN_1, LOW);
       digitalWrite(SPEED_MODE_PIN_2, LOW);
       break;
       
-    case 1: // LOW speed
+    case kart_motors_MotorModeValue_LOW: // LOW speed
       digitalWrite(SPEED_MODE_PIN_1, HIGH);
       digitalWrite(SPEED_MODE_PIN_2, LOW);
       break;
       
-    case 2: // HIGH speed
+    case kart_motors_MotorModeValue_HIGH: // HIGH speed
       digitalWrite(SPEED_MODE_PIN_1, LOW);
       digitalWrite(SPEED_MODE_PIN_2, HIGH);
       break;
@@ -292,60 +259,21 @@ void setSpeedMode(uint8_t mode) {
   
 #if DEBUG_MODE
   Serial.print(F("Speed mode set to: "));
-  Serial.println(mode == 0 ? F("OFF") : mode == 1 ? F("LOW") : F("HIGH"));
+  Serial.println(
+    mode == kart_motors_MotorModeValue_OFF
+      ? F("OFF")
+      : mode == kart_motors_MotorModeValue_LOW
+        ? F("LOW")
+        : F("HIGH")
+  );
 #endif
 }
 
-void setLowBrake(bool engaged) {
-  currentLowBrake = engaged;
-  
-  if (engaged) {
-    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_LOW;
-  } else if (!currentHighBrake) {
-    // Only set to OFF if high brake is also not engaged
-    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_OFF;
-  }
-  
-#ifdef USING_TRANSISTOR
-  // When using a transistor to control the yellow wire:
-  // HIGH output = transistor ON = wire connected to GND = brake engaged
-  // LOW output = transistor OFF = wire disconnected = normal operation
-  digitalWrite(LOW_BRAKE_PIN, engaged ? HIGH : LOW);
-#else
-  // When using a relay to control the yellow wire:
-  // HIGH output = relay open = wire disconnected = normal operation
-  // LOW output = relay closed = wire connected = brake engaged
-  digitalWrite(LOW_BRAKE_PIN, engaged ? LOW : HIGH);
-#endif
-  
-  // If brake is engaged, ensure throttle is zero
-  if (engaged && currentThrottle > 0) {
-    setThrottle(0);
-  }
+void setBrake(kart_motors_MotorBrakeValue brake) {
+  currentBrakeMode = brake;
+  digitalWrite(HIGH_BRAKE_PIN, brake == kart_motors_MotorBrakeValue_BRAKE_ON ? HIGH : LOW);
   
 #if DEBUG_MODE
-  Serial.print(F("Low brake: "));
-  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
-  Serial.print(F("Brake mode: "));
-  Serial.println(currentBrakeMode);
-#endif
-}
-
-void setHighBrake(bool engaged) {
-  currentHighBrake = engaged;
-  
-  if (engaged) {
-    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_HIGH;
-  } else if (!currentLowBrake) {
-    // Only set to OFF if low brake is also not engaged
-    currentBrakeMode = kart_motors_MotorBrakeValue_BRAKE_OFF;
-  }
-  
-  digitalWrite(HIGH_BRAKE_PIN, engaged ? HIGH : LOW);
-  
-#if DEBUG_MODE
-  Serial.print(F("High brake: "));
-  Serial.println(engaged ? F("Engaged") : F("Disengaged"));
   Serial.print(F("Brake mode: "));
   Serial.println(currentBrakeMode);
 #endif
@@ -354,8 +282,7 @@ void setHighBrake(bool engaged) {
 void allStop() {
   // Emergency stop function - stop motor and engage brakes
   setThrottle(0);
-  setLowBrake(true);
-  setHighBrake(true);
+  setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
   
 #if DEBUG_MODE
   // Serial.println(F("EMERGENCY STOP - All systems halted"));
@@ -411,7 +338,7 @@ void updateHallReadings() {
 void emergencyStop() {
   // Stop motor and engage low brake
   setThrottle(0);
-  setLowBrake(true);
+  setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
   currentStatus = kart_motors_MotorStatusValue_STATUS_OK; // Reset status since this is a commanded stop
   
 #if DEBUG_MODE
@@ -422,9 +349,8 @@ void emergencyStop() {
 void emergencyShutdown() {
   // Full shutdown - stop motor and engage all brakes
   setThrottle(0);
-  setLowBrake(true);
-  setHighBrake(true);
-  setSpeedMode(0); // Set speed mode to OFF
+  setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
+  setMode(kart_motors_MotorModeValue_OFF);
   currentStatus = kart_motors_MotorStatusValue_STATUS_OK; // Reset status since this is a commanded shutdown
   
 #if DEBUG_MODE
@@ -433,7 +359,7 @@ void emergencyShutdown() {
 }
 
 // Command handlers
-void handleSpeedCommand(kart_common_MessageType msg_type,
+void handleThrottleCommand(kart_common_MessageType msg_type,
                        kart_common_ComponentType comp_type,
                        uint8_t component_id,
                        uint8_t command_id,
@@ -464,12 +390,7 @@ void handleBrakeCommand(kart_common_MessageType msg_type,
                        uint8_t command_id,
                        kart_common_ValueType value_type,
                        int32_t value) {
-  // Bit 0 = Low brake, Bit 1 = High brake
-  bool lowBrake = (value & 0x01) != 0;
-  bool highBrake = (value & 0x02) != 0;
-  
-  setLowBrake(lowBrake);
-  setHighBrake(highBrake);
+  setBrake(static_cast<kart_motors_MotorBrakeValue>(value));
 }
 
 void handleModeCommand(kart_common_MessageType msg_type,
@@ -478,30 +399,7 @@ void handleModeCommand(kart_common_MessageType msg_type,
                       uint8_t command_id,
                       kart_common_ValueType value_type,
                       int32_t value) {
-  // Map from protocol speed modes to controller speed modes
-  uint8_t speedMode;
-  
-  switch (value) {
-    case kart_motors_MotorModeValue_LOW:
-      speedMode = 1; // LOW speed
-      break;
-      
-    case kart_motors_MotorModeValue_MEDIUM:
-    case kart_motors_MotorModeValue_HIGH:
-    case kart_motors_MotorModeValue_SPORT:
-      speedMode = 2; // HIGH speed
-      break;
-      
-    case kart_motors_MotorModeValue_ECO:
-      speedMode = 1; // LOW speed for ECO mode
-      break;
-      
-    default:
-      speedMode = 0; // OFF for any other value
-      break;
-  }
-  
-  setSpeedMode(speedMode);
+  setMode(static_cast<kart_motors_MotorModeValue>(value));
 }
 
 void handleEmergencyCommand(kart_common_MessageType msg_type,
@@ -521,7 +419,7 @@ void handleEmergencyCommand(kart_common_MessageType msg_type,
       
     case kart_motors_MotorEmergencyValue_LIMP_HOME:
       // Limit speed and set to LOW mode
-      setSpeedMode(1); // LOW speed
+      setMode(kart_motors_MotorModeValue_LOW); // LOW speed
       // Limit throttle to 30%
       if (currentThrottle > 75) {
         setThrottle(75);
@@ -530,8 +428,7 @@ void handleEmergencyCommand(kart_common_MessageType msg_type,
       
     case kart_motors_MotorEmergencyValue_NORMAL:
       // Return to normal operation
-      setLowBrake(false);
-      setHighBrake(false);
+      setBrake(kart_motors_MotorBrakeValue_BRAKE_OFF);
       break;
   }
 }
@@ -564,9 +461,14 @@ void parseSerialCommands() {
       
       // Send acknowledgement
       Serial.println(F("ACK: THROTTLE command processed"));
-      canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_SPEED, 
-                               kart_common_ValueType_UINT8, currentThrottle);
+      canInterface.sendMessage(
+        kart_common_MessageType_STATUS,
+        kart_common_ComponentType_MOTORS, 
+        kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
+        kart_motors_MotorCommandId_THROTTLE,
+        kart_common_ValueType_UINT8,
+        currentThrottle
+      );
     }
     // Command format: "D:F" for forward, "D:R" for reverse
     else if (command.startsWith("D:")) {
@@ -587,21 +489,21 @@ void parseSerialCommands() {
       // Send acknowledgement
       Serial.println(F("ACK: DIRECTION command processed"));
       canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_DIRECTION, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_DIRECTION, 
                                kart_common_ValueType_UINT8, currentDirection);
     }
     // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
     else if (command.startsWith("S:")) {
       int speedMode = command.substring(2).toInt();
       if (speedMode >= 0 && speedMode <= 2) {
-        setSpeedMode(speedMode);
+        setMode(static_cast<kart_motors_MotorModeValue>(speedMode));
         Serial.print(F("Speed mode set to "));
         Serial.println(speedMode);
         
         // Send acknowledgement
         Serial.println(F("ACK: SPEED_MODE command processed"));
         canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                                 kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_MODE, 
+                                 kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_MODE, 
                                  kart_common_ValueType_UINT8, currentSpeedMode);
       }
     }
@@ -609,28 +511,23 @@ void parseSerialCommands() {
     else if (command.startsWith("B:")) {
       char brakeCommand = command.charAt(2);
       if (brakeCommand == 'L' || brakeCommand == 'l') {
-        setLowBrake(true);
-        setHighBrake(false);
+        setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
         Serial.println(F("LOW Brake ENGAGED"));
       }
       else if (brakeCommand == 'H' || brakeCommand == 'h') {
-        setLowBrake(false);
-        setHighBrake(true);
+        setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
         Serial.println(F("HIGH Brake ENGAGED"));
       }
       else if (brakeCommand == 'N' || brakeCommand == 'n') {
-        setLowBrake(false);
-        setHighBrake(false);
+        setBrake(kart_motors_MotorBrakeValue_BRAKE_OFF);
         Serial.println(F("Brakes DISENGAGED"));
       }
       
       // Send acknowledgement
       Serial.println(F("ACK: BRAKE command processed"));
-      // Form brake value: Bit 0 = Low brake, Bit 1 = High brake
-      uint8_t brakeValue = (currentLowBrake ? 0x01 : 0) | (currentHighBrake ? 0x02 : 0);
       canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_BRAKE, 
-                               kart_common_ValueType_UINT8, brakeValue);
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_BRAKE, 
+                               kart_common_ValueType_UINT8, currentBrakeMode);
     }
     // Emergency commands
     else if (command == "STOP") {
@@ -640,7 +537,7 @@ void parseSerialCommands() {
       // Send acknowledgement
       Serial.println(F("ACK: EMERGENCY_STOP command processed"));
       canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_EMERGENCY, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_EMERGENCY, 
                                kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_STOP);
     }
     else if (command == "SHUTDOWN") {
@@ -650,7 +547,7 @@ void parseSerialCommands() {
       // Send acknowledgement
       Serial.println(F("ACK: EMERGENCY_SHUTDOWN command processed"));
       canInterface.sendMessage(kart_common_MessageType_STATUS, kart_common_ComponentType_MOTORS, 
-                               kart_motors_MotorComponentId_MAIN_DRIVE, kart_motors_MotorCommandId_EMERGENCY, 
+                               kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_EMERGENCY, 
                                kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_SHUTDOWN);
     }
     // Help command
@@ -693,15 +590,11 @@ void parseSerialCommands() {
       Serial.println(currentHighBrake);
       Serial.print(F("Battery temp: "));
       // Get values from sensor framework
-      Serial.println(batteryTempSensor ? batteryTempSensor->getTemperature() : 0.0);
+      Serial.println(batteryTempSensor ? batteryTempSensor->getValue() : 0.0);
       Serial.print(F("Controller temp: "));
-      Serial.println(controllerTempSensor ? controllerTempSensor->getTemperature() : 0.0);
+      Serial.println(controllerTempSensor ? controllerTempSensor->getValue() : 0.0);
       Serial.print(F("Motor temp: "));
-      Serial.println(motorTempSensor ? motorTempSensor->getTemperature() : 0.0);
-      Serial.print(F("Temp warning: "));
-      Serial.println(tempWarningActive ? F("ACTIVE") : F("INACTIVE"));
-      Serial.print(F("Temp critical: "));
-      Serial.println(tempCriticalActive ? F("ACTIVE") : F("INACTIVE"));
+      Serial.println(motorTempSensor ? motorTempSensor->getValue() : 0.0);
       Serial.print(F("Hall state: 0b"));
       Serial.println(hallState, BIN);
       Serial.print(F("Hall pulse count: "));

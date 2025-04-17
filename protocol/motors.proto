@@ -4,25 +4,30 @@ package kart.motors;
 
 // Motor component IDs
 enum MotorComponentId {
-  MAIN_DRIVE = 0;           // Main drive motor
-  AUXILIARY = 1;            // Auxiliary motors
-  STEERING = 2;             // Steering motor if electric
-  FAN = 3;                  // Cooling fan motor
-  PUMP = 4;                 // Liquid cooling pump
+  MOTOR_LEFT_REAR = 0;      // Main drive motor
+  MOTOR_RIGHT_REAR = 1;     // Auxiliary motors
+  MOTOR_LEFT_FRONT = 2;     // Steering motor if electric
+  MOTOR_RIGHT_FRONT = 3;    // Cooling fan motor
   ALL = 255;                // All motors (broadcast)
 }
 
 // Motor command IDs
 enum MotorCommandId {
-  SPEED = 0;                // Speed control (0-100%)
-  DIRECTION = 1;            // Forward/reverse
-  BRAKE = 2;                // Brake control
-  MODE = 3;                 // Speed mode (low/mid/high)
-  ENABLE = 4;               // Enable/disable motor
-  EMERGENCY = 5;            // Emergency commands
-  TORQUE = 6;               // Torque control
-  CALIBRATE = 7;            // Calibration
-  TEMPERATURE = 8;          // Temperature reading/limit
+  THROTTLE = 0;                // Speed control (0-100%)
+  RPM = 1;                    // RPM reading
+  DIRECTION = 2;            // Forward/reverse
+  BRAKE = 3;                // Brake control
+  MODE = 4;                 // Speed mode (low/mid/high)
+  ENABLE = 5;               // Enable/disable motor
+  EMERGENCY = 6;            // Emergency commands
+  TORQUE = 7;               // Torque control
+  CALIBRATE = 8;            // Calibration
+  TEMPERATURE = 9;          // Temperature reading/limit
+  
+  // Sensor readings
+  VOLTAGE = 10;
+  CURRENT = 11;
+  PRESSURE = 12;
 }
 
 // Motor direction values
@@ -35,8 +40,7 @@ enum MotorDirectionValue {
 // Motor brake values
 enum MotorBrakeValue {
   BRAKE_OFF = 0;            // Brake off
-  BRAKE_LOW = 1;            // Brake low
-  BRAKE_HIGH = 2;           // Brake high
+  BRAKE_ON = 1;            // Brake on
 }
 
 // Motor mode values

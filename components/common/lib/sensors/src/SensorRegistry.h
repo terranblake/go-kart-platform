@@ -67,37 +67,17 @@ public:
    * @param locationId Sensor location ID
    * @return Pointer to the sensor or nullptr if not found
    */
-  Sensor* getSensor(uint8_t sensorType, uint8_t locationId) {
+  Sensor* getSensor(uint8_t sensorType, uint8_t componentId) {
     for (uint8_t i = 0; i < _sensorCount; i++) {
-      if (_sensors[i] && 
-          _sensors[i]->getSensorCommandId() == sensorType && 
-          _sensors[i]->getLocationId() == locationId) {
-        return _sensors[i];
+      if (!(_sensors[i] && 
+          _sensors[i]->getCommandId() == sensorType && 
+          _sensors[i]->getComponentId() == componentId)) {
+        continue;
       }
+
+      return _sensors[i];
     }
     return nullptr;
-  }
-  
-  /**
-   * Broadcast status of all registered sensors
-   * 
-   * @param status Status value (from SensorStatusValue enum)
-   */
-  void broadcastStatus(uint8_t status) {
-    Serial.println("Broadcasting status");
-
-    for (uint8_t i = 0; i < _sensorCount; i++) {
-      if (_sensors[i]) {
-        _canInterface.sendMessage(
-          kart_common_MessageType_STATUS,
-          _componentType,
-          _sensors[i]->getLocationId(),
-          kart_sensors_SensorCommandId_STATUS,
-          kart_common_ValueType_UINT8,
-          status
-        );
-      }
-    }
   }
   
 private:

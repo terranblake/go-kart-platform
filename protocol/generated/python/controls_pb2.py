@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63ontrols.proto\x12\rkart.controls*\xb5\x01\n\x12\x43ontrolComponentId\x12\x0c\n\x08THROTTLE\x10\x00\x12\t\n\x05\x42RAKE\x10\x01\x12\x0c\n\x08STEERING\x10\x02\x12\x10\n\x0cTRANSMISSION\x10\x03\x12\x0e\n\nSUSPENSION\x10\x04\x12\x0b\n\x07\x43OOLING\x10\x05\x12\x12\n\x0eUSER_INTERFACE\x10\x06\x12\x0c\n\x08SECURITY\x10\x07\x12\x0e\n\nDIAGNOSTIC\x10\x08\x12\x0e\n\nAUTONOMOUS\x10\t\x12\x07\n\x03\x41LL\x10\n*x\n\x10\x43ontrolCommandId\x12\n\n\x06\x45NABLE\x10\x00\x12\x0b\n\x07\x44ISABLE\x10\x01\x12\t\n\x05RESET\x10\x02\x12\x08\n\x04MODE\x10\x03\x12\r\n\tPARAMETER\x10\x04\x12\t\n\x05LIMIT\x10\x05\x12\r\n\tCALIBRATE\x10\x06\x12\r\n\tEMERGENCY\x10\x07*e\n\x10\x43ontrolModeValue\x12\n\n\x06MANUAL\x10\x00\x12\x0c\n\x08\x41SSISTED\x10\x01\x12\r\n\tAUTOMATIC\x10\x02\x12\t\n\x05SPORT\x10\x03\x12\x07\n\x03\x45\x43O\x10\x04\x12\n\n\x06SAFETY\x10\x05\x12\x08\n\x04TEST\x10\x06*C\n\x15\x43ontrolCalibrateValue\x12\r\n\tCAL_START\x10\x00\x12\x0c\n\x08\x43\x41L_STOP\x10\x01\x12\r\n\tCAL_RESET\x10\x02*<\n\x15\x43ontrolEmergencyValue\x12\n\n\x06NORMAL\x10\x00\x12\x08\n\x04STOP\x10\x01\x12\r\n\tLIMP_HOME\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63ontrols.proto\x12\rkart.controls*\xb5\x01\n\x12\x43ontrolComponentId\x12\x0c\n\x08THROTTLE\x10\x00\x12\t\n\x05\x42RAKE\x10\x01\x12\x0c\n\x08STEERING\x10\x02\x12\x10\n\x0cTRANSMISSION\x10\x03\x12\x0e\n\nSUSPENSION\x10\x04\x12\x0b\n\x07\x43OOLING\x10\x05\x12\x12\n\x0eUSER_INTERFACE\x10\x06\x12\x0c\n\x08SECURITY\x10\x07\x12\x0e\n\nDIAGNOSTIC\x10\x08\x12\x0e\n\nAUTONOMOUS\x10\t\x12\x07\n\x03\x41LL\x10\n*\xb1\x01\n\x10\x43ontrolCommandId\x12\n\n\x06\x45NABLE\x10\x00\x12\x0b\n\x07\x44ISABLE\x10\x01\x12\t\n\x05RESET\x10\x02\x12\x08\n\x04MODE\x10\x03\x12\r\n\tPARAMETER\x10\x04\x12\t\n\x05LIMIT\x10\x05\x12\r\n\tCALIBRATE\x10\x06\x12\r\n\tEMERGENCY\x10\x07\x12\x0b\n\x07VOLTAGE\x10\x08\x12\x0b\n\x07\x43URRENT\x10\t\x12\x0f\n\x0bTEMPERATURE\x10\n\x12\x0c\n\x08PRESSURE\x10\x0b*e\n\x10\x43ontrolModeValue\x12\n\n\x06MANUAL\x10\x00\x12\x0c\n\x08\x41SSISTED\x10\x01\x12\r\n\tAUTOMATIC\x10\x02\x12\t\n\x05SPORT\x10\x03\x12\x07\n\x03\x45\x43O\x10\x04\x12\n\n\x06SAFETY\x10\x05\x12\x08\n\x04TEST\x10\x06*C\n\x15\x43ontrolCalibrateValue\x12\r\n\tCAL_START\x10\x00\x12\x0c\n\x08\x43\x41L_STOP\x10\x01\x12\r\n\tCAL_RESET\x10\x02*<\n\x15\x43ontrolEmergencyValue\x12\n\n\x06NORMAL\x10\x00\x12\x08\n\x04STOP\x10\x01\x12\r\n\tLIMP_HOME\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,12 +33,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_CONTROLCOMPONENTID']._serialized_start=34
   _globals['_CONTROLCOMPONENTID']._serialized_end=215
-  _globals['_CONTROLCOMMANDID']._serialized_start=217
-  _globals['_CONTROLCOMMANDID']._serialized_end=337
-  _globals['_CONTROLMODEVALUE']._serialized_start=339
-  _globals['_CONTROLMODEVALUE']._serialized_end=440
-  _globals['_CONTROLCALIBRATEVALUE']._serialized_start=442
-  _globals['_CONTROLCALIBRATEVALUE']._serialized_end=509
-  _globals['_CONTROLEMERGENCYVALUE']._serialized_start=511
-  _globals['_CONTROLEMERGENCYVALUE']._serialized_end=571
+  _globals['_CONTROLCOMMANDID']._serialized_start=218
+  _globals['_CONTROLCOMMANDID']._serialized_end=395
+  _globals['_CONTROLMODEVALUE']._serialized_start=397
+  _globals['_CONTROLMODEVALUE']._serialized_end=498
+  _globals['_CONTROLCALIBRATEVALUE']._serialized_start=500
+  _globals['_CONTROLCALIBRATEVALUE']._serialized_end=567
+  _globals['_CONTROLEMERGENCYVALUE']._serialized_start=569
+  _globals['_CONTROLEMERGENCYVALUE']._serialized_end=629
 # @@protoc_insertion_point(module_scope)

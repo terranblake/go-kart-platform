@@ -23,11 +23,14 @@ class Sensor {
 public:
   /**
    * Constructor
-   * @param locationId Location ID for this sensor (used as component_id)
+   * @param componentId Component ID for this sensor (used as component_id)
    * @param updateInterval Update interval in milliseconds
    */
-  Sensor(uint8_t locationId, uint16_t updateInterval = 1000) :
-    _locationId(locationId),
+  Sensor(kart_common_ComponentType componentType, uint8_t componentId, uint8_t commandId, kart_common_ValueType valueType, uint16_t updateInterval = 1000) :
+    _componentType(static_cast<uint8_t>(componentType)),
+    _componentId(componentId),
+    _commandId(commandId),
+    _valueType(valueType),
     _updateInterval(updateInterval),
     _lastUpdateTime(0),
     _enabled(true) {}
@@ -40,25 +43,13 @@ public:
   /**
    * Initialize the sensor
    * @return true if initialization was successful
+
+  todo: make begin a generic pin/interrupt setup function 
+        for all sensors based on some list of pins/configs provided
    */
   virtual bool begin() = 0;
   
-  /**
-   * Read the sensor value
-   * @return SensorValue union containing the read value
-   */
   virtual SensorValue read() = 0;
-  
-  /**
-   * Get the value type as defined in CrossPlatformCAN's ValueType enum
-   */
-  virtual uint8_t getValueType() const = 0;
-  
-  /**
-   * Get the sensor command ID (sensor type from sensors.proto SensorCommandId)
-   * This is the type of sensor (TEMPERATURE, RPM, etc.)
-   */
-  virtual uint8_t getSensorCommandId() const = 0;
   
   /**
    * Process sensor (read and transmit if needed)
@@ -77,20 +68,17 @@ public:
       
       // Send over CAN
       bool result = canInterface.sendMessage(
-        kart_common_MessageType_STATUS,        // Message type: STATUS
-        kart_common_ComponentType_SENSORS,     // Component type: SENSORS 
-        _locationId,                           // Component ID: sensor location
-        getSensorCommandId(),                  // Command ID: sensor type
-        (kart_common_ValueType)getValueType(), // Value type
-        getValue(_baseSensorValue)             // Value
+        kart_common_MessageType_STATUS,
+        static_cast<kart_common_ComponentType>(_componentType),
+        _componentId,
+        _commandId,
+        _valueType, // Value type
+        getValue()             // Value
       );
       
       _lastUpdateTime = currentTime;
-      
-    //   Serial.print(F("Sent sensor successfully: "));
-    //   Serial.println(result);
 
-      return true;
+      return result;
     }
     
     return false;
@@ -113,11 +101,19 @@ public:
   }
   
   /**
-   * Get the sensor location ID
-   * @return The location ID
+   * Get the sensor component ID
+   * @return The component ID
    */
-  uint8_t getLocationId() const {
-    return _locationId;
+  uint8_t getComponentId() const {
+    return _componentId;
+  }
+
+  uint8_t getCommandId() const {
+    return _commandId;
+  }
+
+  kart_common_ValueType getValueType() const {
+    return _valueType;
   }
   
   /**
@@ -135,37 +131,70 @@ public:
   uint16_t getUpdateInterval() const {
     return _updateInterval;
   }
-  
-protected:
-  uint8_t _locationId;               // Sensor location ID (component_id)
-  uint16_t _updateInterval;          // Update interval in ms
-  unsigned long _lastUpdateTime;     // Last update timestamp
-  bool _enabled;                     // Enabled flag
-  SensorValue _baseSensorValue;      // Reusable sensor value for base class
-  
+
+  /**
+   * Set the value of the sensor
+   * @param value SensorValue union
+   */
+  void setValue(const SensorValue& value) {
+    switch (getValueType()) {
+      case kart_common_ValueType_BOOLEAN:
+        _baseSensorValue.bool_value = value.bool_value;
+        break;
+      case kart_common_ValueType_INT8:
+        _baseSensorValue.int8_value = value.int8_value;
+        break;
+      case kart_common_ValueType_UINT8:
+        _baseSensorValue.uint8_value = value.uint8_value;
+        break;
+      case kart_common_ValueType_INT16:
+        _baseSensorValue.int16_value = value.int16_value;
+        break;
+      case kart_common_ValueType_UINT16:
+        _baseSensorValue.uint16_value = value.uint16_value;
+        break;
+      case kart_common_ValueType_UINT24:
+        _baseSensorValue.uint24_value = value.uint24_value;
+        break;
+      default:
+        // todo: handle error
+        break;
+    }
+  }
+
   /**
    * Extract the proper value from SensorValue based on type
    * @param value SensorValue union
    * @return Value as int32_t for CAN transmission
    */
-  int32_t getValue(const SensorValue& value) const {
+  int32_t getValue() const {
     switch (getValueType()) {
       case kart_common_ValueType_BOOLEAN:
-        return value.bool_value ? 1 : 0;
+        return _baseSensorValue.bool_value ? 1 : 0;
       case kart_common_ValueType_INT8:
-        return value.int8_value;
+        return _baseSensorValue.int8_value;
       case kart_common_ValueType_UINT8:
-        return value.uint8_value;
+        return _baseSensorValue.uint8_value;
       case kart_common_ValueType_INT16:
-        return value.int16_value;
+        return _baseSensorValue.int16_value;
       case kart_common_ValueType_UINT16:
-        return value.uint16_value;
+        return _baseSensorValue.uint16_value;
       case kart_common_ValueType_UINT24:
-        return value.uint24_value;
+        return _baseSensorValue.uint24_value;
       default:
         return 0;
     }
   }
+  
+protected:
+  uint8_t _componentType;             // Sensor component type (component_type)
+  uint8_t _componentId;               // Sensor component ID (component_id)
+  uint8_t _commandId;                 // Sensor command ID (command_id)
+  kart_common_ValueType _valueType;   // Sensor value type (value_type)
+  uint16_t _updateInterval;          // Update interval in ms
+  unsigned long _lastUpdateTime;     // Last update timestamp
+  bool _enabled;                     // Enabled flag
+  SensorValue _baseSensorValue;      // Reusable sensor value for base class
 };
 
 #endif // SENSOR_H 

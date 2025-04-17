@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
-
+#include "common.pb.h"
+#include "motors.pb.h"
 /**
  * RpmSensor - Hall sensor-based RPM measurement
  * 
@@ -13,22 +14,25 @@ class RpmSensor : public Sensor {
 public:
   /**
    * Constructor
-   * @param locationId Location ID of this sensor (from RpmSensorLocation enum)
+   * @param componentId Component ID of this sensor (from RpmSensorLocation enum)
    * @param updateInterval Update interval in ms
    */
-  RpmSensor(uint8_t locationId, uint16_t updateInterval = 100) : 
-    Sensor(locationId, updateInterval) {
+  RpmSensor(uint8_t componentId, uint16_t updateInterval = 100) : 
+    Sensor(kart_common_ComponentType_MOTORS, componentId, kart_motors_MotorCommandId_RPM, kart_common_ValueType_UINT16, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
   }
-  
-  /**
-   * Initialize the RPM sensor
-   * Note: Actual pin setup and interrupt attachment should be done externally
-   */
+
   bool begin() override {
-    // No pin setup here - we expect the component to set up hall sensor pins
-    // and attach interrupts that will call incrementPulse()
+    // Attach interrupts for hall sensors - use RISING edge only to reduce noise
+    // and prevent overcounting (CHANGE detection counts each transition twice)
+    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
+    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
+    
+    // Conditionally attach interrupt for hall sensor C based on platform
+#if defined(ESP8266) || defined(ESP32)
+    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
+#endif
     return true;
   }
   
@@ -37,27 +41,19 @@ public:
    * @return SensorValue containing RPM
    */
   SensorValue read() override {
-    uint16_t rpm = calculateRPM();
-    
-    // Store in SensorValue
-    _sensorValue.uint16_value = rpm;
-    return _sensorValue;
+    // Wait for minimum time between calculations
+    uint32_t currentTime = millis();
+    uint32_t timeDiff = currentTime - _lastCalcTime;
+    if (timeDiff < _updateInterval) {
+      return _baseSensorValue;
+    }
+
+    // Calculate RPM
+    uint32_t rpm = calculateRPM();
+    _baseSensorValue.uint16_value = rpm;
+    return _baseSensorValue;
   }
-  
-  /**
-   * Get value type (UINT16)
-   */
-  uint8_t getValueType() const override {
-    return kart_common_ValueType_UINT16;
-  }
-  
-  /**
-   * Get sensor command ID (RPM)
-   */
-  uint8_t getSensorCommandId() const override {
-    return 1; // RPM = 1 from sensors.proto
-  }
-  
+
   /**
    * Increment pulse counter
    * Call this from interrupt handlers when hall sensor triggers
@@ -98,12 +94,6 @@ private:
       return 0;
     }
     
-    // Wait for minimum time between calculations
-    uint32_t timeDiff = currentTime - _lastCalcTime;
-    if (timeDiff < 100) {
-      return _lastRPM;  // Return last calculation
-    }
-    
     // Get pulse count (thread-safe)
     noInterrupts();
     uint32_t currentCount = _pulseCount;
@@ -131,6 +121,7 @@ private:
     // For a 3-phase BLDC motor with 3 hall sensors, one revolution creates 6 pulses
     // RPM = (pulses / 6) * (60000 / milliseconds)
     // For Kunray MY1020 with ~4 pole pairs, divide by 4 to get true mechanical RPM
+    uint32_t timeDiff = currentTime - _lastCalcTime;
     _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL));
     
     // Simple sanity check - cap at reasonable maximum

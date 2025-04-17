@@ -1,4 +1,3 @@
-
 syntax = "proto3";
 
 package kart.common;
@@ -15,10 +14,9 @@ enum MessageType {
 enum ComponentType {
   LIGHTS = 0;
   MOTORS = 1;
-  SENSORS = 2;
-  BATTERY = 3;
-  CONTROLS = 4;
-  // Reserved space for 3 more types
+  BATTERIES = 2;
+  CONTROLS = 3;
+  // Reserved space for 4 more types
 }
 
 // Value types (4 bits - allows 16 types)

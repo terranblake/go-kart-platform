@@ -396,11 +396,12 @@ void setup() {
   );
   
   // // Initialize RPM sensor with location ID from RpmSensorLocation enum
-  motorRpmSensor = new RpmSensor(5, 100); // Location ID 5 (MOTOR_MAIN), update every 100ms
+  // todo: handle pulling this from eeprom
+  motorRpmSensor = new RpmSensor(kart_motors_MotorComponentId_MOTOR_LEFT_REAR, 100);
   
   // Register all sensors with the registry
   sensorRegistry.registerSensor(batteryTempSensor);
-  sensorRegistry.registerSensor(controllerTempSensor);
+  // sensorRegistry.registerSensor(controllerTempSensor);
   sensorRegistry.registerSensor(motorTempSensor);
   sensorRegistry.registerSensor(motorRpmSensor);
 

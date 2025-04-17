@@ -22,9 +22,8 @@ typedef enum _kart_common_MessageType {
 typedef enum _kart_common_ComponentType {
     kart_common_ComponentType_LIGHTS = 0,
     kart_common_ComponentType_MOTORS = 1,
-    kart_common_ComponentType_SENSORS = 2,
-    kart_common_ComponentType_BATTERY = 3,
-    kart_common_ComponentType_CONTROLS = 4 /* Reserved space for 3 more types */
+    kart_common_ComponentType_BATTERIES = 2,
+    kart_common_ComponentType_CONTROLS = 3 /* Reserved space for 4 more types */
 } kart_common_ComponentType;
 
 /* Value types (4 bits - allows 16 types) */

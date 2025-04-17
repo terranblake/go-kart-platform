@@ -43,9 +43,8 @@ Cross-platform CAN interface library for Raspberry Pi and Arduino with Protocol 
 ### Component Types
 - LIGHTS (0): Lighting systems
 - MOTORS (1): Motor control
-- SENSORS (2): Sensor readings
-- BATTERY (3): Battery management
-- CONTROLS (4): User input controls
+- BATTERY (2): Battery management
+- CONTROLS (3): User input controls
 
 ### Value Types
 - BOOLEAN (0): True/false values

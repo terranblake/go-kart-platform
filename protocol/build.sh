@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NANOPB_DIR="${SCRIPT_DIR}/nanopb"
 OUTPUT_DIR="${SCRIPT_DIR}/generated"
 COMPONENT_INCLUDE_DIR="${SCRIPT_DIR}/../components/common/lib/CrossPlatformCAN/include"
-UNITY_OUTPUT_DIR="/Users/terranblake/Documents/go-kart-simulation/Protocol"
+UNITY_OUTPUT_DIR="/Users/terranblake/Documents/go-kart-simulation/Assets/Protocol"
 UNITY_PROJECT_DIR="/Users/terranblake/Documents/go-kart-simulation"
 
 # Verify nanopb.proto exists

@@ -12,25 +12,29 @@
 /* Enum definitions */
 /* Motor component IDs */
 typedef enum _kart_motors_MotorComponentId {
-    kart_motors_MotorComponentId_MAIN_DRIVE = 0, /* Main drive motor */
-    kart_motors_MotorComponentId_AUXILIARY = 1, /* Auxiliary motors */
-    kart_motors_MotorComponentId_STEERING = 2, /* Steering motor if electric */
-    kart_motors_MotorComponentId_FAN = 3, /* Cooling fan motor */
-    kart_motors_MotorComponentId_PUMP = 4, /* Liquid cooling pump */
+    kart_motors_MotorComponentId_MOTOR_LEFT_REAR = 0, /* Main drive motor */
+    kart_motors_MotorComponentId_MOTOR_RIGHT_REAR = 1, /* Auxiliary motors */
+    kart_motors_MotorComponentId_MOTOR_LEFT_FRONT = 2, /* Steering motor if electric */
+    kart_motors_MotorComponentId_MOTOR_RIGHT_FRONT = 3, /* Cooling fan motor */
     kart_motors_MotorComponentId_ALL = 255 /* All motors (broadcast) */
 } kart_motors_MotorComponentId;
 
 /* Motor command IDs */
 typedef enum _kart_motors_MotorCommandId {
-    kart_motors_MotorCommandId_SPEED = 0, /* Speed control (0-100%) */
-    kart_motors_MotorCommandId_DIRECTION = 1, /* Forward/reverse */
-    kart_motors_MotorCommandId_BRAKE = 2, /* Brake control */
-    kart_motors_MotorCommandId_MODE = 3, /* Speed mode (low/mid/high) */
-    kart_motors_MotorCommandId_ENABLE = 4, /* Enable/disable motor */
-    kart_motors_MotorCommandId_EMERGENCY = 5, /* Emergency commands */
-    kart_motors_MotorCommandId_TORQUE = 6, /* Torque control */
-    kart_motors_MotorCommandId_CALIBRATE = 7, /* Calibration */
-    kart_motors_MotorCommandId_TEMPERATURE = 8 /* Temperature reading/limit */
+    kart_motors_MotorCommandId_THROTTLE = 0, /* Speed control (0-100%) */
+    kart_motors_MotorCommandId_RPM = 1, /* RPM reading */
+    kart_motors_MotorCommandId_DIRECTION = 2, /* Forward/reverse */
+    kart_motors_MotorCommandId_BRAKE = 3, /* Brake control */
+    kart_motors_MotorCommandId_MODE = 4, /* Speed mode (low/mid/high) */
+    kart_motors_MotorCommandId_ENABLE = 5, /* Enable/disable motor */
+    kart_motors_MotorCommandId_EMERGENCY = 6, /* Emergency commands */
+    kart_motors_MotorCommandId_TORQUE = 7, /* Torque control */
+    kart_motors_MotorCommandId_CALIBRATE = 8, /* Calibration */
+    kart_motors_MotorCommandId_TEMPERATURE = 9, /* Temperature reading/limit */
+    /* Sensor readings */
+    kart_motors_MotorCommandId_VOLTAGE = 10,
+    kart_motors_MotorCommandId_CURRENT = 11,
+    kart_motors_MotorCommandId_PRESSURE = 12
 } kart_motors_MotorCommandId;
 
 /* Motor direction values */
@@ -43,8 +47,7 @@ typedef enum _kart_motors_MotorDirectionValue {
 /* Motor brake values */
 typedef enum _kart_motors_MotorBrakeValue {
     kart_motors_MotorBrakeValue_BRAKE_OFF = 0, /* Brake off */
-    kart_motors_MotorBrakeValue_BRAKE_LOW = 1, /* Brake low */
-    kart_motors_MotorBrakeValue_BRAKE_HIGH = 2 /* Brake high */
+    kart_motors_MotorBrakeValue_BRAKE_ON = 1 /* Brake on */
 } kart_motors_MotorBrakeValue;
 
 /* Motor mode values */
@@ -91,21 +94,21 @@ extern "C" {
 #endif
 
 /* Helper constants for enums */
-#define _kart_motors_MotorComponentId_MIN kart_motors_MotorComponentId_MAIN_DRIVE
+#define _kart_motors_MotorComponentId_MIN kart_motors_MotorComponentId_MOTOR_LEFT_REAR
 #define _kart_motors_MotorComponentId_MAX kart_motors_MotorComponentId_ALL
 #define _kart_motors_MotorComponentId_ARRAYSIZE ((kart_motors_MotorComponentId)(kart_motors_MotorComponentId_ALL+1))
 
-#define _kart_motors_MotorCommandId_MIN kart_motors_MotorCommandId_SPEED
-#define _kart_motors_MotorCommandId_MAX kart_motors_MotorCommandId_TEMPERATURE
-#define _kart_motors_MotorCommandId_ARRAYSIZE ((kart_motors_MotorCommandId)(kart_motors_MotorCommandId_TEMPERATURE+1))
+#define _kart_motors_MotorCommandId_MIN kart_motors_MotorCommandId_THROTTLE
+#define _kart_motors_MotorCommandId_MAX kart_motors_MotorCommandId_PRESSURE
+#define _kart_motors_MotorCommandId_ARRAYSIZE ((kart_motors_MotorCommandId)(kart_motors_MotorCommandId_PRESSURE+1))
 
 #define _kart_motors_MotorDirectionValue_MIN kart_motors_MotorDirectionValue_FORWARD
 #define _kart_motors_MotorDirectionValue_MAX kart_motors_MotorDirectionValue_NEUTRAL
 #define _kart_motors_MotorDirectionValue_ARRAYSIZE ((kart_motors_MotorDirectionValue)(kart_motors_MotorDirectionValue_NEUTRAL+1))
 
 #define _kart_motors_MotorBrakeValue_MIN kart_motors_MotorBrakeValue_BRAKE_OFF
-#define _kart_motors_MotorBrakeValue_MAX kart_motors_MotorBrakeValue_BRAKE_HIGH
-#define _kart_motors_MotorBrakeValue_ARRAYSIZE ((kart_motors_MotorBrakeValue)(kart_motors_MotorBrakeValue_BRAKE_HIGH+1))
+#define _kart_motors_MotorBrakeValue_MAX kart_motors_MotorBrakeValue_BRAKE_ON
+#define _kart_motors_MotorBrakeValue_ARRAYSIZE ((kart_motors_MotorBrakeValue)(kart_motors_MotorBrakeValue_BRAKE_ON+1))
 
 #define _kart_motors_MotorModeValue_MIN kart_motors_MotorModeValue_LOW
 #define _kart_motors_MotorModeValue_MAX kart_motors_MotorModeValue_OFF
