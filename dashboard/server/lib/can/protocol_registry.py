@@ -395,7 +395,7 @@ class ProtocolRegistry:
         for key, value in self.registry['message_types'].items():
             if value == message_type:
                 return key
-        return None
+        return ''
     
     def get_component_type_name(self, component_type: int) -> str:
         """Get component type name by value"""
@@ -403,7 +403,7 @@ class ProtocolRegistry:
         for key, value in self.registry['component_types'].items():
             if value == component_type:
                 return key
-        return None
+        return ''
     
     def get_component_id_name(self, component_type: str, component_id: int) -> str:
         """Get component ID name by value"""
@@ -414,7 +414,7 @@ class ProtocolRegistry:
         for key, value in components_by_type.items():
             if value == component_id:
                 return key
-        return None
+        return ''
     
     def get_command_name(self, component_type: str, command_id: int) -> str:
         """Get command name by value"""
@@ -424,7 +424,7 @@ class ProtocolRegistry:
         for key, value in self.registry['commands'][component_type_name].items():
             if value['id'] == command_id:
                 return key
-        return None
+        return ''
     
     def get_command_value_name(self, component_type: str, command_id: int, value_id: int) -> str:
         """Get command value name by value"""
@@ -435,7 +435,7 @@ class ProtocolRegistry:
         for key, value in self.registry['commands'][component_type_name][command_name.upper()]['values'].items():
             if value == value_id:
                 return key
-        return None
+        return ''
     
     def get_value_type_name(self, value_type: int) -> str:
         """Get value type name by value"""
@@ -443,7 +443,7 @@ class ProtocolRegistry:
         for key, value in self.registry['value_types'].items():
             if value == value_type:
                 return key
-        return None
+        return ''
     
     def dump_registry(self) -> Dict:
         """Return a copy of the complete registry"""
