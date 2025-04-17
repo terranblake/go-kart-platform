@@ -99,9 +99,9 @@ emergencyStopBtn.addEventListener('click', () => {
 // Send commands button
 sendCommandsBtn.addEventListener('click', () => {
     // Send multiple commands - speed, steering, and brake
-    sendCommand('MOTORS', 'MAIN_DRIVE', 'SPEED', parseInt(speedControl.value));
+    sendCommand('MOTORS', 'MOTOR_LEFT_REAR', 'THROTTLE', parseInt(speedControl.value));
     sendCommand('CONTROLS', 'STEERING', 'ANGLE', parseInt(steeringControl.value));
-    sendCommand('CONTROLS', 'BRAKE', 'PRESSURE', parseInt(brakeControl.value));
+    sendCommand('MOTORS', 'MOTOR_LEFT_REAR', 'BRAKE', parseInt(brakeControl.value) > 0 ? 1 : 0);
 });
 
 // Setup Chart.js
