@@ -60,7 +60,7 @@ void setup() {
   setupPins();
   
   // Initialize CAN interface
-  if (!canInterface.begin(CAN_SPEED)) {
+  if (!canInterface.begin(CAN_BAUDRATE)) {
 // #if DEBUG_MODE
     Serial.println(F("Failed to initialize CAN interface"));
 // #endif

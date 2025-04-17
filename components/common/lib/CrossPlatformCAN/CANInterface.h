@@ -14,14 +14,13 @@
   // Arduino platform
   #include <Arduino.h>
   #include <CAN.h>
-  #define PLATFORM_ARDUINO
+  #include <MCP2515.h>    // Include the autowp MCP2515 library header
+  // #define PLATFORM_ESP32 // Rely on build flag
 #elif defined(ESP8266) || defined(ESP32) || defined(PLATFORM_ESP32)
-  // ESP32 platform
+  // ESP32 platform using MCP2515 via SPI
   #include <Arduino.h>
-
-  #include <CAN_config.h>
-  #include <ESP32CAN.h>
-  #define PLATFORM_ESP32
+  #include <SPI.h>        // Required for MCP2515 library
+  #include <MCP2515.h>    // Include the autowp MCP2515 library header
 #elif defined(__linux__) || defined(__unix__)
   // Linux platform (Raspberry Pi)
   #include <stdio.h>
@@ -49,6 +48,16 @@ typedef struct {
 
 class CANInterface {
 public:
+  /**
+   * Constructor for ESP32/MCP2515
+   */
+  CANInterface(int csPin, int intPin);
+
+  /**
+   * Default constructor for other platforms
+   */
+  CANInterface();
+
   /**
    * Initialize the CAN interface
    * 
@@ -89,7 +98,11 @@ public:
   bool messageAvailable();
 
 private:
-#ifdef PLATFORM_LINUX
+#ifdef PLATFORM_ESP32
+  MCP2515 m_mcp2515; // Instance of the MCP2515 library object
+  int m_csPin;       // Store CS pin for MCP2515 constructor
+  int m_intPin;      // Store INT pin 
+#elif defined PLATFORM_LINUX
   int m_socket;
   struct sockaddr_can m_addr;
   struct ifreq m_ifr;

@@ -459,25 +459,6 @@ void setupPins() {
   pinMode(HALL_B_PIN, INPUT_PULLUP);
   pinMode(HALL_C_PIN, INPUT_PULLUP);
   
-  // Attach interrupts for hall sensors - use RISING edge only to reduce noise
-  // and prevent overcounting (CHANGE detection counts each transition twice)
-#if defined(ESP32S_WVROOM) || defined(ESP32)
-  // For ESP32/ESP32S, we can use interrupts on all hall sensors
-  attachInterrupt(HALL_A_PIN, hallSensorA_ISR, RISING);
-  attachInterrupt(HALL_B_PIN, hallSensorB_ISR, RISING);
-  attachInterrupt(HALL_C_PIN, hallSensorC_ISR, RISING);
-#elif defined(ESP8266)
-  // For ESP8266, we can use interrupts on all hall sensors
-  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
-#else
-  // For Arduino Nano, only pins 2 and 3 support interrupts
-  attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
-  // Pin 4 (HALL_C_PIN) doesn't support interrupts, will be polled
-#endif
-  
   // Initialize to safe state
   digitalWrite(DIRECTION_PIN, HIGH);     // Forward
   digitalWrite(SPEED_MODE_1_PIN, LOW);   // Speed mode OFF

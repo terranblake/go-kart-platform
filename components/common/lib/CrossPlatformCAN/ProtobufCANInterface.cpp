@@ -17,7 +17,7 @@
 
 // Constructor
 ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId, int csPin, int intPin)
-    : m_nodeId(nodeId), m_numHandlers(0), m_csPin(csPin), m_intPin(intPin)
+    : m_nodeId(nodeId), m_numHandlers(0), m_csPin(csPin), m_intPin(intPin), m_canInterface(csPin, intPin)
 {
 #if DEBUG_MODE
     printf("ProtobufCANInterface: Constructor called with nodeId=%d maxHandlers=%d\n", nodeId, MAX_HANDLERS);
@@ -97,7 +97,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     // Send using base class
     bool result = m_canInterface.sendMessage(msg);
 #if DEBUG_MODE
-    printf("ProtobufCANInterface: sendMessage %s\n", result ? "succeeded" : "failed");
+    printf("ProtobufCANInterface: sendMessage result: %d (%s)\n", result, result ? "succeeded" : "failed"); 
 #endif
     return result;
 }

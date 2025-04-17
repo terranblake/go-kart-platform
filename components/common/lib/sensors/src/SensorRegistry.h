@@ -41,8 +41,12 @@ public:
       return false;
     }
 
+    Serial.printf("Registering sensor %d\n", sensor->getCommandId());
+
     _sensors[_sensorCount++] = sensor;
     sensor->begin();
+
+    Serial.printf("Registered sensor %d\n", sensor->getCommandId());
     
     return true;
   }

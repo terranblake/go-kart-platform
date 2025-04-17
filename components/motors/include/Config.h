@@ -9,11 +9,11 @@
 #include "common.pb.h"
 #include "motors.pb.h"
 
-// CAN speed
-#define CAN_SPEED 500000
-// For ESP32: CAN_CS_PIN maps to TX pin, CAN_INT_PIN maps to RX pin
-#define CAN_CS_PIN 5
-#define CAN_INT_PIN 18
+// CAN speed (Baudrate)
+#define CAN_BAUDRATE 500000
+// For ESP32 using MCP2515: Define SPI CS and MCP2515 INT pins
+#define CAN_CS_PIN 5   // SPI Chip Select for MCP2515 (Default: GPIO 5)
+#define CAN_INT_PIN 4  // Interrupt pin from MCP2515 (GPIO 4 recommended)
 
 #define MIN_THROTTLE 40
 #define MAX_THROTTLE 200

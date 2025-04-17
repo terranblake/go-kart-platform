@@ -4,13 +4,47 @@
 
 #include "CANInterface.h"
 
+// Constructors
 #ifdef PLATFORM_ESP32
-CAN_device_t CAN_cfg;
+CANInterface::CANInterface(int csPin, int intPin) : 
+  m_mcp2515(csPin), // Initialize MCP2515 with CS pin
+  m_csPin(csPin), 
+  m_intPin(intPin) 
+{
+  // Constructor body (if needed)
+}
+CANInterface::CANInterface() : 
+  m_mcp2515(5) // Default CS pin if default constructor is somehow called on ESP32
+{
+  // Default constructor for non-ESP32 platforms or error case
+  Serial.println("Warning: Default CANInterface constructor called on ESP32?");
+}
+#else 
+// Default constructor for non-ESP32 platforms
+CANInterface::CANInterface() {
+  // Initialization for other platforms if needed (e.g., Linux socket = -1)
+  #ifdef PLATFORM_LINUX
+  m_socket = -1; 
+  #endif
+}
+// Dummy constructor for ESP32 signature matching when ESP32 is not defined
+// Needed to prevent compile errors when ProtobufCANInterface calls this constructor
+// on non-ESP32 platforms.
+CANInterface::CANInterface(int csPin, int intPin) {
+    #ifdef PLATFORM_LINUX
+    m_socket = -1;
+    #endif
+}
 #endif
+
+// Remove global CAN_cfg for ESP32, it's not used by MCP2515 lib
+//#ifdef PLATFORM_ESP32
+//CAN_device_t CAN_cfg;
+//#endif
 
 // Platform-specific implementations
 bool CANInterface::begin(long baudRate, const char* canDevice, int csPin, int intPin) {
-#ifdef PLATFORM_ARDUINO && !defined PLATFORM_ESP32
+#if defined(PLATFORM_ARDUINO) && !defined(PLATFORM_ESP32)
   // Arduino implementation using Arduino-CAN library
   if (!CAN.begin(baudRate)) {
     return false;
@@ -24,26 +58,55 @@ bool CANInterface::begin(long baudRate, const char* canDevice, int csPin, int in
 
   return true;
 #elif defined PLATFORM_ESP32
-  // Configure CAN parameters *before* calling CANInit
-  CAN_cfg.speed = CAN_SPEED_1000KBPS; 
-  CAN_cfg.tx_pin_id = (gpio_num_t)csPin; 
-  CAN_cfg.rx_pin_id = (gpio_num_t)intPin;
-  CAN_cfg.rx_queue = xQueueCreate(10, sizeof(CAN_frame_t));
+  // ESP32 implementation using MCP2515 library
+  // Object is already constructed with csPin via CANInterface constructor
+  // Store pins passed to begin() - although library uses the one from constructor primarily
+  m_csPin = csPin;  
+  m_intPin = intPin;
 
-  // Assume ESP32Can uses the globally accessible CAN_cfg struct
-  // Call CANInit with zero arguments as indicated by the error message
-  int initResult = ESP32Can.CANInit(); 
-  
-  // Check the return value (assuming 0 for success, similar to Arduino CAN)
-  if (initResult != 0) { 
-    Serial.printf("Error initializing ESP32CAN, result code: %d\n", initResult);
-    // Clean up queue if init failed
-    if (CAN_cfg.rx_queue != NULL) { vQueueDelete(CAN_cfg.rx_queue); CAN_cfg.rx_queue = NULL; }
+  Serial.printf("Initializing MCP2515 (CS=%d, INT=%d)...\n", m_csPin, m_intPin);
+
+  // Reset the MCP2515 controller
+  m_mcp2515.reset();
+
+  // Set the CAN speed
+  // Assumes a 16MHz crystal on the MCP2515 module
+  // Library uses CAN_SPEED constants like CAN_500KBPS
+  // We need to map the long baudRate to the library's constants
+  // NOTE: Use the library's CAN_SPEED enum directly!
+  CAN_SPEED speed_enum;
+  switch(baudRate) {
+    case 1000000: speed_enum = CAN_1000KBPS; break;
+    case 500000:  speed_enum = CAN_500KBPS; break;
+    case 250000:  speed_enum = CAN_250KBPS; break;
+    case 125000:  speed_enum = CAN_125KBPS; break;
+    // Add other speeds if needed
+    default:      
+      Serial.printf("Warning: Unsupported baudrate %ld, defaulting to 500kbps\n", baudRate);
+      speed_enum = CAN_500KBPS; 
+      break;
+  }
+
+  // Use the library's CAN_CLOCK enum for crystal frequency
+  if (m_mcp2515.setBitrate(speed_enum, MCP_16MHZ) != MCP2515::ERROR_OK) {
+    Serial.println("Error setting MCP2515 bitrate.");
     return false;
   }
 
-  Serial.printf("ESP32CAN initialized successfully (TX: %d, RX: %d)\n", csPin, intPin);
+  // Set MCP2515 to normal mode
+  if (m_mcp2515.setNormalMode() != MCP2515::ERROR_OK) {
+    Serial.println("Error setting MCP2515 to normal mode.");
+    return false;
+  }
 
+  // Configure the INT pin if provided
+  if (m_intPin >= 0) {
+    pinMode(m_intPin, INPUT_PULLUP); // Configure INT pin as input
+    // Optional: Attach interrupt if needed, but library often polls or uses checkReceive()
+    Serial.printf("MCP2515 INT pin %d configured (polling recommended).\n", m_intPin);
+  }
+
+  Serial.printf("MCP2515 initialized successfully at %ld bps.\n", baudRate);
   return true;
 #elif defined PLATFORM_LINUX
   // Linux implementation using SocketCAN
@@ -89,18 +152,10 @@ void CANInterface::end() {
 #ifdef PLATFORM_ARDUINO
   CAN.end();
 #elif defined PLATFORM_ESP32
-  // Implement ESP32 CAN stop
-  esp_err_t err = ESP32Can.CANStop();
-  if (err != ESP_OK) {
-    Serial.printf("Error stopping ESP32CAN: %s\n", esp_err_to_name(err));
-  } else {
-    Serial.println("ESP32CAN stopped.");
-  }
-  // Free the queue
-  if (CAN_cfg.rx_queue != NULL) {
-    vQueueDelete(CAN_cfg.rx_queue);
-    CAN_cfg.rx_queue = NULL; 
-  }
+  // MCP2515 library doesn't have an explicit end/stop function.
+  // Resetting might put it in a safe state if needed.
+  // m_mcp2515.reset(); 
+  Serial.println("MCP2515 end() - No specific action needed by library.");
 #elif defined PLATFORM_LINUX
   if (m_socket >= 0) {
     close(m_socket);
@@ -111,7 +166,7 @@ void CANInterface::end() {
 }
 
 bool CANInterface::sendMessage(const CANMessage& msg) {
-#ifdef PLATFORM_ARDUINO && !defined PLATFORM_ESP32
+#if defined(PLATFORM_ARDUINO) && !defined(PLATFORM_ESP32)
   // Arduino implementation
   if (!CAN.beginPacket(msg.id)) {
     Serial.println("Failed to start CAN packet");
@@ -127,20 +182,24 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
     return false;
   }
 #elif defined PLATFORM_ESP32
-  // ESP32 implementation
+  // ESP32 implementation using MCP2515
+  struct can_frame frame; // Use the library's frame structure
 
-  CAN_frame_t tx_frame;
-  tx_frame.FIR.B.FF = CAN_frame_std;
-  tx_frame.MsgID = msg.id;
-  tx_frame.FIR.B.DLC = msg.length;
-  memcpy(tx_frame.data.u8, msg.data, msg.length);
+  frame.can_id = msg.id;
+  // Add flags if needed (e.g., frame.can_id |= CAN_EFF_FLAG for extended ID)
+  frame.can_dlc = msg.length;
+  memcpy(frame.data, msg.data, msg.length);
 
-  Serial.println("Transmitting CAN message");
-  
-  try {
-    return ESP32Can.CANWriteFrame(&tx_frame);
-  } catch (const std::exception& e) {
-    Serial.println("Error transmitting CAN message");
+  Serial.println("Transmitting CAN message via MCP2515...");
+
+  // Use sendMessage, check against MCP2515::ERROR_OK
+  MCP2515::ERROR result = m_mcp2515.sendMessage(&frame);
+
+  if (result == MCP2515::ERROR_OK) {
+    Serial.println("MCP2515 message sent successfully.");
+    return true;
+  } else {
+    Serial.printf("Error sending MCP2515 message: %d\n", result);
     return false;
   }
 #elif defined PLATFORM_LINUX
@@ -213,9 +272,9 @@ bool CANInterface::messageAvailable() {
 #ifdef PLATFORM_ARDUINO
   return CAN.parsePacket();
 #elif defined PLATFORM_ESP32
-  // Check if messages are waiting in the ESP32 queue
-  if (CAN_cfg.rx_queue == NULL) return false;
-  return (uxQueueMessagesWaiting(CAN_cfg.rx_queue) > 0);
+  // ESP32 implementation using MCP2515
+  // checkReceive() returns ERROR_OK if a message is available
+  return (m_mcp2515.checkReceive() == MCP2515::ERROR_OK);
 #elif defined PLATFORM_LINUX
   fd_set readSet;
   FD_ZERO(&readSet);
@@ -245,23 +304,21 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   
   return true;
 #elif defined PLATFORM_ESP32
-  // Implement ESP32 receive message
-  if (CAN_cfg.rx_queue == NULL) return false;
+  // ESP32 implementation using MCP2515
+  struct can_frame frame; // Library's frame structure
 
-  CAN_frame_t rx_frame;
-  // Read frame from queue (non-blocking)
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdPASS) {
-    msg.id = rx_frame.MsgID;
-    // Ensure DLC is within valid range before copying
-    if (rx_frame.FIR.B.DLC > 8) {
-       Serial.printf("Error: Received invalid DLC (%d) for ID 0x%X\n", rx_frame.FIR.B.DLC, rx_frame.MsgID);
-       return false; // Invalid DLC
-    }
-    msg.length = rx_frame.FIR.B.DLC;
-    memcpy(msg.data, rx_frame.data.u8, msg.length);
+  // Use readMessage, check against MCP2515::ERROR_OK
+  if (m_mcp2515.readMessage(&frame) == MCP2515::ERROR_OK) {
+    // Map the received frame to the common CANMessage struct
+    msg.id = frame.can_id; // Note: This might include flags (like EFF/RTR) set by the library
+    // Consider masking msg.id if you only want the raw ID: msg.id = frame.can_id & CAN_SFF_MASK; (or CAN_EFF_MASK)
+    msg.length = frame.can_dlc;
+    memcpy(msg.data, frame.data, frame.can_dlc);
     return true;
+  } else {
+    // No message available or read error
+    return false;
   }
-  return false; // No message received
 #elif defined PLATFORM_LINUX
   struct can_frame frame;
   

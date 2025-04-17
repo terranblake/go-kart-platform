@@ -21,19 +21,23 @@ public:
     Sensor(kart_common_ComponentType_MOTORS, componentId, kart_motors_MotorCommandId_RPM, kart_common_ValueType_UINT16, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
+    _isrA = hallSensorA_ISR;
+    _isrB = hallSensorB_ISR;
+    _isrC = hallSensorC_ISR;
   }
 
   bool begin() override {
-    // Attach interrupts for hall sensors - use RISING edge only to reduce noise
-    // and prevent overcounting (CHANGE detection counts each transition twice)
-    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, RISING);
-    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, RISING);
+    // Restore pin configuration and interrupt attachment here.
+    // pinMode(HALL_A_PIN, INPUT); // Commented out - potential conflict or unnecessary
+    // pinMode(HALL_B_PIN, INPUT); // Commented out - GPIO 3 (RX0) conflict?
+    // pinMode(HALL_C_PIN, INPUT); // Commented out - GPIO 4 (CAN_INT) conflict?
+
+    // Attach interrupts to the ISRs
+    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), _isrA, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), _isrB, CHANGE); // GPIO 3, potential conflict
+    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), _isrC, CHANGE);
     
-    // Conditionally attach interrupt for hall sensor C based on platform
-#if defined(ESP8266) || defined(ESP32)
-    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, RISING);
-#endif
-    return true;
+    return true; // Indicate successful logical initialization
   }
   
   /**
@@ -74,6 +78,9 @@ public:
 private:
   volatile uint32_t _pulseCount = 0;
   volatile uint32_t _lastPulseTime = 0;
+  void (*_isrA)(void);
+  void (*_isrB)(void);
+  void (*_isrC)(void);
   uint16_t _lastRPM = 0;
   SensorValue _sensorValue;    // Reusable sensor value object
   
