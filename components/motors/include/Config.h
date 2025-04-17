@@ -40,14 +40,14 @@
 #define CRUISE_PIN -1         // Cruise control activation
 
 // Hall sensor inputs (feedback from motor)
-#define HALL_A_PIN 7          // Hall sensor A (reading only; had to move from pin 2 due to conflict with CAN0 RX)
-#define HALL_B_PIN 3          // Hall sensor B (interrupt pin)
-#define HALL_C_PIN 4          // Hall sensor C (reading only)
+#define HALL_A_PIN 35          // Hall sensor A (reading only; had to move from pin 2 due to conflict with CAN0 RX)
+#define HALL_B_PIN 32          // Hall sensor B (interrupt pin)
+#define HALL_C_PIN 33          // Hall sensor C (reading only)
 
 // Temperature sensor pins
-#define TEMP_SENSOR_BATTERY 35   // Battery temperature sensor (A6 analog input)
-#define TEMP_SENSOR_CONTROLLER 34 // Controller temperature sensor (A7 analog input)
-#define TEMP_SENSOR_MOTOR 36     // Motor temperature sensor (digital pin with analog capabilities)
+#define TEMP_SENSOR_BATTERY 39   // Battery temperature sensor (A6 analog input)
+#define TEMP_SENSOR_CONTROLLER 36 // Controller temperature sensor (A7 analog input)
+#define TEMP_SENSOR_MOTOR 34     // Motor temperature sensor (digital pin with analog capabilities)
 
 // NTC Thermistor parameters for NTCLE100E3203JBD
 #define THERMISTOR_NOMINAL 10000   // Resistance at 25°C

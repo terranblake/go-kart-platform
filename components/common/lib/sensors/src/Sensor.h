@@ -65,6 +65,8 @@ public:
     if (forceSend || (currentTime - _lastUpdateTime >= _updateInterval)) {
       // Read sensor directly into the base sensor value member
       _baseSensorValue = read();
+
+      Serial.printf("Sensor %d: %ld\n", _commandId, getValue());
       
       // Send over CAN
       bool result = canInterface.sendMessage(
