@@ -1,6 +1,5 @@
-#include <Arduino.h>
-#include "ProtobufCANInterface.h"
 #include "../include/Config.h"
+#include "ProtobufCANInterface.h"
 #include "common.pb.h"
 #include "motors.pb.h"
 #include "batteries.pb.h"
@@ -19,7 +18,7 @@
 #endif
 
 // Global state variables
-ProtobufCANInterface canInterface(NODE_ID);
+ProtobufCANInterface canInterface(NODE_ID, CAN_CS_PIN, CAN_INT_PIN);
 
 // Global variables for motor state
 uint8_t currentThrottle = 0;
@@ -61,7 +60,7 @@ void setup() {
   setupPins();
   
   // Initialize CAN interface
-  if (!canInterface.begin(500E3)) {
+  if (!canInterface.begin(CAN_SPEED)) {
 // #if DEBUG_MODE
     Serial.println(F("Failed to initialize CAN interface"));
 // #endif

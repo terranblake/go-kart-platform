@@ -16,8 +16,8 @@
 #endif
 
 // Constructor
-ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId)
-    : m_nodeId(nodeId), m_numHandlers(0)
+ProtobufCANInterface::ProtobufCANInterface(uint32_t nodeId, int csPin, int intPin)
+    : m_nodeId(nodeId), m_numHandlers(0), m_csPin(csPin), m_intPin(intPin)
 {
 #if DEBUG_MODE
     printf("ProtobufCANInterface: Constructor called with nodeId=%d maxHandlers=%d\n", nodeId, MAX_HANDLERS);
@@ -30,7 +30,7 @@ bool ProtobufCANInterface::begin(long baudRate, const char* canDevice)
 #if DEBUG_MODE
     printf("ProtobufCANInterface: begin called with baudRate=%ld, canDevice=%s\n", baudRate, canDevice);
 #endif
-    return m_canInterface.begin(baudRate, canDevice);
+    return m_canInterface.begin(baudRate, canDevice, m_csPin, m_intPin);
 }
 
 void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,

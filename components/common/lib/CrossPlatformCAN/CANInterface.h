@@ -10,11 +10,18 @@
 #include <stdbool.h>
 
 // Platform detection
-#if defined(ARDUINO)
+#if defined(ARDUINO) && !defined(PLATFORM_ESP32)
   // Arduino platform
   #include <Arduino.h>
   #include <CAN.h>
   #define PLATFORM_ARDUINO
+#elif defined(ESP8266) || defined(ESP32) || defined(PLATFORM_ESP32)
+  // ESP32 platform
+  #include <Arduino.h>
+
+  #include <CAN_config.h>
+  #include <ESP32CAN.h>
+  #define PLATFORM_ESP32
 #elif defined(__linux__) || defined(__unix__)
   // Linux platform (Raspberry Pi)
   #include <stdio.h>
@@ -47,9 +54,11 @@ public:
    * 
    * @param baudRate The CAN bus speed (typically 500000 for 500kbps)
    * @param canDevice The CAN device name (used only on Linux, e.g., "can0")
+   * @param csPin The CS pin for the CAN transceiver (used only on Arduino)
+   * @param intPin The INT pin for the CAN transceiver (used only on Arduino)
    * @return true on success, false on failure
    */
-  bool begin(long baudRate = 500000, const char* canDevice = "can0");
+  bool begin(long baudRate = 500000, const char* canDevice = "can0", int csPin = -1, int intPin = -1);
   
   /**
    * Close the CAN interface

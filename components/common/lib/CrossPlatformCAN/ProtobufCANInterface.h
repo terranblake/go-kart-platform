@@ -11,7 +11,7 @@
 
 // Max number of message handlers
 // todo: switch to using PLATFORM_EMBEDDED
-#if defined(PLATFORM_ARDUINO)
+#if defined(PLATFORM_ARDUINO) || defined(PLATFORM_ESP32)
 #define MAX_HANDLERS 32
 #elif defined(PLATFORM_LINUX)
 #define MAX_HANDLERS 128
@@ -27,8 +27,10 @@ public:
    * Constructor
    * 
    * @param nodeId The ID of this node on the CAN network
+   * @param csPin The CS pin for the CAN transceiver (used only on Arduino)
+   * @param intPin The INT pin for the CAN transceiver (used only on Arduino)
    */
-  ProtobufCANInterface(uint32_t nodeId);
+  ProtobufCANInterface(uint32_t nodeId, int csPin, int intPin);
   
   /**
    * Initialize the CAN interface
@@ -109,6 +111,8 @@ private:
   uint32_t m_nodeId;
   HandlerEntry m_handlers[MAX_HANDLERS];
   int m_numHandlers;
+  int m_csPin;
+  int m_intPin;
   CANInterface m_canInterface;
   
   // Debug logging helper

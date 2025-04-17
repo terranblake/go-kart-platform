@@ -4,13 +4,46 @@
 
 #include "CANInterface.h"
 
+#ifdef PLATFORM_ESP32
+CAN_device_t CAN_cfg;
+#endif
+
 // Platform-specific implementations
-bool CANInterface::begin(long baudRate, const char* canDevice) {
-#ifdef PLATFORM_ARDUINO
+bool CANInterface::begin(long baudRate, const char* canDevice, int csPin, int intPin) {
+#ifdef PLATFORM_ARDUINO && !defined PLATFORM_ESP32
   // Arduino implementation using Arduino-CAN library
   if (!CAN.begin(baudRate)) {
     return false;
   }
+  
+  if (csPin && intPin) {
+    CAN.setPins(csPin, intPin);
+  } else {
+    Serial.println("CAN_CS_PIN or CAN_INT_PIN is not set. Using default pins (CS=2, INT=10) from CAN library");
+  }
+
+  return true;
+#elif defined PLATFORM_ESP32
+  // Configure CAN parameters *before* calling CANInit
+  CAN_cfg.speed = CAN_SPEED_1000KBPS; 
+  CAN_cfg.tx_pin_id = (gpio_num_t)csPin; 
+  CAN_cfg.rx_pin_id = (gpio_num_t)intPin;
+  CAN_cfg.rx_queue = xQueueCreate(10, sizeof(CAN_frame_t));
+
+  // Assume ESP32Can uses the globally accessible CAN_cfg struct
+  // Call CANInit with zero arguments as indicated by the error message
+  int initResult = ESP32Can.CANInit(); 
+  
+  // Check the return value (assuming 0 for success, similar to Arduino CAN)
+  if (initResult != 0) { 
+    Serial.printf("Error initializing ESP32CAN, result code: %d\n", initResult);
+    // Clean up queue if init failed
+    if (CAN_cfg.rx_queue != NULL) { vQueueDelete(CAN_cfg.rx_queue); CAN_cfg.rx_queue = NULL; }
+    return false;
+  }
+
+  Serial.printf("ESP32CAN initialized successfully (TX: %d, RX: %d)\n", csPin, intPin);
+
   return true;
 #elif defined PLATFORM_LINUX
   // Linux implementation using SocketCAN
@@ -55,6 +88,19 @@ bool CANInterface::begin(long baudRate, const char* canDevice) {
 void CANInterface::end() {
 #ifdef PLATFORM_ARDUINO
   CAN.end();
+#elif defined PLATFORM_ESP32
+  // Implement ESP32 CAN stop
+  esp_err_t err = ESP32Can.CANStop();
+  if (err != ESP_OK) {
+    Serial.printf("Error stopping ESP32CAN: %s\n", esp_err_to_name(err));
+  } else {
+    Serial.println("ESP32CAN stopped.");
+  }
+  // Free the queue
+  if (CAN_cfg.rx_queue != NULL) {
+    vQueueDelete(CAN_cfg.rx_queue);
+    CAN_cfg.rx_queue = NULL; 
+  }
 #elif defined PLATFORM_LINUX
   if (m_socket >= 0) {
     close(m_socket);
@@ -65,14 +111,38 @@ void CANInterface::end() {
 }
 
 bool CANInterface::sendMessage(const CANMessage& msg) {
-#ifdef PLATFORM_ARDUINO
+#ifdef PLATFORM_ARDUINO && !defined PLATFORM_ESP32
   // Arduino implementation
   if (!CAN.beginPacket(msg.id)) {
+    Serial.println("Failed to start CAN packet");
     return false;
   }
   
   CAN.write(msg.data, msg.length);
-  return CAN.endPacket();
+  Serial.println("CAN packet written");
+  try {
+    return CAN.endPacket();
+  } catch (const std::exception& e) {
+    Serial.println("Error ending CAN packet");
+    return false;
+  }
+#elif defined PLATFORM_ESP32
+  // ESP32 implementation
+
+  CAN_frame_t tx_frame;
+  tx_frame.FIR.B.FF = CAN_frame_std;
+  tx_frame.MsgID = msg.id;
+  tx_frame.FIR.B.DLC = msg.length;
+  memcpy(tx_frame.data.u8, msg.data, msg.length);
+
+  Serial.println("Transmitting CAN message");
+  
+  try {
+    return ESP32Can.CANWriteFrame(&tx_frame);
+  } catch (const std::exception& e) {
+    Serial.println("Error transmitting CAN message");
+    return false;
+  }
 #elif defined PLATFORM_LINUX
   // Linux implementation
   struct can_frame frame;
@@ -142,6 +212,10 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
 bool CANInterface::messageAvailable() {
 #ifdef PLATFORM_ARDUINO
   return CAN.parsePacket();
+#elif defined PLATFORM_ESP32
+  // Check if messages are waiting in the ESP32 queue
+  if (CAN_cfg.rx_queue == NULL) return false;
+  return (uxQueueMessagesWaiting(CAN_cfg.rx_queue) > 0);
 #elif defined PLATFORM_LINUX
   fd_set readSet;
   FD_ZERO(&readSet);
@@ -170,6 +244,24 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
   }
   
   return true;
+#elif defined PLATFORM_ESP32
+  // Implement ESP32 receive message
+  if (CAN_cfg.rx_queue == NULL) return false;
+
+  CAN_frame_t rx_frame;
+  // Read frame from queue (non-blocking)
+  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdPASS) {
+    msg.id = rx_frame.MsgID;
+    // Ensure DLC is within valid range before copying
+    if (rx_frame.FIR.B.DLC > 8) {
+       Serial.printf("Error: Received invalid DLC (%d) for ID 0x%X\n", rx_frame.FIR.B.DLC, rx_frame.MsgID);
+       return false; // Invalid DLC
+    }
+    msg.length = rx_frame.FIR.B.DLC;
+    memcpy(msg.data, rx_frame.data.u8, msg.length);
+    return true;
+  }
+  return false; // No message received
 #elif defined PLATFORM_LINUX
   struct can_frame frame;
   

@@ -6,27 +6,31 @@
 #define NODE_ID 0x20  // Node ID for this motor controller
 #endif
 
+#include "common.pb.h"
 #include "motors.pb.h"
 
 // CAN speed
-#define CAN_SPEED CAN_500KBPS
-
-// Motor Controller Pins - Kunray MY1020 3kW BLDC Controller
-// Output pins (signals from Arduino to controller)
-#define THROTTLE_PIN 5        // PWM output for throttle control
-#define DIRECTION_PIN 6       // Reverse wire: HIGH = forward, LOW = reverse
+#define CAN_SPEED 500000
+// For ESP32: CAN_CS_PIN maps to TX pin, CAN_INT_PIN maps to RX pin
+#define CAN_CS_PIN 5
+#define CAN_INT_PIN 18
 
 #define MIN_THROTTLE 40
 #define MAX_THROTTLE 200
 
+// Motor Controller Pins - Kunray MY1020 3kW BLDC Controller
+// Output pins (signals from Arduino to controller)
+#define THROTTLE_PIN 13        // PWM output for throttle control
+#define DIRECTION_PIN 12       // Reverse wire: HIGH = forward, LOW = reverse
+
 // There are 3 speed modes, controlled by a single 3-speed connector (L M H)
 // We use 2 pins to control the 3 speeds through a simple circuit
-#define SPEED_MODE_PIN_1 "A1"    // Speed mode selection pin 1 - WHITE
-#define SPEED_MODE_PIN_2 "A2"    // Speed mode selection pin 2 - BLUE
+#define SPEED_MODE_PIN_1 14     // Speed mode selection pin 1 - WHITE
+#define SPEED_MODE_PIN_2 27    // Speed mode selection pin 2 - BLUE
 
 // Brake control pins (2 levels available on the controller)
-#define LOW_BRAKE_PIN "A4"       // Low level brake signal
-#define HIGH_BRAKE_PIN "A3"     // High level brake signal
+#define LOW_BRAKE_PIN 26       // Low level brake signal
+#define HIGH_BRAKE_PIN 25     // High level brake signal
 
 // Key/Safety features
 #define E_LOCK_PIN -1         // E-Lock electronic key signal (safety)
@@ -41,9 +45,9 @@
 #define HALL_C_PIN 4          // Hall sensor C (reading only)
 
 // Temperature sensor pins
-#define TEMP_SENSOR_BATTERY "A5"   // Battery temperature sensor (A6 analog input)
-#define TEMP_SENSOR_CONTROLLER "A6" // Controller temperature sensor (A7 analog input)
-#define TEMP_SENSOR_MOTOR "A7"     // Motor temperature sensor (digital pin with analog capabilities)
+#define TEMP_SENSOR_BATTERY 35   // Battery temperature sensor (A6 analog input)
+#define TEMP_SENSOR_CONTROLLER 34 // Controller temperature sensor (A7 analog input)
+#define TEMP_SENSOR_MOTOR 36     // Motor temperature sensor (digital pin with analog capabilities)
 
 // NTC Thermistor parameters for NTCLE100E3203JBD
 #define THERMISTOR_NOMINAL 10000   // Resistance at 25°C
