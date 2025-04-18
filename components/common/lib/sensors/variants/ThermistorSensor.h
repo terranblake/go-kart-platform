@@ -1,17 +1,17 @@
-#ifndef TEMPERATURE_SENSOR_H
-#define TEMPERATURE_SENSOR_H
+#ifndef THERMISTOR_SENSOR_H
+#define THERMISTOR_SENSOR_H
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
 #include "driver/adc.h" // Include ESP32 ADC driver
 
 /**
- * TemperatureSensor - Measures temperature using NTC thermistors
+ * ThermistorSensor - Measures temperature using NTC thermistors
  * 
  * Designed for NTCLE100E3xxxx thermistors with a series resistor
  * Uses the Steinhart-Hart equation for temperature conversion
  */
-class TemperatureSensor : public Sensor {
+class ThermistorSensor : public Sensor {
 public:
   /**
    * Constructor
@@ -25,7 +25,7 @@ public:
    * @param temperatureNominal Nominal temperature (°C)
    * @param bCoefficient B coefficient from thermistor datasheet
    */
-  TemperatureSensor(
+  ThermistorSensor(
     kart_common_ComponentType componentType,
     uint8_t componentId,
     uint8_t commandId,
@@ -148,4 +148,4 @@ private:
   }
 };
 
-#endif // TEMPERATURE_SENSOR_H 
+#endif // THERMISTOR_SENSOR_H 

@@ -67,12 +67,12 @@ The design will use the CrossPlatformCAN message format, repurposing existing fi
    - Create `components/sensors/src/SensorManager.h` for static access and interrupt routing
 
 2. Implement specific sensor types
-   - Create `components/sensors/variants/TemperatureSensor.h` for temperature monitoring
-   - Create `components/sensors/variants/RpmSensor.h` for RPM monitoring
+   - Create `components/sensors/variants/ThermistorSensor.h` for temperature monitoring
+   - Create `components/sensors/variants/KunrayHallRpmSensor.h` for RPM monitoring
 
 3. Update the BasicControllerTest to use sensor framework
    - Replace direct temperature readings with TemperatureSensor instances
-   - Replace direct RPM calculations with RpmSensor
+   - Replace direct RPM calculations with KunratHallRpmSensor
    - Update ISR functions to use SensorManager
    - Add mock CAN interface for testing
 
@@ -118,7 +118,7 @@ The design will use the CrossPlatformCAN message format, repurposing existing fi
 - [ ] SensorRegistry correctly manages multiple sensors
 - [ ] SensorManager successfully routes interrupts
 - [ ] TemperatureSensor accurately reads from thermistors
-- [ ] RpmSensor accurately calculates motor RPM
+- [ ] KunrayHallRpmSensor accurately calculates motor RPM
 - [ ] BasicControllerTest integrated with sensor framework
 - [ ] All sensors correctly transmit data over the CAN bus
 - [ ] Framework works on both ESP8266 and Arduino Nano platforms

@@ -1,5 +1,5 @@
-#ifndef RPM_SENSOR_H
-#define RPM_SENSOR_H
+#ifndef KUNRAY_HALL_RPM_SENSOR_H
+#define KUNRAY_HALL_RPM_SENSOR_H
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
@@ -14,18 +14,18 @@ extern void hallSensorB_ISR();
 extern void hallSensorC_ISR();
 
 /**
- * RpmSensor - Hall sensor-based RPM measurement
+ * KunrayHallRpmSensor - Hall sensor-based RPM measurement
  * 
  * Uses interrupts to count pulses from hall sensors to calculate RPM
  */
-class RpmSensor : public Sensor {
+class KunrayHallRpmSensor : public Sensor {
 public:
   /**
    * Constructor
    * @param componentId Component ID of this sensor (from RpmSensorLocation enum)
    * @param updateInterval Update interval in ms
    */
-  RpmSensor(uint8_t componentId, uint16_t updateInterval = 100) : 
+  KunrayHallRpmSensor(uint8_t componentId, uint16_t updateInterval = 100) : 
     Sensor(kart_common_ComponentType_MOTORS, componentId, kart_motors_MotorCommandId_RPM, kart_common_ValueType_UINT16, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
@@ -161,4 +161,4 @@ private:
   }
 };
 
-#endif // RPM_SENSOR_H 
+#endif // KUNRAY_HALL_RPM_SENSOR_H 

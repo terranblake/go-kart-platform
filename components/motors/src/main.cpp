@@ -7,8 +7,8 @@
 // Add sensor framework includes for integration
 #include "Sensor.h"
 #include "SensorRegistry.h"
-#include "TemperatureSensor.h"
-#include "RpmSensor.h"
+#include "ThermistorSensor.h"
+#include "KunrayHallRpmSensor.h"
 
 // Add platform-specific defines
 #if defined(ESP8266) || defined(ESP32)
@@ -40,10 +40,10 @@ bool currentHighBrake = false;
 
 // Sensor framework integration - add sensor objects
 SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, NODE_ID);
-RpmSensor* motorRpmSensor;
-TemperatureSensor* batteryTempSensor;
-TemperatureSensor* controllerTempSensor;
-TemperatureSensor* motorTempSensor;
+KunrayHallRpmSensor* motorRpmSensor;
+ThermistorSensor* batteryTempSensor;
+ThermistorSensor* controllerTempSensor;
+ThermistorSensor* motorTempSensor;
 
 // Function prototypes for new functions
 #if DEBUG_MODE == 1
@@ -106,7 +106,7 @@ void setup() {
                                handleEmergencyCommand);
 
   // Initialize temperature sensors
-  batteryTempSensor = new TemperatureSensor(
+  batteryTempSensor = new ThermistorSensor(
     kart_common_ComponentType_BATTERIES,
     kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
     kart_batteries_BatteryCommandId_TEMPERATURE,
@@ -119,7 +119,7 @@ void setup() {
   );
   
   // todo: how to support controller sensors?
-  // controllerTempSensor = new TemperatureSensor(
+  // controllerTempSensor = new ThermistorSensor(
   //   1,                         // Location ID (CONTROLLER=1)
   //   TEMP_SENSOR_CONTROLLER,    // Pin
   //   2000,                      // Update interval (2 seconds)
@@ -129,7 +129,7 @@ void setup() {
   //   B_COEFFICIENT
   // );
   
-  motorTempSensor = new TemperatureSensor(
+  motorTempSensor = new ThermistorSensor(
     kart_common_ComponentType_MOTORS,
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
     kart_motors_MotorCommandId_TEMPERATURE,
@@ -142,7 +142,7 @@ void setup() {
   );
 
   // Initialize RPM sensor with the sensor framework
-  motorRpmSensor = new RpmSensor(
+  motorRpmSensor = new KunrayHallRpmSensor(
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
     1000
   );
