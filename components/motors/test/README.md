@@ -103,7 +103,7 @@ OR use a transistor/relay circuit (see Low Brake Control section below)
 | CAN MISO             | GPIO19      | MCP2515: SO              |
 | CAN SCK              | GPIO18      | MCP2515: SCK             |
 | CAN CS               | GPIO5       | MCP2515: CS              |
-| CAN INT              | GPIO21      | MCP2515: INT             |
+| CAN INT              | GPIO4      | MCP2515: INT             |
 | 3.3V Power           | 3.3V        | MCP2515: VCC             |
 | Ground               | GND         | Common ground            |
 

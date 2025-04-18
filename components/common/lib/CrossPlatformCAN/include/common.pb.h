@@ -23,7 +23,8 @@ typedef enum _kart_common_ComponentType {
     kart_common_ComponentType_LIGHTS = 0,
     kart_common_ComponentType_MOTORS = 1,
     kart_common_ComponentType_BATTERIES = 2,
-    kart_common_ComponentType_CONTROLS = 3 /* Reserved space for 4 more types */
+    kart_common_ComponentType_CONTROLS = 3,
+    kart_common_ComponentType_NAVIGATION = 4 /* Reserved space for 3 more types */
 } kart_common_ComponentType;
 
 /* Value types (4 bits - allows 16 types) */
@@ -34,8 +35,8 @@ typedef enum _kart_common_ValueType {
     kart_common_ValueType_INT16 = 3,
     kart_common_ValueType_UINT16 = 4,
     kart_common_ValueType_INT24 = 5,
-    kart_common_ValueType_UINT24 = 6,
-    kart_common_ValueType_FLOAT16 = 7 /* Reserved space for 8 more types */
+    kart_common_ValueType_UINT24 = 6 /* FLOAT16 = 7; // Removed - Impractical C++ usage
+ Reserved space for 9 more types now */
 } kart_common_ValueType;
 
 /* Struct definitions */
@@ -65,12 +66,12 @@ extern "C" {
 #define _kart_common_MessageType_ARRAYSIZE ((kart_common_MessageType)(kart_common_MessageType_ERROR+1))
 
 #define _kart_common_ComponentType_MIN kart_common_ComponentType_LIGHTS
-#define _kart_common_ComponentType_MAX kart_common_ComponentType_CONTROLS
-#define _kart_common_ComponentType_ARRAYSIZE ((kart_common_ComponentType)(kart_common_ComponentType_CONTROLS+1))
+#define _kart_common_ComponentType_MAX kart_common_ComponentType_NAVIGATION
+#define _kart_common_ComponentType_ARRAYSIZE ((kart_common_ComponentType)(kart_common_ComponentType_NAVIGATION+1))
 
 #define _kart_common_ValueType_MIN kart_common_ValueType_BOOLEAN
-#define _kart_common_ValueType_MAX kart_common_ValueType_FLOAT16
-#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_FLOAT16+1))
+#define _kart_common_ValueType_MAX kart_common_ValueType_UINT24
+#define _kart_common_ValueType_ARRAYSIZE ((kart_common_ValueType)(kart_common_ValueType_UINT24+1))
 
 #define kart_common_KartMessage_message_type_ENUMTYPE kart_common_MessageType
 #define kart_common_KartMessage_component_type_ENUMTYPE kart_common_ComponentType

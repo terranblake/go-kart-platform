@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package kart.navigation;
+
+import "common.proto"; // Import common types like ValueType - Assuming build system handles path
+
+// Navigation component IDs - Identifies the specific source or group
+enum NavigationComponentId {
+  IMU_PRIMARY = 0;        // Main Inertial Measurement Unit (e.g., GY-521)
+  GPS_PRIMARY = 1;        // Main GPS unit (e.g., ATGM336H)
+  ENVIRONMENT_PRIMARY = 2;// Main environment sensor (e.g., AHT21)
+  // Add IDs for secondary/redundant sensors if needed
+  ALL = 255;              // All navigation components (broadcast)
+}
+
+// Navigation command IDs - Specifies the data type being reported OR configured
+enum NavigationCommandId {
+  // --- Sensor Readings --- 
+  ACCEL_X = 0;            // Acceleration X-axis (m/s^2, float)
+  ACCEL_Y = 1;            // Acceleration Y-axis (m/s^2, float)
+  ACCEL_Z = 2;            // Acceleration Z-axis (m/s^2, float)
+  GYRO_X = 3;             // Gyroscope X-axis (rad/s, float)
+  GYRO_Y = 4;             // Gyroscope Y-axis (rad/s, float)
+  GYRO_Z = 5;             // Gyroscope Z-axis (rad/s, float)
+  IMU_TEMPERATURE = 6;    // Internal IMU temperature (°C, float)
+  LATITUDE = 10;          // Latitude (degrees, float)
+  LONGITUDE = 11;         // Longitude (degrees, float)
+  ALTITUDE = 12;          // Altitude (meters, float)
+  SPEED = 13;             // Speed over ground (km/h, float)
+  COURSE = 14;            // Course over ground (degrees, float)
+  SATELLITES = 15;        // Number of satellites in view (count, uint8)
+  HDOP = 16;              // Horizontal Dilution of Precision (dimensionless, float)
+  GPS_FIX_STATUS = 17;    // GPS Fix Status (enum GpsFixStatus, uint8)
+  TEMPERATURE_AMBIENT = 20; // Ambient temperature (°C, int16 -> tenths of degree)
+  HUMIDITY_RELATIVE = 21; // Relative humidity (%, uint8)
+
+  // --- Configuration Commands --- 
+  // IMU Configuration
+  ACCELEROMETER_RANGE = 50; // Set IMU Accelerometer Range (enum AccelerometerRangeValue, uint8)
+  GYROSCOPE_RANGE = 51;     // Set IMU Gyroscope Range (enum GyroscopeRangeValue, uint8)
+  FILTER_BANDWIDTH = 52;    // Set IMU DLPF Bandwidth (enum FilterBandwidthValue, uint8)
+  TRIGGER_CALIBRATION = 53; // Trigger IMU Calibration (value ignored or specific type? TBD)
+
+  // GPS Configuration
+  GPS_UPDATE_RATE = 60;      // Set GPS Update Rate (enum GpsUpdateRateValue, uint8)
+  GNSS_CONSTELLATION = 61;  // Set GNSS Constellations (enum GnssConstellationValue - bitmask? uint8)
+  NMEA_OUTPUT_CONFIG = 62; // Set NMEA Output Sentences (value TBD - bitmask? uint8)
+  STATIC_NAVIGATION_MODE = 63; // Set Static Navigation Mode (enum StaticNavigationValue, uint8)
+
+  // General Commands (less likely needed for config, more for control)
+  // ENABLE = 70;            // Enable/disable navigation system/sensor
+  // RESET = 71;             // Reset navigation system/sensor
+}
+
+// --- Value Enums for Configuration Commands --- 
+
+// MPU-6050 Accelerometer Range Values (maps to Adafruit library defines)
+enum AccelerometerRangeValue {
+  RANGE_2_G = 0;  // MPU6050_RANGE_2_G
+  RANGE_4_G = 1;  // MPU6050_RANGE_4_G
+  RANGE_8_G = 2;  // MPU6050_RANGE_8_G
+  RANGE_16_G = 3; // MPU6050_RANGE_16_G
+}
+
+// MPU-6050 Gyroscope Range Values (maps to Adafruit library defines)
+enum GyroscopeRangeValue {
+  RANGE_250_DEG = 0;  // MPU6050_RANGE_250_DEG
+  RANGE_500_DEG = 1;  // MPU6050_RANGE_500_DEG
+  RANGE_1000_DEG = 2; // MPU6050_RANGE_1000_DEG
+  RANGE_2000_DEG = 3; // MPU6050_RANGE_2000_DEG
+}
+
+// MPU-6050 Digital Low Pass Filter Bandwidth Values (maps to Adafruit library defines)
+enum FilterBandwidthValue {
+  BAND_260_HZ = 0; // MPU6050_BAND_260_HZ (No filter or highest BW)
+  BAND_184_HZ = 1; // MPU6050_BAND_184_HZ
+  BAND_94_HZ = 2;  // MPU6050_BAND_94_HZ
+  BAND_44_HZ = 3;  // MPU6050_BAND_44_HZ
+  BAND_21_HZ = 4;  // MPU6050_BAND_21_HZ
+  BAND_10_HZ = 5;  // MPU6050_BAND_10_HZ
+  BAND_5_HZ = 6;   // MPU6050_BAND_5_HZ
+}
+
+// GPS Update Rate Values
+enum GpsUpdateRateValue {
+  RATE_UNKNOWN = 0; // Default/unset value
+  RATE_1_HZ = 1;
+  RATE_5_HZ = 5;
+  RATE_10_HZ = 10; // Check ATGM336H datasheet for max supported rate
+}
+
+// GNSS Constellation Selection (Example - Exact values depend on module commands)
+// This might be better as individual enable/disable commands or a bitmask
+enum GnssConstellationValue {
+  GPS_ONLY = 0;
+  GPS_GLONASS = 1; // Example value
+  GPS_BEIDOU = 2;  // Example value
+  GPS_GALILEO = 3; // Example value (If supported)
+  ALL_SUPPORTED = 4; // Example value
+}
+
+// NMEA Output Configuration (Example - Detail depends on module commands)
+// Often uses bitmasks to enable/disable specific sentences (GGA, RMC, VTG, etc.)
+enum NmeaOutputValue {
+  DEFAULT_OUTPUT = 0;
+  ESSENTIAL_OUTPUT = 1; // e.g., GGA, RMC only
+  DEBUG_OUTPUT = 2;     // e.g., include GSV, GSA
+}
+
+// GPS Static Navigation Mode
+enum StaticNavigationValue {
+  STATIC_MODE_OFF = 0; // Normal operation
+  STATIC_MODE_ON = 1;  // Enable static navigation (for stationary use)
+}
+
+// GPS Fix Status values
+enum GpsFixStatus {
+  NO_FIX = 0;             // No fix available
+  FIX_ACQUIRED = 1;       // Standard GPS/GNSS fix
+  DIFFERENTIAL_FIX = 2;   // Differential GPS fix (DGPS)
+  // Add other fix types like RTK if applicable
+}
+
+// Potential future Mode values
+// enum NavigationMode {
+//   STANDARD = 0;
+//   HIGH_ACCURACY = 1;
+//   LOW_POWER = 2;
+// }

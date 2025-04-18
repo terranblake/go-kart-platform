@@ -16,7 +16,8 @@ enum ComponentType {
   MOTORS = 1;
   BATTERIES = 2;
   CONTROLS = 3;
-  // Reserved space for 4 more types
+  NAVIGATION = 4;
+  // Reserved space for 3 more types
 }
 
 // Value types (4 bits - allows 16 types)
@@ -28,8 +29,8 @@ enum ValueType {
   UINT16 = 4;
   INT24 = 5;
   UINT24 = 6;
-  FLOAT16 = 7;
-  // Reserved space for 8 more types
+  // FLOAT16 = 7; // Removed - Impractical C++ usage
+  // Reserved space for 9 more types now
 }
 
 // Special value for addressing all components of a type
