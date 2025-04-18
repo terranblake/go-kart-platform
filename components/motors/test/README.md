@@ -53,13 +53,13 @@ ESP32S (38 pin WVROOM)          Kunray MY1020 Controller       MCP2515 CAN Modul
 | GPIO26         |------------>| High Brake: Orange (Signal)|      |                |
 | GPIO25         |---[Transistor]->| Low Brake: Yellow (via transistor)|      |                |
 |                |             |                      |      |                |
-| GPIO32         |<------------| Hall Sensor A        |      |                |
-| GPIO33         |<------------| Hall Sensor B        |      |                |
-| GPIO34         |<------------| Hall Sensor C        |      |                |
+| GPIO35         |<------------| Hall Sensor A        |      |                |
+| GPIO32         |<------------| Hall Sensor B        |      |                |
+| GPIO33         |<------------| Hall Sensor C        |      |                |
 |                |             |                      |      |                |
-| GPIO36 (ADC1_0)|<--[VD]------| Temp Sensor - Battery|      |                |
-| GPIO39 (ADC1_3)|<--[VD]------| Temp Sensor - Controller|      |                |
-| GPIO35 (ADC1_7)|<--[VD]------| Temp Sensor - Motor  |      |                |
+| GPIO39 (ADC1_3)|<--[VD]------| Temp Sensor - Battery|      |                |
+| GPIO36 (ADC1_0)|<--[VD]------| Temp Sensor - Controller|      |                |
+| GPIO34 (ADC1_6)|<--[VD]------| Temp Sensor - Motor  |      |                |
 |                |             |                      |      |                |
 |                |             +----------------------+      |                |
 |                |                                            |                |
@@ -93,12 +93,12 @@ OR use a transistor/relay circuit (see Low Brake Control section below)
 | Speed Mode 2         | GPIO27      | Kunray: Blue (3-Speed)   |
 | High Brake           | GPIO26      | Kunray: Orange           |
 | Low Brake (w/transistor) | GPIO25  | Kunray: Yellow           |
-| Hall Sensor A        | GPIO32      | Kunray: Hall Sensor A    |
-| Hall Sensor B        | GPIO33      | Kunray: Hall Sensor B    |
-| Hall Sensor C        | GPIO34      | Kunray: Hall Sensor C    |
-| Battery Temp         | GPIO36      | NTC Thermistor (w/divider) |
-| Controller Temp      | GPIO39      | NTC Thermistor (w/divider) |
-| Motor Temp           | GPIO35      | NTC Thermistor (w/divider) |
+| Hall Sensor A        | GPIO35      | Kunray: Hall Sensor A    |
+| Hall Sensor B        | GPIO32      | Kunray: Hall Sensor B    |
+| Hall Sensor C        | GPIO33      | Kunray: Hall Sensor C    |
+| Battery Temp         | GPIO39      | NTC Thermistor (w/divider) |
+| Controller Temp      | GPIO36      | NTC Thermistor (w/divider) |
+| Motor Temp           | GPIO34      | NTC Thermistor (w/divider) |
 | CAN MOSI             | GPIO23      | MCP2515: SI              |
 | CAN MISO             | GPIO19      | MCP2515: SO              |
 | CAN SCK              | GPIO18      | MCP2515: SCK             |
@@ -194,12 +194,12 @@ You can modify these constants at the top of the file to adjust the test behavio
 #define SPEED_2_PIN 27
 #define HIGH_BRAKE_PIN 26
 #define LOW_BRAKE_PIN 25
-#define HALL_A_PIN 32
-#define HALL_B_PIN 33
-#define HALL_C_PIN 34
-#define TEMP_SENSOR_BATTERY 36  // ADC1_0
-#define TEMP_SENSOR_CONTROLLER 39  // ADC1_3
-#define TEMP_SENSOR_MOTOR 35  // ADC1_7
+#define HALL_A_PIN 35
+#define HALL_B_PIN 32
+#define HALL_C_PIN 33
+#define TEMP_SENSOR_BATTERY 39
+#define TEMP_SENSOR_CONTROLLER 36
+#define TEMP_SENSOR_MOTOR 34
 
 // Test parameters
 #define STEP_DELAY 3000       // Delay between test steps (ms)
@@ -297,9 +297,9 @@ Through extensive testing, we've observed these important characteristics about 
 
 The test setup can monitor temperatures at three critical points using NTCLE100E3203JBD NTC thermistors:
 
-1. **Battery Temperature** - Connected to GPIO36
-2. **Controller Temperature** - Connected to GPIO39 
-3. **Motor Temperature** - Connected to GPIO35
+1. **Battery Temperature** - Connected to GPIO39
+2. **Controller Temperature** - Connected to GPIO36 
+3. **Motor Temperature** - Connected to GPIO34
 
 Each thermistor requires a voltage divider circuit:
 
@@ -310,7 +310,7 @@ ESP32S 3.3V
    Z 10kΩ Resistor
    Z
    |
-   +-----------------> To Analog Pin (GPIO36/GPIO39/GPIO35)
+   +-----------------> To Analog Pin (GPIO39/GPIO36/GPIO34)
    |
    Z
    Z NTC Thermistor (NTCLE100E3203JBD)
@@ -331,9 +331,9 @@ ESP32S 3.3V
 
 ```cpp
 // NTC Thermistor parameters for NTCLE100E3203JBD
-#define TEMP_SENSOR_BATTERY 36  // ADC1_0
-#define TEMP_SENSOR_CONTROLLER 39  // ADC1_3
-#define TEMP_SENSOR_MOTOR 35  // ADC1_7
+#define TEMP_SENSOR_BATTERY 39
+#define TEMP_SENSOR_CONTROLLER 36
+#define TEMP_SENSOR_MOTOR 34
 #define THERMISTOR_NOMINAL 10000   // Resistance at 25°C
 #define TEMPERATURE_NOMINAL 25     // Temperature for nominal resistance (°C)
 #define B_COEFFICIENT 3977         // Beta coefficient from datasheet
@@ -396,7 +396,7 @@ When selecting a microcontroller for this test, consider these differences:
 
 **ESP32S ADC Notes:**
 - The ESP32S has two ADC units (ADC1 and ADC2) with different characteristics
-- For this test, we use ADC1 pins (GPIO36, GPIO39, GPIO35) for temperature sensors
+- For this test, we use ADC1 pins (GPIO39, GPIO36, GPIO34) for temperature sensors
 - ESP32S ADC is non-linear and requires calibration for accurate readings
 - ESP32S ADC pins are input-only and cannot be used as digital outputs
 

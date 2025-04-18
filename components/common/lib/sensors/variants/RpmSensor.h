@@ -5,6 +5,14 @@
 #include "../src/Sensor.h"
 #include "common.pb.h"
 #include "motors.pb.h"
+#include "../include/Config.h" // Include Config.h for pin definitions
+
+// Forward declarations for ISRs if they are defined globally in main.cpp
+// If they are member functions or static, this needs adjustment.
+extern void hallSensorA_ISR(); 
+extern void hallSensorB_ISR();
+extern void hallSensorC_ISR();
+
 /**
  * RpmSensor - Hall sensor-based RPM measurement
  * 
@@ -21,22 +29,26 @@ public:
     Sensor(kart_common_ComponentType_MOTORS, componentId, kart_motors_MotorCommandId_RPM, kart_common_ValueType_UINT16, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
-    _isrA = hallSensorA_ISR;
-    _isrB = hallSensorB_ISR;
-    _isrC = hallSensorC_ISR;
+    // ISR assignment removed - assuming global ISRs from main.cpp based on Config.h prototypes
   }
 
   bool begin() override {
-    // Restore pin configuration and interrupt attachment here.
-    // pinMode(HALL_A_PIN, INPUT); // Commented out - potential conflict or unnecessary
-    // pinMode(HALL_B_PIN, INPUT); // Commented out - GPIO 3 (RX0) conflict?
-    // pinMode(HALL_C_PIN, INPUT); // Commented out - GPIO 4 (CAN_INT) conflict?
+    // Pin mode configuration is removed as it caused issues.
+    // Rely on default pin modes or configuration elsewhere.
 
-    // Attach interrupts to the ISRs
-    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), _isrA, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), _isrB, CHANGE); // GPIO 3, potential conflict
-    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), _isrC, CHANGE);
+    // Attach interrupts using pins defined in Config.h
+    // Ensure the ISR functions (hallSensorA_ISR, etc.) are accessible (e.g., declared extern)
+    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, CHANGE);
     
+    // Initialize state variables
+    _lastRPM = 0;
+    _pulseCount = 0;
+    _lastPulseTime = millis();
+    _lastCalcTime = millis();
+    _lastPulseCount = 0;
+
     return true; // Indicate successful logical initialization
   }
   
@@ -53,18 +65,20 @@ public:
     }
 
     // Calculate RPM
-    uint32_t rpm = calculateRPM();
+    uint16_t rpm = calculateRPM(); // Changed to uint16_t to match return type
     _baseSensorValue.uint16_value = rpm;
     return _baseSensorValue;
   }
 
   /**
    * Increment pulse counter
-   * Call this from interrupt handlers when hall sensor triggers
+   * Called directly by the global ISRs defined in main.cpp
    */
+  // This method might need to be static or accessed via a singleton instance
+  // if called from global C-style ISRs. For now, assume main.cpp handles it.
   void incrementPulse() {
     _pulseCount++;
-    _lastPulseTime = millis();
+    _lastPulseTime = millis(); 
   }
   
   /**
@@ -75,18 +89,21 @@ public:
     return _lastRPM;
   }
   
+// Make pulse count accessible if needed by global ISRs
+// Consider making this instance accessible globally (e.g., via a pointer in main.cpp)
+// volatile uint32_t _pulseCount = 0; 
+// volatile uint32_t _lastPulseTime = 0;
+
 private:
-  volatile uint32_t _pulseCount = 0;
-  volatile uint32_t _lastPulseTime = 0;
-  void (*_isrA)(void);
-  void (*_isrB)(void);
-  void (*_isrC)(void);
-  uint16_t _lastRPM = 0;
-  SensorValue _sensorValue;    // Reusable sensor value object
+  volatile uint32_t _pulseCount;
+  volatile uint32_t _lastPulseTime;
+  // ISR function pointers removed
+  uint16_t _lastRPM;
+  SensorValue _sensorValue; // Reusable sensor value object
   
   // Variables for RPM calculation
-  uint32_t _lastCalcTime = 0;
-  uint32_t _lastPulseCount = 0;
+  uint32_t _lastCalcTime;
+  uint32_t _lastPulseCount;
   
   /**
    * Calculate RPM based on pulse count
@@ -125,16 +142,16 @@ private:
     }
     
     // Calculate RPM based on pulse count and time difference
-    // For a 3-phase BLDC motor with 3 hall sensors, one revolution creates 6 pulses
-    // RPM = (pulses / 6) * (60000 / milliseconds)
-    // For Kunray MY1020 with ~4 pole pairs, divide by 4 to get true mechanical RPM
     uint32_t timeDiff = currentTime - _lastCalcTime;
-    _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL));
-    
-    // Simple sanity check - cap at reasonable maximum
-    // if (_lastRPM > 6000) {
-    //   _lastRPM = 0; // Likely an erroneous reading
-    // }
+
+    // Prevent division by zero if timeDiff is too small
+    if (timeDiff == 0) {
+        return _lastRPM; // Return last calculated RPM
+    }
+
+    // Calculation factor assumes 6 state changes per electrical revolution
+    // and 3 electrical revolutions per mechanical for this motor (adjust if needed)
+    _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL)); 
     
     // Store values for next calculation
     _lastCalcTime = currentTime;
