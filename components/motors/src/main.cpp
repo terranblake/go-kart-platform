@@ -144,7 +144,7 @@ void setup() {
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new RpmSensor(
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
-    100
+    1000
   );
   
   // Register the sensors with the registry
@@ -162,9 +162,6 @@ void loop() {
   // Process CAN messages
   canInterface.process();
   
-  // Update hall sensor readings periodically
-  updateHallReadings();
-  
   // Process all sensors using the SensorRegistry
   sensorRegistry.process();
   
@@ -172,6 +169,9 @@ void loop() {
 #if DEBUG_MODE == 1
   parseSerialCommands();
 #endif
+
+  // Yield control to allow background tasks/scheduler to run
+  delay(1);
 }
 
 void setupPins() {
@@ -286,52 +286,6 @@ void allStop() {
 #if DEBUG_MODE
   // Serial.println(F("EMERGENCY STOP - All systems halted"));
 #endif
-}
-
-// Hall sensor interrupt handlers with debouncing
-volatile unsigned long lastHallPulseTime[3] = {0, 0, 0};
-const unsigned long DEBOUNCE_TIME = 1000; // 1ms debounce time (in microseconds)
-
-void hallSensorA_ISR() {
-  hallPulseCount++;
-  lastHallTime = millis();
-  // Notify the RPM sensor of the pulse
-  if (motorRpmSensor) {
-    motorRpmSensor->incrementPulse();
-  }
-}
-
-void hallSensorB_ISR() {
-  hallPulseCount++;
-  lastHallTime = millis();
-  // Notify the RPM sensor of the pulse
-  if (motorRpmSensor) {
-    motorRpmSensor->incrementPulse();
-  }
-}
-
-void hallSensorC_ISR() {
-  hallPulseCount++;
-  lastHallTime = millis();
-  // Notify the RPM sensor of the pulse
-  if (motorRpmSensor) {
-    motorRpmSensor->incrementPulse();
-  }
-}
-
-// Update all hall sensor readings and calculate RPM
-void updateHallReadings() {
-  // Read current hall sensor state (binary pattern of all 3 sensors)
-  hallState = 0;
-  if (digitalRead(HALL_A_PIN)) hallState |= 0b001;
-  if (digitalRead(HALL_B_PIN)) hallState |= 0b010;
-  if (digitalRead(HALL_C_PIN)) hallState |= 0b100;
-  
-  // Update RPM calculation periodically
-  if (millis() - lastRpmUpdate > RPM_UPDATE_INTERVAL) {
-    currentRpm = motorRpmSensor->getRPM();
-    lastRpmUpdate = millis();
-  }
 }
 
 void emergencyStop() {

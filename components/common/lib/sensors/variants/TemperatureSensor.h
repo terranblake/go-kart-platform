@@ -86,8 +86,8 @@ public:
     // Read temperature
     float lastTemp = readTemperature();
     
-    // Store in SensorValue (as INT16 in tenths of a degree)
-    _baseSensorValue.int16_value = (int16_t)(lastTemp * 10.0);
+    // Store in SensorValue (as UINT16 in tenths of a degree)
+    _baseSensorValue.uint16_value = (uint16_t)(lastTemp * 10.0);
     return _baseSensorValue;
   }
   
