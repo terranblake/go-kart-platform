@@ -31,6 +31,7 @@ public:
    * @param componentId Component ID for this sensor instance (e.g., GPS_PRIMARY)
    * @param commandId Command ID determines what read() returns (e.g., LATITUDE)
    * @param serialPort HardwareSerial instance connected to the GPS module (e.g., &Serial1)
+   * @param sharedGpsObject Pointer to the single TinyGPSPlus object shared by all instances.
    * @param updateInterval Update interval in ms
    * @param baudRate Baud rate for the serial connection (default 9600 for ATGM336H)
    */
@@ -39,17 +40,17 @@ public:
     uint8_t componentId,
     uint8_t commandId, // Determines which value is returned
     HardwareSerial* serialPort,
+    TinyGPSPlus* sharedGpsObject, // Pointer to shared object
     uint16_t updateInterval = 1000,
     uint32_t baudRate = 9600
   ) : Sensor(componentType, componentId, commandId,
              getValueTypeForCommand(commandId), // Determine ValueType based on command
              updateInterval),
       _serial(serialPort),
-      _baudRate(baudRate)
+      _baudRate(baudRate),
+      _gps_ptr(sharedGpsObject) // Store the pointer
   {
-      // Set the specific protobuf value field tag based on commandId
       // Assuming SensorValue union doesn't have nanopb oneof tags
-      // setValueFieldTag(commandId);
   }
 
   /**
@@ -75,10 +76,17 @@ public:
    * Recommended to call this frequently from the main loop or a task.
    */
   void processSerial() {
-      if (!_serial) return;
+      if (!_serial || !_gps_ptr) return; // Check pointer too
       while (_serial->available() > 0) {
-          _gps.encode(_serial->read());
+          char c = _serial->read();
+          // #if DEBUG_MODE // Comment out raw GPS character printing
+          //  Serial.print(c); 
+          // #endif
+          _gps_ptr->encode(c); // Use pointer
       }
+      // #if DEBUG_MODE
+      //   // Optional: Add a newline after processing available data if any chars were printed
+      // #endif
   }
 
   /**
@@ -89,60 +97,59 @@ public:
    * Note: This implementation calls processSerial() internally.
    */
   SensorValue read() override {
-    // Process any pending serial data first
-    processSerial();
+    if (!_gps_ptr) { 
+       _baseSensorValue.float_value = NAN; // Or appropriate error
+       _baseSensorValue.uint8_value = 0xFF;
+       return _baseSensorValue; 
+    } 
+    // Process any pending serial data first (might be redundant if called frequently in loop)
+    // processSerial(); 
 
     // Update the SensorValue based on the commandId from navigation.pb.h
     switch (_commandId) {
       case kart_navigation_NavigationCommandId_LATITUDE:
-        // Use isUpdated() to only update when TinyGPS++ has new data for this field
-        if (_gps.location.isValid() && _gps.location.isUpdated()) {
-          _baseSensorValue.float_value = (float)_gps.location.lat();
+        if (_gps_ptr->location.isValid() && _gps_ptr->location.isUpdated()) {
+          _baseSensorValue.float_value = (float)_gps_ptr->location.lat();
         }
         break;
       case kart_navigation_NavigationCommandId_LONGITUDE:
-        if (_gps.location.isValid() && _gps.location.isUpdated()) {
-           _baseSensorValue.float_value = (float)_gps.location.lng();
+        if (_gps_ptr->location.isValid() && _gps_ptr->location.isUpdated()) {
+           _baseSensorValue.float_value = (float)_gps_ptr->location.lng();
         }
         break;
       case kart_navigation_NavigationCommandId_ALTITUDE:
-        if (_gps.altitude.isValid() && _gps.altitude.isUpdated()) {
-           _baseSensorValue.float_value = (float)_gps.altitude.meters();
+        if (_gps_ptr->altitude.isValid() && _gps_ptr->altitude.isUpdated()) {
+           _baseSensorValue.float_value = (float)_gps_ptr->altitude.meters();
         }
         break;
       case kart_navigation_NavigationCommandId_SPEED:
-        if (_gps.speed.isValid() && _gps.speed.isUpdated()) {
-           _baseSensorValue.float_value = (float)_gps.speed.kmph();
+        if (_gps_ptr->speed.isValid() && _gps_ptr->speed.isUpdated()) {
+           _baseSensorValue.float_value = (float)_gps_ptr->speed.kmph();
         }
         break;
       case kart_navigation_NavigationCommandId_COURSE:
-        if (_gps.course.isValid() && _gps.course.isUpdated()) {
-           _baseSensorValue.float_value = (float)_gps.course.deg();
+        if (_gps_ptr->course.isValid() && _gps_ptr->course.isUpdated()) {
+           _baseSensorValue.float_value = (float)_gps_ptr->course.deg();
         }
         break;
       case kart_navigation_NavigationCommandId_SATELLITES:
-        if (_gps.satellites.isValid() && _gps.satellites.isUpdated()) {
-           // Ensure value fits within uint8_t - Fix min() call types
-           _baseSensorValue.uint8_value = (uint8_t)min((uint32_t)255, _gps.satellites.value());
+        if (_gps_ptr->satellites.isValid() && _gps_ptr->satellites.isUpdated()) {
+           _baseSensorValue.uint8_value = (uint8_t)min((uint32_t)255, _gps_ptr->satellites.value());
         }
         break;
       case kart_navigation_NavigationCommandId_HDOP:
-        if (_gps.hdop.isValid() && _gps.hdop.isUpdated()) {
-           _baseSensorValue.float_value = (float)(_gps.hdop.value() / 100.0); // HDOP is in hundredths
+        if (_gps_ptr->hdop.isValid() && _gps_ptr->hdop.isUpdated()) {
+           _baseSensorValue.float_value = (float)(_gps_ptr->hdop.value() / 100.0);
         }
         break;
       case kart_navigation_NavigationCommandId_GPS_FIX_STATUS:
-         // Use isUpdated() to only update when fix status potentially changes
-         // Note: TinyGPS++ location.isValid() check reflects basic fix state
-         if (_gps.location.isUpdated()) {
-             if (_gps.location.isValid()) {
-                 // Basic check for any valid fix. More detail (DGPS) needs NMEA parsing.
+         if (_gps_ptr->location.isUpdated()) {
+             if (_gps_ptr->location.isValid()) {
                  _baseSensorValue.uint8_value = kart_navigation_GpsFixStatus_FIX_ACQUIRED;
              } else {
                  _baseSensorValue.uint8_value = kart_navigation_GpsFixStatus_NO_FIX;
              }
          }
-         // For differential fix, you'd need to parse the GGA sentence mode indicator.
          break;
       default:
         // Handle unsupported command ID
@@ -161,13 +168,6 @@ public:
     // Return the potentially updated value (holds last known value if no update)
     return _baseSensorValue;
   }
-
-// Add a public getter for the internal TinyGPSPlus object if needed for direct access (e.g., debug status)
-  TinyGPSPlus& getGpsObject() { return _gps; }
-
-// Change _gps to public if direct access is preferred over getter
-// public:
-//  TinyGPSPlus _gps;      // TinyGPS++ instance
 
 // --- Configuration Methods --- 
 
@@ -252,7 +252,8 @@ bool setStaticNavigation(uint8_t modeValue) {
 private:
   HardwareSerial* _serial; // Pointer to the Serial port instance
   uint32_t _baudRate;
-  TinyGPSPlus _gps;      // TinyGPS++ instance
+  // TinyGPSPlus _gps;      // Remove instance member
+  TinyGPSPlus* _gps_ptr; // Pointer to the shared instance
 
   /**
    * Helper function to determine the ValueType based on the command ID.
@@ -277,31 +278,6 @@ private:
               return kart_common_ValueType_UINT24; // Default placeholder
       }
   }
-
-  // Commenting out as SensorValue union likely doesn't support nanopb oneof tags
-  /*
-   void setValueFieldTag(uint8_t commandId) {
-        switch (commandId) {
-          case kart_navigation_NavigationCommandId_LATITUDE:
-          // ... other float cases ...
-          case kart_navigation_NavigationCommandId_HDOP:
-              _baseSensorValue.which_value = kart_common_SensorValue_float_value_tag;
-              break;
-          case kart_navigation_NavigationCommandId_SATELLITES:
-          case kart_navigation_NavigationCommandId_GPS_FIX_STATUS:
-               _baseSensorValue.which_value = kart_common_SensorValue_uint8_value_tag;
-               break;
-          default:
-               #ifdef DEBUG_ENABLED
-                 Serial.print("ATGM336H: Unknown commandId for FieldTag: ");
-                 Serial.println(commandId);
-               #endif
-               // Set a default, although this case shouldn't ideally happen
-               _baseSensorValue.which_value = kart_common_SensorValue_float_value_tag;
-               break;
-      }
-   }
-  */
 
   /**
    * Helper function to construct and send a NMEA command sentence with checksum.

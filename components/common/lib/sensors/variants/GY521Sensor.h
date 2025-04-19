@@ -8,6 +8,8 @@
 #include "../src/Sensor.h"
 #include "common.pb.h" // Include common types like ComponentType, ValueType
 #include "navigation.pb.h" // Assuming IMU command IDs are defined here
+#include <vector> // Include for std::vector
+#include <numeric> // Include for std::accumulate
 
 // Removed placeholder definitions for ACCEL_*, GYRO_*, IMU_TEMP
 // They should now be defined in navigation.pb.h
@@ -54,6 +56,10 @@ public:
    * Initialize the MPU-6050 sensor
    */
   bool begin() override {
+    // Reset offsets on begin
+    _accelXOffset = _accelYOffset = _accelZOffset = 0.0f;
+    _gyroXOffset = _gyroYOffset = _gyroZOffset = 0.0f;
+
     if (!_mpu.begin(_address, _wire)) {
       #ifdef DEBUG_ENABLED
         Serial.println("Failed to find MPU6050 chip");
@@ -75,23 +81,23 @@ public:
   }
 
   /**
-   * Read sensor data (accel, gyro, temp)
+   * Read sensor data (accel, gyro, temp) - Now applies calibration offsets.
    * @return SensorValue containing the specific value (e.g., Accel X, Gyro Y)
    *         based on the commandId the sensor was initialized with.
    */
   SensorValue read() override {
     sensors_event_t a, g, temp;
     if (_mpu.getEvent(&a, &g, &temp)) {
-      // Store last known good values
-      _lastAccelX = a.acceleration.x;
-      _lastAccelY = a.acceleration.y;
-      _lastAccelZ = a.acceleration.z;
-      _lastGyroX = g.gyro.x;
-      _lastGyroY = g.gyro.y;
-      _lastGyroZ = g.gyro.z;
-      _lastChipTempC = temp.temperature;
+      // Apply calibration offsets
+      _lastAccelX = a.acceleration.x - _accelXOffset;
+      _lastAccelY = a.acceleration.y - _accelYOffset;
+      _lastAccelZ = a.acceleration.z - _accelZOffset;
+      _lastGyroX = g.gyro.x - _gyroXOffset;
+      _lastGyroY = g.gyro.y - _gyroYOffset;
+      _lastGyroZ = g.gyro.z - _gyroZOffset;
+      _lastChipTempC = temp.temperature; // Temperature typically doesn't need offset calibration
 
-      // Return value based on configured command ID from navigation.pb.h
+      // Return value based on configured command ID
       switch (_commandId) {
         case kart_navigation_NavigationCommandId_ACCEL_X:
           _baseSensorValue.float_value = _lastAccelX;
@@ -100,7 +106,12 @@ public:
           _baseSensorValue.float_value = _lastAccelY;
           break;
         case kart_navigation_NavigationCommandId_ACCEL_Z:
-          _baseSensorValue.float_value = _lastAccelZ;
+           // Report Z relative to gravity (0 when level, ~9.8 when vertical)
+           // We subtract the offset which was calculated relative to ~9.8, 
+           // so the result should be near 0 when level during reading.
+           // If you want absolute Z including gravity, don't subtract G during offset calculation.
+           _baseSensorValue.float_value = _lastAccelZ;
+           // Alternatively: _baseSensorValue.float_value = a.acceleration.z; // Raw Z
           break;
         case kart_navigation_NavigationCommandId_GYRO_X:
           _baseSensorValue.float_value = _lastGyroX;
@@ -115,20 +126,17 @@ public:
           _baseSensorValue.float_value = _lastChipTempC;
           break;
         default:
-          // Handle unsupported command ID - perhaps return 0 or NaN?
           #ifdef DEBUG_ENABLED
             Serial.print("GY521Sensor: Unsupported commandId: ");
             Serial.println(_commandId);
           #endif
-          _baseSensorValue.float_value = NAN; // Use Not-a-Number for invalid float
+          _baseSensorValue.float_value = NAN; 
           break;
       }
     } else {
       #ifdef DEBUG_ENABLED
         Serial.println("Failed to read MPU6050 sensor");
       #endif
-      // Return last known value or an error indicator?
-      // Setting to NAN might be appropriate on error
        _baseSensorValue.float_value = NAN;
     }
     return _baseSensorValue;
@@ -258,16 +266,74 @@ public:
   }
 
   /**
-   * Trigger an IMU calibration routine (Placeholder).
-   * Actual implementation would depend on the chosen calibration method.
+   * Trigger an IMU calibration routine.
+   * Reads multiple samples while assuming the sensor is stationary and level.
+   * Calculates average offsets for accelerometer and gyroscope.
+   * NOTE: Assumes Z-axis is aligned with gravity (~9.8 m/s^2).
+   * NOTE: Offsets are NOT persistent across resets without NVS implementation.
    */
   bool triggerCalibration() {
     #ifdef DEBUG_ENABLED
-      Serial.println("GY521: Calibration triggered (Not implemented).");
+      Serial.println("GY521: Starting Calibration - Keep sensor stationary and level!");
     #endif
-    // TODO: Implement calibration logic (e.g., averaging readings while stationary)
-    // This might involve setting flags and processing over multiple loop iterations.
-    return true; // Placeholder
+
+    const int numSamples = 100;
+    std::vector<float> ax, ay, az, gx, gy, gz;
+    ax.reserve(numSamples); ay.reserve(numSamples); az.reserve(numSamples);
+    gx.reserve(numSamples); gy.reserve(numSamples); gz.reserve(numSamples);
+
+    // Discard initial readings
+    for (int i=0; i<10; ++i) {
+       sensors_event_t a, g, temp;
+       _mpu.getEvent(&a, &g, &temp);
+       delay(5);
+    }
+
+    // Collect samples
+    for (int i=0; i < numSamples; ++i) {
+       sensors_event_t a, g, temp;
+       if (_mpu.getEvent(&a, &g, &temp)) {
+          ax.push_back(a.acceleration.x);
+          ay.push_back(a.acceleration.y);
+          az.push_back(a.acceleration.z);
+          gx.push_back(g.gyro.x);
+          gy.push_back(g.gyro.y);
+          gz.push_back(g.gyro.z);
+       } else {
+          #ifdef DEBUG_ENABLED
+             Serial.println("GY521: Error reading sensor during calibration!");
+          #endif
+          return false; // Abort calibration on error
+       }
+       delay(20); // Small delay between samples
+    }
+
+    // Calculate averages
+    float avgAx = std::accumulate(ax.begin(), ax.end(), 0.0f) / numSamples;
+    float avgAy = std::accumulate(ay.begin(), ay.end(), 0.0f) / numSamples;
+    float avgAz = std::accumulate(az.begin(), az.end(), 0.0f) / numSamples;
+    float avgGx = std::accumulate(gx.begin(), gx.end(), 0.0f) / numSamples;
+    float avgGy = std::accumulate(gy.begin(), gy.end(), 0.0f) / numSamples;
+    float avgGz = std::accumulate(gz.begin(), gz.end(), 0.0f) / numSamples;
+
+    // Calculate offsets (deviation from ideal stationary state)
+    // Assumes sensor is level, so ideal Accel X/Y = 0, Accel Z = ~9.81, Gyro X/Y/Z = 0
+    _accelXOffset = avgAx;
+    _accelYOffset = avgAy;
+    // Offset Z relative to gravity. Adjust 9.81 if needed.
+    const float gravity_ms2 = 9.80665f; 
+    _accelZOffset = avgAz - gravity_ms2; 
+    _gyroXOffset = avgGx;
+    _gyroYOffset = avgGy;
+    _gyroZOffset = avgGz;
+
+    #ifdef DEBUG_ENABLED
+      Serial.println("GY521: Calibration Complete.");
+      Serial.printf("  Offsets Accel (X,Y,Z): %.4f, %.4f, %.4f\n", _accelXOffset, _accelYOffset, _accelZOffset);
+      Serial.printf("  Offsets Gyro (X,Y,Z):  %.4f, %.4f, %.4f\n", _gyroXOffset, _gyroYOffset, _gyroZOffset);
+    #endif
+
+    return true; 
   }
 
 private:
@@ -279,6 +345,14 @@ private:
   float _lastAccelX, _lastAccelY, _lastAccelZ;
   float _lastGyroX, _lastGyroY, _lastGyroZ;
   float _lastChipTempC;
+
+  // Calibration Offsets
+  float _accelXOffset = 0.0f;
+  float _accelYOffset = 0.0f;
+  float _accelZOffset = 0.0f;
+  float _gyroXOffset = 0.0f;
+  float _gyroYOffset = 0.0f;
+  float _gyroZOffset = 0.0f;
 };
 
 #endif // GY521_SENSOR_H 
