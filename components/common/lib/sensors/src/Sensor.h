@@ -52,37 +52,23 @@ public:
   virtual SensorValue read() = 0;
   
   /**
-   * Process sensor (read and transmit if needed)
-   * Should be called regularly in the main loop
-   * @param canInterface The CAN interface to transmit readings
-   * @param forceSend Force sending the reading even if not due
-   * @return true if reading was taken and sent
+   * Process the sensor reading if update interval has passed.
+   * @param canInterface Reference to the CAN interface for sending updates.
+   * @param forceUpdate Optional: Force reading and sending update regardless of interval.
+   * @return True if an update was sent, false otherwise.
    */
-  bool process(ProtobufCANInterface& canInterface, bool forceSend = false) {
-    if (!_enabled) return false;
-    
-    unsigned long currentTime = millis();
-    if (forceSend || (currentTime - _lastUpdateTime >= _updateInterval)) {
-      // Read sensor directly into the base sensor value member
-      _baseSensorValue = read();
-
-      Serial.printf("Sensor %d: %ld\n", _commandId, getValue());
-      
-      // Send over CAN
-      bool result = canInterface.sendMessage(
-        kart_common_MessageType_STATUS,
-        static_cast<kart_common_ComponentType>(_componentType),
-        _componentId,
-        _commandId,
-        _valueType, // Value type
-        getValue()             // Value
-      );
-      
+  virtual bool process(ProtobufCANInterface& canInterface, bool forceUpdate = false) {
+    uint32_t currentTime = millis();
+    if (forceUpdate || (currentTime - _lastUpdateTime >= _updateInterval)) {
       _lastUpdateTime = currentTime;
-
-      return result;
+      SensorValue val = read();
+      // Removed noisy log print
+      // #if DEBUG_MODE 
+      //   Serial.printf("Sensor %d: %ld\n", _commandId, getValue()); // Assumes getValue() returns int32_t or similar
+      // #endif
+      // TODO: Add logic to only send if value has changed significantly (optional)
+      return canInterface.sendMessage(kart_common_MessageType_STATUS, _componentType, _componentId, _commandId, _valueType, val);
     }
-    
     return false;
   }
   
