@@ -62,7 +62,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
                                       uint8_t component_id, uint8_t command_id, 
                                       kart_common_ValueType value_type, int32_t value) {
   
-#if DEBUG_MODE
+#if CAN_LOGGING_ENABLED
     logMessage("SEND", message_type, component_type, component_id, command_id, value_type, value);
 #endif
 
@@ -86,7 +86,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     msg.data[6] = (packed_value >> 8) & 0xFF;            // Value byte 1
     msg.data[7] = packed_value & 0xFF;                   // Value byte 0 (LSB)
     
-#if DEBUG_MODE
+#if CAN_LOGGING_ENABLED
     printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Data:", msg.id);
     for (int i = 0; i < msg.length; i++) {
         printf(" %02X", msg.data[i]);
@@ -96,7 +96,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     
     // Send using base class
     bool result = m_canInterface.sendMessage(msg);
-#if DEBUG_MODE
+#if CAN_LOGGING_ENABLED
     printf("ProtobufCANInterface: sendMessage result: %d (%s)\n", result, result ? "succeeded" : "failed"); 
 #endif
     return result;
@@ -139,7 +139,7 @@ void ProtobufCANInterface::process()
     }
 #endif
 
-#if DEBUG_MODE
+#if CAN_LOGGING_ENABLED
     logMessage("RECV", msg_type, comp_type, component_id, command_id, value_type, value);
 #endif
 

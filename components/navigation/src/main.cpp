@@ -359,7 +359,7 @@ void parseSerialCommands() {
           Serial.printf("Satellites: %d\n", sharedGps.satellites.value());
           Serial.printf("HDOP: %.2f\n", (float)sharedGps.hdop.value() / 100.0);
           Serial.printf("Fix Valid: %s\n", sharedGps.location.isValid() ? "Yes" : "No");
-          Serial.printf("Fix Age: %lu ms\n", sharedGps.location.age());
+          Serial.printf("Fix Age: %u ms\n", sharedGps.location.age());
       } else {
           Serial.println("GPS Sensor not initialized for status.");
       }

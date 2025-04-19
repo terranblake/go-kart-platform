@@ -67,7 +67,14 @@ public:
       //   Serial.printf("Sensor %d: %ld\n", _commandId, getValue()); // Assumes getValue() returns int32_t or similar
       // #endif
       // TODO: Add logic to only send if value has changed significantly (optional)
-      return canInterface.sendMessage(kart_common_MessageType_STATUS, _componentType, _componentId, _commandId, _valueType, val);
+      return canInterface.sendMessage(
+        kart_common_MessageType_STATUS, 
+        (kart_common_ComponentType)_componentType,
+        _componentId, 
+        _commandId, 
+        _valueType, 
+        getValue()
+      );
     }
     return false;
   }

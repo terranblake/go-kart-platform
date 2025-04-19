@@ -190,18 +190,22 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   frame.can_dlc = msg.length;
   memcpy(frame.data, msg.data, msg.length);
 
+#if CAN_LOGGING_ENABLED // Added conditional compilation
   Serial.println("Transmitting CAN message via MCP2515...");
+#endif
 
   // Use sendMessage, check against MCP2515::ERROR_OK
   MCP2515::ERROR result = m_mcp2515.sendMessage(&frame);
 
+#if CAN_LOGGING_ENABLED // Added conditional compilation
   if (result == MCP2515::ERROR_OK) {
     Serial.println("MCP2515 message sent successfully.");
-    return true;
   } else {
-    Serial.printf("Error sending MCP2515 message: %d\n", result);
-    return false;
+    Serial.printf("MCP2515 send failed with error: %d\n", result);
   }
+#endif
+
+  return (result == MCP2515::ERROR_OK);
 #elif defined PLATFORM_LINUX
   // Linux implementation
   struct can_frame frame;
