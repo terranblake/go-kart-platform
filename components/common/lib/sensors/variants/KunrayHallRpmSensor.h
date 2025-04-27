@@ -7,11 +7,14 @@
 #include "motors.pb.h"
 #include "../include/Config.h" // Include Config.h for pin definitions
 
-// Forward declarations for ISRs if they are defined globally in main.cpp
-// If they are member functions or static, this needs adjustment.
-extern void hallSensorA_ISR(); 
-extern void hallSensorB_ISR();
-extern void hallSensorC_ISR();
+// Add platform-specific defines for ISR attributes if needed
+// #if defined(ESP8266) || defined(ESP32) || defined(PLATFORM_ESP32)
+// #define ICACHE_RAM_ATTR ICACHE_RAM_ATTR // REMOVED - Handled by framework
+// #else
+// #define ICACHE_RAM_ATTR
+// #endif
+
+// Forward declarations for ISRs removed
 
 /**
  * KunrayHallRpmSensor - Hall sensor-based RPM measurement
@@ -29,18 +32,18 @@ public:
     Sensor(kart_common_ComponentType_MOTORS, componentId, kart_motors_MotorCommandId_RPM, kart_common_ValueType_UINT16, updateInterval) {
     _pulseCount = 0;
     _lastPulseTime = 0;
-    // ISR assignment removed - assuming global ISRs from main.cpp based on Config.h prototypes
   }
 
   bool begin() override {
     // Pin mode configuration is removed as it caused issues.
     // Rely on default pin modes or configuration elsewhere.
 
-    // Attach interrupts using pins defined in Config.h
-    // Ensure the ISR functions (hallSensorA_ISR, etc.) are accessible (e.g., declared extern)
-    attachInterrupt(digitalPinToInterrupt(HALL_A_PIN), hallSensorA_ISR, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(HALL_B_PIN), hallSensorB_ISR, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(HALL_C_PIN), hallSensorC_ISR, CHANGE);
+    // Attach interrupts using attachInterruptArg and a static handler function
+    // Ensure HALL_A_PIN, HALL_B_PIN, HALL_C_PIN are defined in Config.h
+    // Note: ICACHE_RAM_ATTR is applied to the static handler itself, not here.
+    attachInterruptArg(digitalPinToInterrupt(HALL_A_PIN), staticIsrHandler, this, CHANGE);
+    attachInterruptArg(digitalPinToInterrupt(HALL_B_PIN), staticIsrHandler, this, CHANGE);
+    attachInterruptArg(digitalPinToInterrupt(HALL_C_PIN), staticIsrHandler, this, CHANGE);
     
     // Initialize state variables
     _lastRPM = 0;
@@ -71,14 +74,13 @@ public:
   }
 
   /**
-   * Increment pulse counter
-   * Called directly by the global ISRs defined in main.cpp
+   * Increment pulse counter - Called by the static ISR handler.
    */
-  // This method might need to be static or accessed via a singleton instance
-  // if called from global C-style ISRs. For now, assume main.cpp handles it.
-  void incrementPulse() {
+  void incrementPulse() { // Removed ICACHE_RAM_ATTR from here
+    noInterrupts(); // Briefly disable interrupts to safely update shared variables
     _pulseCount++;
     _lastPulseTime = millis(); 
+    interrupts(); // Re-enable interrupts
   }
   
   /**
@@ -88,22 +90,24 @@ public:
   uint16_t getRPM() const {
     return _lastRPM;
   }
-  
-// Make pulse count accessible if needed by global ISRs
-// Consider making this instance accessible globally (e.g., via a pointer in main.cpp)
-// volatile uint32_t _pulseCount = 0; 
-// volatile uint32_t _lastPulseTime = 0;
 
 private:
   volatile uint32_t _pulseCount;
   volatile uint32_t _lastPulseTime;
-  // ISR function pointers removed
   uint16_t _lastRPM;
   SensorValue _sensorValue; // Reusable sensor value object
   
   // Variables for RPM calculation
   uint32_t _lastCalcTime;
   uint32_t _lastPulseCount;
+  
+  /**
+   * Static ISR handler function.
+   * Must be static to match the function pointer type required by attachInterruptArg.
+   * The 'arg' passed will be the 'this' pointer of the specific KunrayHallRpmSensor instance.
+   * Apply ICACHE_RAM_ATTR here as this code runs in ISR context.
+   */
+  static void ICACHE_RAM_ATTR staticIsrHandler(void* arg);
   
   /**
    * Calculate RPM based on pulse count
@@ -160,5 +164,16 @@ private:
     return _lastRPM;
   }
 };
+
+// Implementation of the static ISR handler
+// Place it here in the header for simplicity, or move to a .cpp file if preferred.
+ICACHE_RAM_ATTR void KunrayHallRpmSensor::staticIsrHandler(void* arg) {
+    // Cast the argument back to our class instance
+    KunrayHallRpmSensor* instance = static_cast<KunrayHallRpmSensor*>(arg);
+    // Call the non-static member function
+    if (instance) { // Basic null check
+        instance->incrementPulse();
+    }
+}
 
 #endif // KUNRAY_HALL_RPM_SENSOR_H 

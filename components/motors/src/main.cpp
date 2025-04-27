@@ -111,7 +111,7 @@ void setup() {
     kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
     kart_batteries_BatteryCommandId_TEMPERATURE,
     TEMP_SENSOR_BATTERY,       // Pin
-    2000,                      // Update interval (2 seconds)
+    1000,                      // Update interval (2 seconds)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
@@ -134,7 +134,7 @@ void setup() {
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
     kart_motors_MotorCommandId_TEMPERATURE,
     TEMP_SENSOR_MOTOR,         // Pin
-    2000,                      // Update interval (2 seconds)
+    1000,                      // Update interval (2 seconds)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
@@ -144,7 +144,7 @@ void setup() {
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new KunrayHallRpmSensor(
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
-    1000
+    200
   );
   
   // Register the sensors with the registry

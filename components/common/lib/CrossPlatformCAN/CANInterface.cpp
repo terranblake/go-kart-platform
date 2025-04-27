@@ -175,12 +175,7 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
   
   CAN.write(msg.data, msg.length);
   Serial.println("CAN packet written");
-  try {
-    return CAN.endPacket();
-  } catch (const std::exception& e) {
-    Serial.println("Error ending CAN packet");
-    return false;
-  }
+  return CAN.endPacket();
 #elif defined PLATFORM_ESP32
   // ESP32 implementation using MCP2515
   struct can_frame frame; // Use the library's frame structure
