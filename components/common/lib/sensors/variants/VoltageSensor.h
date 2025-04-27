@@ -3,9 +3,11 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
+#include "../src/AnalogReader.h"
+#include <cmath>
 
 /**
- * VoltageSensor - Measures voltage using a scaled and isolated input.
+ * VoltageSensor - Measures voltage using a scaled/isolated input via an AnalogReader.
  *
  * Assumes input comes from an isolation amplifier (like AMC1301 or ISO224)
  * which is fed by a voltage divider from the high voltage source.
@@ -21,7 +23,8 @@ public:
    * @param componentType Component type for this sensor
    * @param componentId Component ID for this sensor
    * @param commandId Command ID for this sensor
-   * @param pin Analog pin connected to the isolation amplifier output
+   * @param reader Pointer to the AnalogReader instance to use.
+   * @param channelId Channel identifier (pin/ADC channel) for the AnalogReader.
    * @param updateInterval Update interval in ms
    * @param r1_ohms Resistance of the top resistor in the voltage divider (connected to HV+)
    * @param r2_ohms Resistance of the bottom resistor in the voltage divider (across isolation amp input)
@@ -34,7 +37,8 @@ public:
     kart_common_ComponentType componentType,
     uint8_t componentId,
     uint8_t commandId,
-    uint8_t pin,
+    AnalogReader* reader,
+    uint8_t channelId,
     uint16_t updateInterval = 1000,
     float r1_ohms = 19000000.0, // Example: 19MOhms
     float r2_ohms = 1000000.0,  // Example: 1MOhms (Ratio = 20:1)
@@ -43,7 +47,8 @@ public:
     uint16_t adc_resolution = 4096, // Default ESP32 12-bit
     uint16_t adc_vref_mV = 3300 // Default ESP32 3.3V
   ) : Sensor(componentType, componentId, commandId, kart_common_ValueType_UINT16, updateInterval),
-      _pin(pin),
+      _reader(reader),
+      _channelId(channelId),
       _r1_ohms(r1_ohms),
       _r2_ohms(r2_ohms),
       _isolator_gain(isolator_gain),
@@ -52,42 +57,61 @@ public:
       _adc_vref_mV(adc_vref_mV) {}
 
   /**
-   * Initialize the voltage sensor
+   * Initialize the voltage sensor.
+   * Pin/ADC setup is handled by the AnalogReader.
    */
   bool begin() override {
-    pinMode(_pin, INPUT);
-    // ESP32 specific ADC setup (attenuation) might be needed here
-    // similar to TemperatureSensor if not using default attenuation.
-    // For now, assume default configuration is sufficient.
+    if (!_reader) {
+      return false; // Must have a valid reader
+    }
     return true;
   }
 
   /**
-   * Read voltage
-   * @return SensorValue containing voltage in millivolts (mV)
+   * Read voltage using the AnalogReader.
+   * @return SensorValue containing voltage in millivolts (mV) as UINT16.
    */
   SensorValue read() override {
-    // Read ADC value
-    int adcValue = analogRead(_pin);
+    if (!_reader) {
+        _baseSensorValue.uint16_value = 0; // Error indicator
+        return _baseSensorValue;
+    }
 
-    // Convert ADC value to millivolts at the ADC input
-    float adc_voltage_mV = (float)adcValue * ((float)_adc_vref_mV / (float)_adc_resolution);
+    // Read the voltage at the ADC input using the reader
+    float adc_voltage_mV = _reader->readVoltageMv(_channelId);
+
+    if (std::isnan(adc_voltage_mV)) {
+        // Handle read failure
+        _baseSensorValue.uint16_value = 0; // Error indicator
+        return _baseSensorValue;
+    }
 
     // Account for isolator offset
     float isolator_output_mV = adc_voltage_mV - (float)_isolator_output_offset_mV;
 
+    // Prevent division by zero if gain is zero (shouldn't happen but safety check)
+    if (_isolator_gain == 0.0f) {
+        _baseSensorValue.uint16_value = 0; // Error indicator
+        return _baseSensorValue;
+    }
+
     // Calculate the voltage at the isolator's input (across R2)
     // IsolatorInput (mV) = IsolatorOutput (mV) / Gain
     float r2_voltage_mV = isolator_output_mV / _isolator_gain;
+
+    // Prevent division by zero if R2 is zero
+    if (_r2_ohms == 0.0f) {
+        _baseSensorValue.uint16_value = 0; // Error indicator
+        return _baseSensorValue;
+    }
 
     // Calculate the original high voltage
     // HV (mV) = R2_Voltage (mV) * (R1 + R2) / R2
     float hv_voltage_mV = r2_voltage_mV * (_r1_ohms + _r2_ohms) / _r2_ohms;
 
     // Clamp to valid range for uint16_t (0 - 65535 mV or 65.535 V)
-    // Adjust if using a different type or expecting higher voltages.
-    if (hv_voltage_mV < 0) hv_voltage_mV = 0;
-    if (hv_voltage_mV > 65535.0) hv_voltage_mV = 65535.0;
+    if (hv_voltage_mV < 0.0f) hv_voltage_mV = 0.0f;
+    if (hv_voltage_mV > 65535.0f) hv_voltage_mV = 65535.0f;
 
     // Store in SensorValue as UINT16 (millivolts)
     _baseSensorValue.uint16_value = (uint16_t)hv_voltage_mV;
@@ -95,7 +119,8 @@ public:
   }
 
 private:
-  uint8_t _pin;                       // Analog pin
+  AnalogReader* _reader;              // Pointer to the analog reader
+  uint8_t _channelId;                 // Channel identifier for the reader
   float _r1_ohms;                     // Voltage divider R1 (Ohms)
   float _r2_ohms;                     // Voltage divider R2 (Ohms)
   float _isolator_gain;               // Gain of isolation amplifier

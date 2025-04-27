@@ -10,6 +10,14 @@
 #include "ThermistorSensor.h"
 #include "KunrayHallRpmSensor.h"
 
+// Include ADC Reader framework
+#include "AnalogReader.h"       // Base interface
+#include "ADS1115Reader.h"    // Specific implementation for motors component
+
+// Include ADS1115 library
+#include <Adafruit_ADS1X15.h> // Required for ADS1115Reader
+// ** NOTE: Add "Adafruit ADS1X15" to lib_deps in platformio.ini **
+
 // Add platform-specific defines
 #if defined(ESP8266) || defined(ESP32)
 #define ICACHE_RAM_ATTR ICACHE_RAM_ATTR
@@ -38,6 +46,10 @@ byte hallState = 0;
 bool currentLowBrake = false;
 bool currentHighBrake = false;
 
+// ADC Reader Instantiation
+Adafruit_ADS1115 ads;         // Create ADS1115 object (use default I2C address 0x48)
+ADS1115Reader adsReader(&ads); // Create the reader wrapper, passing the object
+
 // Sensor framework integration - add sensor objects
 SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, NODE_ID);
 KunrayHallRpmSensor* motorRpmSensor;
@@ -53,8 +65,27 @@ void parseSerialCommands();
 void setup() {
 #if DEBUG_MODE
   Serial.begin(115200);
-  Serial.println(F("Kunray MY1020 Motor Controller"));
+  Serial.println(F("Kunray MY1020 Motor Controller (with ADS1115)"));
 #endif
+
+  // Initialize I2C for ADS1115 before initializing the reader
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN); // Ensure I2C pins are configured
+
+  // Initialize ADS1115 Reader
+  // Set gain appropriate for the thermistor voltage divider output.
+  // Assuming 3.3V logic and 10k/10k divider, max voltage is ~1.65V.
+  // GAIN_TWO (+/-2.048V) provides good resolution.
+  if (!adsReader.begin()) { // This calls ads.begin() and sets gain
+    #if DEBUG_MODE
+      Serial.println(F("Failed to initialize ADS1115 Reader"));
+      // Consider halting or indicating error
+    #endif
+  } else {
+     adsReader.setGain(GAIN_TWO); // Set gain after successful begin()
+     #if DEBUG_MODE
+      Serial.println(F("ADS1115 Reader initialized with Gain +/-2.048V"));
+     #endif
+  }
 
   // Initialize hardware pins
   setupPins();
@@ -105,13 +136,14 @@ void setup() {
                                kart_motors_MotorCommandId_EMERGENCY, 
                                handleEmergencyCommand);
 
-  // Initialize temperature sensors
+  // Initialize temperature sensors using ADS1115 Reader
   batteryTempSensor = new ThermistorSensor(
     kart_common_ComponentType_BATTERIES,
     kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
     kart_batteries_BatteryCommandId_TEMPERATURE,
-    TEMP_SENSOR_BATTERY,       // Pin
-    1000,                      // Update interval (2 seconds)
+    &adsReader,                // Use the ADS1115 reader
+    0,                         // Use ADS1115 Channel 0 for Battery Temp
+    1000,                      // Update interval (ms)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
@@ -133,8 +165,9 @@ void setup() {
     kart_common_ComponentType_MOTORS,
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
     kart_motors_MotorCommandId_TEMPERATURE,
-    TEMP_SENSOR_MOTOR,         // Pin
-    1000,                      // Update interval (2 seconds)
+    &adsReader,                // Use the ADS1115 reader
+    1,                         // Use ADS1115 Channel 1 for Motor Temp
+    1000,                      // Update interval (ms)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
@@ -392,10 +425,12 @@ void parseSerialCommands() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
     command.trim();
+    String commandUpper = command; // Keep original case for value parsing
+    commandUpper.toUpperCase();
     
     // Command format: "T:value" for throttle where value is 0-100
-    if (command.startsWith("T:")) {
-      int throttlePercent = command.substring(2).toInt();
+    if (commandUpper.startsWith("T:")) {
+      int throttlePercent = commandUpper.substring(2).toInt();
       // Constrain to valid range
       throttlePercent = constrain(throttlePercent, 0, 100);
       
@@ -424,8 +459,8 @@ void parseSerialCommands() {
       );
     }
     // Command format: "D:F" for forward, "D:R" for reverse
-    else if (command.startsWith("D:")) {
-      char direction = command.charAt(2);
+    else if (commandUpper.startsWith("D:")) {
+      char direction = commandUpper.charAt(2);
       if (direction == 'F' || direction == 'f') {
         setDirection(kart_motors_MotorDirectionValue_FORWARD);
         Serial.println(F("Direction set to FORWARD"));
@@ -446,8 +481,8 @@ void parseSerialCommands() {
                                kart_common_ValueType_UINT8, currentDirection);
     }
     // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
-    else if (command.startsWith("S:")) {
-      int speedMode = command.substring(2).toInt();
+    else if (commandUpper.startsWith("S:")) {
+      int speedMode = commandUpper.substring(2).toInt();
       if (speedMode >= 0 && speedMode <= 2) {
         setMode(static_cast<kart_motors_MotorModeValue>(speedMode));
         Serial.print(F("Speed mode set to "));
@@ -461,8 +496,8 @@ void parseSerialCommands() {
       }
     }
     // Command format: "B:L" for low brake, "B:H" for high brake, "B:N" for no brake
-    else if (command.startsWith("B:")) {
-      char brakeCommand = command.charAt(2);
+    else if (commandUpper.startsWith("B:")) {
+      char brakeCommand = commandUpper.charAt(2);
       if (brakeCommand == 'L' || brakeCommand == 'l') {
         setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
         Serial.println(F("LOW Brake ENGAGED"));
@@ -483,7 +518,7 @@ void parseSerialCommands() {
                                kart_common_ValueType_UINT8, currentBrakeMode);
     }
     // Emergency commands
-    else if (command == "STOP") {
+    else if (commandUpper == "STOP") {
       emergencyStop();
       Serial.println(F("EMERGENCY STOP executed"));
       
@@ -493,7 +528,7 @@ void parseSerialCommands() {
                                kart_motors_MotorComponentId_MOTOR_LEFT_REAR, kart_motors_MotorCommandId_EMERGENCY, 
                                kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_STOP);
     }
-    else if (command == "SHUTDOWN") {
+    else if (commandUpper == "SHUTDOWN") {
       emergencyShutdown();
       Serial.println(F("EMERGENCY SHUTDOWN executed"));
       
@@ -504,7 +539,7 @@ void parseSerialCommands() {
                                kart_common_ValueType_UINT8, kart_motors_MotorEmergencyValue_SHUTDOWN);
     }
     // Help command
-    else if (command == "HELP") {
+    else if (commandUpper == "HELP") {
       Serial.println(F("\n--- DEBUG COMMANDS ---"));
       Serial.println(F("T:value - Set throttle (0-100%)"));
       Serial.println(F("D:F     - Set direction FORWARD"));
@@ -525,10 +560,10 @@ void parseSerialCommands() {
       // Send acknowledgement for HELP command
       Serial.println(F("ACK: HELP command processed"));
     }
-    else if (command == "STATUS") {
-      Serial.println(F("STATUS"));
-      Serial.print(F("RPM: "));
-      Serial.println(currentRpm);
+    else if (commandUpper == "STATUS") {
+      Serial.println(F("--- Motor Status ---"));
+      Serial.print(F("RPM (from Sensor): "));
+      Serial.println(motorRpmSensor ? motorRpmSensor->getValue() : -1); // Use getValue()
       Serial.print(F("Throttle: "));
       Serial.println(currentThrottle);
       Serial.print(F("Direction: "));
@@ -537,24 +572,35 @@ void parseSerialCommands() {
       Serial.println(currentBrakeMode);
       Serial.print(F("Speed mode: "));
       Serial.println(currentSpeedMode);
-      Serial.print(F("Low brake: "));
-      Serial.println(currentLowBrake);
-      Serial.print(F("High brake: "));
-      Serial.println(currentHighBrake);
-      Serial.print(F("Battery temp: "));
-      // Get values from sensor framework
-      Serial.println(batteryTempSensor ? batteryTempSensor->getValue() : 0.0);
-      Serial.print(F("Controller temp: "));
-      Serial.println(controllerTempSensor ? controllerTempSensor->getValue() : 0.0);
-      Serial.print(F("Motor temp: "));
-      Serial.println(motorTempSensor ? motorTempSensor->getValue() : 0.0);
-      Serial.print(F("Hall state: 0b"));
-      Serial.println(hallState, BIN);
-      Serial.print(F("Hall pulse count: "));
-      Serial.println(hallPulseCount);
+      // Low/High brake pins reflect the state set by setBrake()
+      Serial.print(F("High Brake Pin State: "));
+      Serial.println(digitalRead(HIGH_BRAKE_PIN));
+
+      // Get temperature values from sensors (already processed by registry.process)
+      // getValue() returns the scaled int32_t value (tenths of degrees for thermistors)
+      int32_t batTempTenths = batteryTempSensor ? batteryTempSensor->getValue() : -9999;
+      int32_t motTempTenths = motorTempSensor ? motorTempSensor->getValue() : -9999;
+      // int32_t ctrlTempTenths = controllerTempSensor ? controllerTempSensor->getValue() : -9999;
+
+      Serial.print(F("Battery Temp (Sensor): "));
+      if (batTempTenths != -9999) Serial.printf("%.1f C
+", (float)batTempTenths / 10.0f); else Serial.println("N/A");
+
+      // Serial.print(F("Controller Temp (Sensor): "));
+      // if (ctrlTempTenths != -9999) Serial.printf("%.1f C
+", (float)ctrlTempTenths / 10.0f); else Serial.println("N/A");
+
+      Serial.print(F("Motor Temp (Sensor): "));
+       if (motTempTenths != -9999) Serial.printf("%.1f C
+", (float)motTempTenths / 10.0f); else Serial.println("N/A");
+
+      // Hall state/count are internal to Kunray sensor now
+      // Serial.print(F("Hall pulse count: "));
+      // Serial.println(hallPulseCount);
       Serial.print(F("Current status: "));
       Serial.println(currentStatus);
-      
+       Serial.println(F("--------------------"));
+
       // Send acknowledgement for STATUS command
       Serial.println(F("ACK: STATUS command processed"));
     }

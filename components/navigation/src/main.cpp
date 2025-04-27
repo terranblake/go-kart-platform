@@ -15,8 +15,15 @@
 #include "AHT21Sensor.h"
 #include "GY521Sensor.h"
 
+// Include ADC Reader framework
+#include "AnalogReader.h"       // Base interface
+#include "InternalADCReader.h"  // Specific implementation for navigation component
+
 // Global CAN Interface
 ProtobufCANInterface canInterface(NODE_ID, CAN_CS_PIN, CAN_INT_PIN);
+
+// Global ADC Reader (for future analog sensors on this node)
+InternalADCReader internalReader; // Use default 3.3V VRef
 
 // Global Sensor Registry
 SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_NAVIGATION, NODE_ID);
@@ -53,8 +60,13 @@ void setup() {
   Serial.println(F("Navigation Component Initializing..."));
 #endif
 
-  // Initialize hardware pins (I2C, potentially others if needed)
+  // Initialize hardware pins (I2C, UART pins are handled by libraries)
   setupPins();
+
+  // Initialize Internal ADC Reader (for future use)
+  internalReader.begin();
+  // Configure attenuation for any specific pins if needed later
+  // Example: internalReader.configureAttenuation(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
 
   // Initialize CAN interface
   if (!canInterface.begin(CAN_BAUDRATE)) {
@@ -146,17 +158,21 @@ void loop() {
 }
 
 void setupPins() {
-  // Initialize I2C
-  // Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN); // Wire.begin() is often called by library .begin()
-  // If specific pin setup is needed beyond library defaults, add here.
+  // Initialize I2C (often handled by sensor library begin calls)
+  // Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+
+  // UART for GPS is handled by ATGM336HSensor::begin() calling Serial2.begin()
+
+  // Analog pins (if used in the future) attenuation is configured via internalReader
+
 #if DEBUG_MODE
-    Serial.println(F("Pin setup complete (I2C pins managed by libraries)"));
+    Serial.println(F("Pin setup complete (Managed by libraries/AnalogReader)"));
 #endif
 }
 
 void setupSensors() {
 #if DEBUG_MODE
-  Serial.println(F("Initializing Sensors..."));
+  Serial.println(F("Initializing Sensors... (None use internal ADC yet)"));
 #endif
 
   // --- Initialize AHT21 Sensor Instances --- (Using default I2C &Wire)
