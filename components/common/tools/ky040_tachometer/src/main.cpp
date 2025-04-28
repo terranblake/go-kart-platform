@@ -7,8 +7,8 @@ const int ENCODER_PIN_B = 3; // DT pin to D3 (Interrupt 1)
 
 // Base PPR (Pulses Per Revolution) for the KY-040 encoder's mechanical cycle
 const int ENCODER_BASE_PPR = 20;
-// Effective counts per revolution using 4x quadrature decoding (A & B, CHANGE edge)
-const int EFFECTIVE_COUNTS_PER_REV = ENCODER_BASE_PPR * 4; // 20 * 4 = 80
+// Measured effective counts per revolution from calibration
+const int EFFECTIVE_COUNTS_PER_REV = 138;
 
 // --- Global Variables ---
 // Use volatile for variables modified within an ISR

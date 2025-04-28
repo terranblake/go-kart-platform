@@ -37,17 +37,10 @@ public:
   bool begin() override {
     // Explicitly configure Hall sensor pins as inputs with pull-ups
     pinMode(HALL_A_PIN, INPUT_PULLUP); // Reverted back to INPUT_PULLUP for use with external RC filter
-    // No longer need interrupts on B and C for this approach
-    // pinMode(HALL_B_PIN, INPUT_PULLUP);
-    // pinMode(HALL_C_PIN, INPUT_PULLUP);
-    pinMode(HALL_B_PIN, INPUT_PULLUP); // Enable Hall B
-    pinMode(HALL_C_PIN, INPUT_PULLUP); // Enable Hall C
+    pinMode(HALL_B_PIN, INPUT_PULLUP);
+    pinMode(HALL_C_PIN, INPUT_PULLUP);
 
-    // Attach interrupt only to HALL_A_PIN on RISING edge
-    // attachInterruptArg(digitalPinToInterrupt(HALL_A_PIN), staticIsrHandler, this, RISING); 
-    // attachInterruptArg(digitalPinToInterrupt(HALL_B_PIN), staticIsrHandler, this, CHANGE);
-    // attachInterruptArg(digitalPinToInterrupt(HALL_C_PIN), staticIsrHandler, this, CHANGE);
-    // Attach interrupts for all three sensors on CHANGE edge
+    // Attach interrupt only to all hall sensor input pins
     attachInterruptArg(digitalPinToInterrupt(HALL_A_PIN), staticIsrHandler, this, CHANGE);
     attachInterruptArg(digitalPinToInterrupt(HALL_B_PIN), staticIsrHandler, this, CHANGE);
     attachInterruptArg(digitalPinToInterrupt(HALL_C_PIN), staticIsrHandler, this, CHANGE);
@@ -77,14 +70,9 @@ public:
    * Increment pulse counter - Called by the static ISR handler.
    * Minimal version - No critical sections or debounce here.
    */
-  void incrementPulse() { // Removed ICACHE_RAM_ATTR from here
-    // Simple micros()-based debouncing
-    unsigned long currentTime = micros();
-    if (currentTime - _lastIsrFireTime > 500) { // Debounce threshold: 500 microseconds
-      _pulseCount++;
-      _lastIsrFireTime = currentTime; // Update time only for valid pulses
-    }
-    // _lastPulseTime = millis(); // Removed from ISR - will update in calculateRPM
+  void IRAM_ATTR incrementPulse() {
+    // Debounce removed - relying solely on hardware filtering (e.g., RC filter)
+    _pulseCount++;
   }
   
   /**
@@ -100,7 +88,6 @@ private:
   volatile uint32_t _lastPulseTime; // Re-enabled declaration
   uint32_t _lastRPM; // Changed to uint32_t to prevent overflow
   SensorValue _sensorValue; // Reusable sensor value object
-  volatile unsigned long _lastIsrFireTime = 0; // For ISR debouncing
   
   // Variables for interval-based RPM calculation
   uint32_t _lastCalcTime;      // Time of the last RPM calculation
