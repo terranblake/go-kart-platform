@@ -3,13 +3,18 @@
 
 #include <Arduino.h>
 #include "../src/Sensor.h"
-#include "driver/adc.h" // Include ESP32 ADC driver
+#include "../src/AnalogReader.h" // Include the new interface
+#include <cmath> // Include for log()
+
+// Remove ESP32 ADC driver include, no longer needed here
+// #include "driver/adc.h" 
 
 /**
- * ThermistorSensor - Measures temperature using NTC thermistors
+ * ThermistorSensor - Measures temperature using NTC thermistors via an AnalogReader.
  * 
- * Designed for NTCLE100E3xxxx thermistors with a series resistor
- * Uses the Steinhart-Hart equation for temperature conversion
+ * Designed for NTCLE100E3xxxx thermistors with a series resistor.
+ * Uses the Steinhart-Hart equation for temperature conversion.
+ * Reads voltage using the provided AnalogReader instance.
  */
 class ThermistorSensor : public Sensor {
 public:
@@ -18,131 +23,142 @@ public:
    * @param componentType Component type for this sensor
    * @param componentId Component ID for this sensor
    * @param commandId Command ID for this sensor
-   * @param pin Analog pin connected to the voltage divider
+   * @param reader Pointer to the AnalogReader instance to use for reading voltage.
+   * @param channelId Channel identifier (e.g., pin or ADC channel number) for the AnalogReader.
    * @param updateInterval Update interval in ms
    * @param seriesResistor Value of the series resistor (ohms)
    * @param thermistorNominal Resistance at nominal temperature (ohms)
    * @param temperatureNominal Nominal temperature (°C)
    * @param bCoefficient B coefficient from thermistor datasheet
+   * @param valueType The type of value this sensor reports (should be INT16 for temp)
+   * @param dividerSupplyVoltageMv The supply voltage (in mV) powering the thermistor voltage divider (e.g., 3300).
    */
   ThermistorSensor(
     kart_common_ComponentType componentType,
     uint8_t componentId,
     uint8_t commandId,
-    uint8_t pin,
+    AnalogReader* reader,         // Changed from pin
+    uint8_t channelId,          // Added channel ID
     uint16_t updateInterval = 1000,
     uint32_t seriesResistor = 10000,
     uint32_t thermistorNominal = 10000,
     float temperatureNominal = 25.0,
-    float bCoefficient = 3977.0 // Default B value, check datasheet for NTCLE100E3103JBD (likely 3977)
-  ) : Sensor(componentType, componentId, commandId, kart_common_ValueType_UINT16, updateInterval),
-      _pin(pin),
+    float bCoefficient = 3977.0, // Default B value for NTCLE100E3103JBD
+    kart_common_ValueType valueType = kart_common_ValueType_INT16, // Default to INT16
+    uint16_t dividerSupplyVoltageMv = 3300 // Default to 3.3V
+  ) : Sensor(componentType, componentId, commandId, valueType, updateInterval), // Pass valueType to base
+      _reader(reader),             // Store reader pointer
+      _channelId(channelId),       // Store channel ID
       _seriesResistor(seriesResistor),
       _thermistorNominal(thermistorNominal),
       _temperatureNominal(temperatureNominal),
-      _bCoefficient(bCoefficient) {}
+      _bCoefficient(bCoefficient),
+      _dividerSupplyVoltageMv(dividerSupplyVoltageMv) {}
   
   /**
-   * Initialize the temperature sensor
+   * Initialize the temperature sensor.
+   * Sensor-specific pin setup (like ADC attenuation) is now handled
+   * by the AnalogReader's begin() or configuration methods.
    */
   bool begin() override {
-    // Set up analog pin
-    pinMode(_pin, INPUT);
-
-    // Configure ADC attenuation for ESP32
-#if defined(ESP32) || defined(PLATFORM_ESP32)
-    adc1_config_width(ADC_WIDTH_BIT_12); // Explicitly set 12-bit width
-
-    // Determine ADC1 channel based on the pin numbers from Config.h
-    adc1_channel_t channel = ADC1_CHANNEL_MAX; // Default invalid channel
-    if (_pin == 36) {         // GPIO 36 (TEMP_SENSOR_CONTROLLER) is ADC1_CHANNEL_0
-        channel = ADC1_CHANNEL_0;
-    } else if (_pin == 39) {  // GPIO 39 (TEMP_SENSOR_BATTERY) is ADC1_CHANNEL_3
-        channel = ADC1_CHANNEL_3;
-    } else if (_pin == 34) {  // GPIO 34 (TEMP_SENSOR_MOTOR) is ADC1_CHANNEL_6
-        channel = ADC1_CHANNEL_6;
+    // Pin mode and ADC configuration are no longer done here.
+    // Ensure the passed AnalogReader's begin() method is called elsewhere.
+    if (!_reader) {
+      return false; // Must have a valid reader
     }
-    // Add mappings for other ADC1 pins if necessary
-
-    if (channel != ADC1_CHANNEL_MAX) {
-        // Use ADC_ATTEN_DB_12 for 0-3.3V range (11 is deprecated)
-        esp_err_t err = adc1_config_channel_atten(channel, ADC_ATTEN_DB_12);
-        if (err != ESP_OK) {
-            Serial.printf("Failed to set ADC1 attenuation for pin %d, channel %d\n", _pin, channel);
-        }
-    } else {
-        Serial.printf("Pin %d is not a configured ADC1 pin for attenuation setting\n", _pin);
-        // Handle error or check ADC2 if applicable
-    }
-#endif
+    // No sensor-specific hardware setup needed in this `begin`
     return true;
   }
   
   /**
-   * Read temperature
-   * @return SensorValue containing temperature
+   * Read temperature using the configured AnalogReader.
+   * @return SensorValue containing temperature in tenths of a degree Celsius (INT16).
    */
   SensorValue read() override {
-    // Read temperature
-    float lastTemp = readTemperature();
+    if (!_reader) {
+        // Handle error: No reader available
+        _baseSensorValue.int16_value = 0; // Or some error indicator
+        return _baseSensorValue;
+    }
     
-    // Store in SensorValue (as UINT16 in tenths of a degree)
-    _baseSensorValue.uint16_value = (uint16_t)(lastTemp * 10.0);
+    // Read temperature using the helper method
+    float temperatureC = readTemperature();
+    
+    // Store in SensorValue (as INT16 in tenths of a degree)
+    // Clamp to valid range for int16_t (e.g., -32768 to 32767)
+    // However, practical thermistor range is smaller, e.g., -550 to 1250 tenths C
+    int16_t tempTenths = (int16_t)(temperatureC * 10.0f);
+    if (tempTenths < -550) tempTenths = -550; // Clamp to practical min
+    if (tempTenths > 1250) tempTenths = 1250; // Clamp to practical max
+
+    // Store directly into the int16_value field
+    _baseSensorValue.int16_value = tempTenths; 
     return _baseSensorValue;
   }
   
 private:
-  uint8_t _pin;                // Analog pin
+  AnalogReader* _reader;       // Pointer to the analog reader implementation
+  uint8_t _channelId;          // Channel identifier for the reader (pin or ADC channel)
+  // uint8_t _pin;             // Removed pin
   uint32_t _seriesResistor;    // Series resistor value (ohms)
   uint32_t _thermistorNominal; // Resistance at nominal temperature (ohms)
   float _temperatureNominal;   // Nominal temperature (°C)
   float _bCoefficient;         // Beta coefficient from datasheet
+  uint16_t _dividerSupplyVoltageMv; // Supply voltage for the thermistor divider
+
   /**
-   * Read the current temperature
-   * @return Temperature in °C
+   * Read the current temperature using the AnalogReader.
+   * @return Temperature in °C, or a specific error value (like NAN or -273.15) on failure.
    */
   float readTemperature() {
-    // Read analog value
-    int adcValue = analogRead(_pin);
+    // Read voltage from the divider using the AnalogReader
+    float voltage_mV = _reader->readVoltageMv(_channelId);
     
-    // Prevent division by zero or invalid readings
-    if (adcValue >= 4095) adcValue = 4094; // Use 12-bit max for ESP32 check
-    if (adcValue <= 0) adcValue = 1;
+    if (std::isnan(voltage_mV)) {
+        return -273.15f; // Return absolute zero or NAN
+    }
+
+    // Use the known divider supply voltage for calculation
+    uint16_t vSupply_mV = _dividerSupplyVoltageMv;
+
+    // Calculate thermistor resistance from the voltage divider formula:
+    // Vout = Vsupply * Rtherm / (Rseries + Rtherm)
+    // Rtherm = Rseries * Vout / (Vsupply - Vout)
     
-    // Calculate resistance of thermistor
-#if defined(ESP8266) || defined(ESP32) || defined(PLATFORM_ESP32)
-    // ESP ADC is 3.3V with 12-bit resolution (0-4095)
-    float resistance = _seriesResistor / ((4095.0 / adcValue) - 1.0);
-#else
-    // Arduino ADC is typically 5V with 10-bit resolution (0-1023)
-    float resistance = _seriesResistor / ((1023.0 / adcValue) - 1.0);
-#endif
-    
+    // Prevent division by zero if Vout equals Vsupply
+    if (voltage_mV >= vSupply_mV) {
+        // This implies Rtherm is very high or infinite (open circuit?)
+        return 125.0f; // Return max temp limit
+    }
+    // Prevent issues if Vout is zero or negative (short circuit?)
+    if (voltage_mV <= 0) {
+        return -55.0f; // Return min temp limit
+    }
+
+    float resistance = (float)_seriesResistor * voltage_mV / ((float)vSupply_mV - voltage_mV);
+
     // Calculate temperature using Steinhart-Hart equation (simplified B parameter equation)
-    // Ensure log() handles potential negative resistance values gracefully if ADC readings are strange
     if (resistance <= 0) {
-      // Handle error: resistance calculation failed or ADC reading implies short circuit?
-      // Return a known error value or the limit. Using -55.0 for now.
-      return -55.0;
+      // Handle error: resistance calculation failed
+      return -273.15f; // Return absolute zero or NAN
     }
 
     float steinhart;
     steinhart = resistance / _thermistorNominal;           // (R/Ro)
-    steinhart = log(steinhart);                           // ln(R/Ro)
+    steinhart = logf(steinhart);                          // ln(R/Ro) - use logf for float
     steinhart /= _bCoefficient;                           // 1/B * ln(R/Ro)
-    steinhart += 1.0 / (_temperatureNominal + 273.15);    // + (1/To)
+    steinhart += 1.0f / (_temperatureNominal + 273.15f);   // + (1/To)
 
-    // Check for potential division by zero if steinhart calculation leads to zero
     if (steinhart == 0) {
-       return -55.0; // Or another error indicator
+       return -273.15f; // Error: Division by zero incoming
     }
 
-    steinhart = 1.0 / steinhart;                          // Invert
-    steinhart -= 273.15;                                  // Convert to °C
+    steinhart = 1.0f / steinhart;                          // Invert -> Absolute temp in Kelvin
+    steinhart -= 273.15f;                                  // Convert to °C
 
-    // Apply limits
-    if (steinhart < -55.0) steinhart = -55.0;
-    if (steinhart > 125.0) steinhart = 125.0; // Adjust upper limit if needed
+    // Apply sensible limits based on typical thermistor range
+    if (steinhart < -55.0f) steinhart = -55.0f;
+    if (steinhart > 125.0f) steinhart = 125.0f; // Adjust upper limit if needed
 
     return steinhart;
   }

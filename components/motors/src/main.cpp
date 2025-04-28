@@ -7,6 +7,7 @@
 // Add sensor framework includes for integration
 #include "Sensor.h"
 #include "SensorRegistry.h"
+// Reverted to relative path
 #include "ThermistorSensor.h"
 #include "KunrayHallRpmSensor.h"
 
@@ -17,13 +18,6 @@
 // Include ADS1115 library
 #include <Adafruit_ADS1X15.h> // Required for ADS1115Reader
 // ** NOTE: Add "Adafruit ADS1X15" to lib_deps in platformio.ini **
-
-// Add platform-specific defines
-#if defined(ESP8266) || defined(ESP32)
-#define ICACHE_RAM_ATTR ICACHE_RAM_ATTR
-#else
-#define ICACHE_RAM_ATTR
-#endif
 
 // Global state variables
 ProtobufCANInterface canInterface(NODE_ID, CAN_CS_PIN, CAN_INT_PIN);
@@ -46,7 +40,7 @@ byte hallState = 0;
 bool currentLowBrake = false;
 bool currentHighBrake = false;
 
-// ADC Reader Instantiation
+// ADC Reader Instantiation (Moved to global scope)
 Adafruit_ADS1115 ads;         // Create ADS1115 object (use default I2C address 0x48)
 ADS1115Reader adsReader(&ads); // Create the reader wrapper, passing the object
 
@@ -87,7 +81,7 @@ void setup() {
      #endif
   }
 
-  // Initialize hardware pins
+  // Initialize hardware pins (excluding thermistor analog pins)
   setupPins();
   
   // Initialize CAN interface
@@ -141,49 +135,53 @@ void setup() {
     kart_common_ComponentType_BATTERIES,
     kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
     kart_batteries_BatteryCommandId_TEMPERATURE,
-    &adsReader,                // Use the ADS1115 reader
-    0,                         // Use ADS1115 Channel 0 for Battery Temp
+    (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
+    1,                         // Use ADS1115 Channel 1 for Battery Temp
     1000,                      // Update interval (ms)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
-    B_COEFFICIENT
+    B_COEFFICIENT,
+    kart_common_ValueType_INT16, // Using INT16
+    3300                       // Divider supply voltage (mV)
   );
   
-  // todo: how to support controller sensors?
+  // todo: how to support controller sensors? Needs ADC channel assignment
   // controllerTempSensor = new ThermistorSensor(
-  //   1,                         // Location ID (CONTROLLER=1)
-  //   TEMP_SENSOR_CONTROLLER,    // Pin
-  //   2000,                      // Update interval (2 seconds)
-  //   SERIES_RESISTOR,
-  //   THERMISTOR_NOMINAL,
-  //   TEMPERATURE_NOMINAL,
-  //   B_COEFFICIENT
+  //   ...
+  //   (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
+  //   ?,                         // Assign ADS1115 Channel (e.g., 1)
+  //   ...,
+  //   kart_common_ValueType_INT16,
+  //   3300                       // Divider supply voltage (mV)
   // );
   
   motorTempSensor = new ThermistorSensor(
     kart_common_ComponentType_MOTORS,
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
     kart_motors_MotorCommandId_TEMPERATURE,
-    &adsReader,                // Use the ADS1115 reader
-    1,                         // Use ADS1115 Channel 1 for Motor Temp
+    (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
+    0,                         // Use ADS1115 Channel 0 for Motor Temp
     1000,                      // Update interval (ms)
     SERIES_RESISTOR,
     THERMISTOR_NOMINAL,
     TEMPERATURE_NOMINAL,
-    B_COEFFICIENT
+    B_COEFFICIENT,
+    kart_common_ValueType_INT16, // Using INT16
+    3300                       // Divider supply voltage (mV)
   );
 
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new KunrayHallRpmSensor(
     kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
-    200
+    500
   );
   
   // Register the sensors with the registry
+  // begin() is called inside registerSensor (which now attaches the single RPM interrupt)
   sensorRegistry.registerSensor(motorRpmSensor);
   sensorRegistry.registerSensor(batteryTempSensor);
-  // sensorRegistry.registerSensor(controllerTempSensor);
+  // sensorRegistry.registerSensor(controllerTempSensor); // Register if implemented
   sensorRegistry.registerSensor(motorTempSensor);
   
 #if DEBUG_MODE
@@ -193,11 +191,11 @@ void setup() {
 
 void loop() {
   // Process CAN messages
-  canInterface.process();
-  
+  canInterface.process(); // <--- Re-enabled
+
   // Process all sensors using the SensorRegistry
-  sensorRegistry.process();
-  
+  sensorRegistry.process(); // <--- Re-enabled (But I2C sensors are still commented out in setup)
+
   // Parse serial commands in DEBUG_MODE
 #if DEBUG_MODE == 1
   parseSerialCommands();
@@ -430,7 +428,7 @@ void parseSerialCommands() {
     
     // Command format: "T:value" for throttle where value is 0-100
     if (commandUpper.startsWith("T:")) {
-      int throttlePercent = commandUpper.substring(2).toInt();
+      int throttlePercent = command.substring(2).toInt();
       // Constrain to valid range
       throttlePercent = constrain(throttlePercent, 0, 100);
       
@@ -460,7 +458,7 @@ void parseSerialCommands() {
     }
     // Command format: "D:F" for forward, "D:R" for reverse
     else if (commandUpper.startsWith("D:")) {
-      char direction = commandUpper.charAt(2);
+      char direction = command.charAt(2);
       if (direction == 'F' || direction == 'f') {
         setDirection(kart_motors_MotorDirectionValue_FORWARD);
         Serial.println(F("Direction set to FORWARD"));
@@ -482,7 +480,7 @@ void parseSerialCommands() {
     }
     // Command format: "S:0" for OFF, "S:1" for LOW, "S:2" for HIGH
     else if (commandUpper.startsWith("S:")) {
-      int speedMode = commandUpper.substring(2).toInt();
+      int speedMode = command.substring(2).toInt();
       if (speedMode >= 0 && speedMode <= 2) {
         setMode(static_cast<kart_motors_MotorModeValue>(speedMode));
         Serial.print(F("Speed mode set to "));
@@ -497,7 +495,7 @@ void parseSerialCommands() {
     }
     // Command format: "B:L" for low brake, "B:H" for high brake, "B:N" for no brake
     else if (commandUpper.startsWith("B:")) {
-      char brakeCommand = commandUpper.charAt(2);
+      char brakeCommand = command.charAt(2);
       if (brakeCommand == 'L' || brakeCommand == 'l') {
         setBrake(kart_motors_MotorBrakeValue_BRAKE_ON);
         Serial.println(F("LOW Brake ENGAGED"));
@@ -576,23 +574,24 @@ void parseSerialCommands() {
       Serial.print(F("High Brake Pin State: "));
       Serial.println(digitalRead(HIGH_BRAKE_PIN));
 
+
       // Get temperature values from sensors (already processed by registry.process)
       // getValue() returns the scaled int32_t value (tenths of degrees for thermistors)
+      // Declare variables here
       int32_t batTempTenths = batteryTempSensor ? batteryTempSensor->getValue() : -9999;
       int32_t motTempTenths = motorTempSensor ? motorTempSensor->getValue() : -9999;
       // int32_t ctrlTempTenths = controllerTempSensor ? controllerTempSensor->getValue() : -9999;
 
       Serial.print(F("Battery Temp (Sensor): "));
-      if (batTempTenths != -9999) Serial.printf("%.1f C
-", (float)batTempTenths / 10.0f); else Serial.println("N/A");
+      // Corrected printf format string
+      if (batTempTenths != -9999) Serial.printf("%.1f C\n", (float)batTempTenths / 10.0f); else Serial.println("N/A");
 
       // Serial.print(F("Controller Temp (Sensor): "));
-      // if (ctrlTempTenths != -9999) Serial.printf("%.1f C
-", (float)ctrlTempTenths / 10.0f); else Serial.println("N/A");
+      // if (ctrlTempTenths != -9999) Serial.printf("%.1f C\n", (float)ctrlTempTenths / 10.0f); else Serial.println("N/A");
 
       Serial.print(F("Motor Temp (Sensor): "));
-       if (motTempTenths != -9999) Serial.printf("%.1f C
-", (float)motTempTenths / 10.0f); else Serial.println("N/A");
+      // Corrected printf format string
+       if (motTempTenths != -9999) Serial.printf("%.1f C\n", (float)motTempTenths / 10.0f); else Serial.println("N/A");
 
       // Hall state/count are internal to Kunray sensor now
       // Serial.print(F("Hall pulse count: "));
@@ -600,6 +599,7 @@ void parseSerialCommands() {
       Serial.print(F("Current status: "));
       Serial.println(currentStatus);
        Serial.println(F("--------------------"));
+
 
       // Send acknowledgement for STATUS command
       Serial.println(F("ACK: STATUS command processed"));

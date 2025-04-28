@@ -35,12 +35,19 @@ public:
   }
 
   bool begin() override {
-    // Pin mode configuration is removed as it caused issues.
-    // Rely on default pin modes or configuration elsewhere.
+    // Explicitly configure Hall sensor pins as inputs with pull-ups
+    pinMode(HALL_A_PIN, INPUT_PULLUP); // Reverted back to INPUT_PULLUP for use with external RC filter
+    // No longer need interrupts on B and C for this approach
+    // pinMode(HALL_B_PIN, INPUT_PULLUP);
+    // pinMode(HALL_C_PIN, INPUT_PULLUP);
+    pinMode(HALL_B_PIN, INPUT_PULLUP); // Enable Hall B
+    pinMode(HALL_C_PIN, INPUT_PULLUP); // Enable Hall C
 
-    // Attach interrupts using attachInterruptArg and a static handler function
-    // Ensure HALL_A_PIN, HALL_B_PIN, HALL_C_PIN are defined in Config.h
-    // Note: ICACHE_RAM_ATTR is applied to the static handler itself, not here.
+    // Attach interrupt only to HALL_A_PIN on RISING edge
+    // attachInterruptArg(digitalPinToInterrupt(HALL_A_PIN), staticIsrHandler, this, RISING); 
+    // attachInterruptArg(digitalPinToInterrupt(HALL_B_PIN), staticIsrHandler, this, CHANGE);
+    // attachInterruptArg(digitalPinToInterrupt(HALL_C_PIN), staticIsrHandler, this, CHANGE);
+    // Attach interrupts for all three sensors on CHANGE edge
     attachInterruptArg(digitalPinToInterrupt(HALL_A_PIN), staticIsrHandler, this, CHANGE);
     attachInterruptArg(digitalPinToInterrupt(HALL_B_PIN), staticIsrHandler, this, CHANGE);
     attachInterruptArg(digitalPinToInterrupt(HALL_C_PIN), staticIsrHandler, this, CHANGE);
@@ -49,8 +56,8 @@ public:
     _lastRPM = 0;
     _pulseCount = 0;
     _lastPulseTime = millis();
-    _lastCalcTime = millis();
-    _lastPulseCount = 0;
+    _lastCalcTime = millis();   // Time of the last RPM calculation
+    _lastCalcCount = 0;   // Pulse count at the last RPM calculation
 
     return true; // Indicate successful logical initialization
   }
@@ -60,46 +67,44 @@ public:
    * @return SensorValue containing RPM
    */
   SensorValue read() override {
-    // Wait for minimum time between calculations
-    uint32_t currentTime = millis();
-    uint32_t timeDiff = currentTime - _lastCalcTime;
-    if (timeDiff < _updateInterval) {
-      return _baseSensorValue;
-    }
-
     // Calculate RPM
-    uint16_t rpm = calculateRPM(); // Changed to uint16_t to match return type
+    uint32_t rpm = calculateRPM(); // Changed to uint32_t to match return type
     _baseSensorValue.uint16_value = rpm;
     return _baseSensorValue;
   }
 
   /**
    * Increment pulse counter - Called by the static ISR handler.
+   * Minimal version - No critical sections or debounce here.
    */
   void incrementPulse() { // Removed ICACHE_RAM_ATTR from here
-    noInterrupts(); // Briefly disable interrupts to safely update shared variables
-    _pulseCount++;
-    _lastPulseTime = millis(); 
-    interrupts(); // Re-enable interrupts
+    // Simple micros()-based debouncing
+    unsigned long currentTime = micros();
+    if (currentTime - _lastIsrFireTime > 500) { // Debounce threshold: 500 microseconds
+      _pulseCount++;
+      _lastIsrFireTime = currentTime; // Update time only for valid pulses
+    }
+    // _lastPulseTime = millis(); // Removed from ISR - will update in calculateRPM
   }
   
   /**
    * Get the current RPM value
    * @return RPM value
    */
-  uint16_t getRPM() const {
+  uint32_t getRPM() const {
     return _lastRPM;
   }
 
 private:
   volatile uint32_t _pulseCount;
-  volatile uint32_t _lastPulseTime;
-  uint16_t _lastRPM;
+  volatile uint32_t _lastPulseTime; // Re-enabled declaration
+  uint32_t _lastRPM; // Changed to uint32_t to prevent overflow
   SensorValue _sensorValue; // Reusable sensor value object
+  volatile unsigned long _lastIsrFireTime = 0; // For ISR debouncing
   
-  // Variables for RPM calculation
-  uint32_t _lastCalcTime;
-  uint32_t _lastPulseCount;
+  // Variables for interval-based RPM calculation
+  uint32_t _lastCalcTime;      // Time of the last RPM calculation
+  uint32_t _lastCalcCount;     // Pulse count at the last RPM calculation
   
   /**
    * Static ISR handler function.
@@ -113,60 +118,78 @@ private:
    * Calculate RPM based on pulse count
    * @return RPM value
    */
-  uint16_t calculateRPM() {
+  uint32_t calculateRPM() {
+    uint32_t profileStartTime = micros(); // Profiling start
+    uint32_t currentCount;
+    uint32_t tempLastPulseTime; // Keep for stop detection
     uint32_t currentTime = millis();
     
-    // If no pulses for over 2 seconds, motor is stopped
-    if (currentTime - _lastPulseTime > 2000) {
-      _lastRPM = 0;
-      return 0;
-    }
-    
-    // Get pulse count (thread-safe)
+    // --- Read shared variables atomically --- 
     noInterrupts();
-    uint32_t currentCount = _pulseCount;
+    currentCount = _pulseCount;
+    tempLastPulseTime = _lastPulseTime;
+    // Update last pulse time here *after* reading count, less ideal but safer than millis() in ISR
+    // Only update if pulses actually occurred since last check to prevent timeout issue
+    if (currentCount != _lastCalcCount) { 
+        _lastPulseTime = currentTime; // Not perfectly accurate, but keeps ISR minimal
+        tempLastPulseTime = _lastPulseTime; // Use updated time for this check
+    }
     interrupts();
-    
-    // Calculate pulse difference
-    uint32_t countDiff;
-    if (currentCount >= _lastPulseCount) {
-      countDiff = currentCount - _lastPulseCount;
-    } else {
-      // Handle overflow
-      countDiff = (0xFFFFFFFF - _lastPulseCount) + currentCount + 1;
+    // --- End atomic read ---
+
+    // --- Stop detection based on last pulse time --- 
+    if (currentTime - tempLastPulseTime > 2000) { // Keep 2s timeout for stop detection
+      #if DEBUG_MODE 
+        if (_lastRPM != 0) Serial.println("RPM Calc: Motor stopped (timeout)."); 
+      #endif
+      _lastRPM = 0;
+      _lastCalcTime = currentTime;   // Reset calculation time on stop
+      _lastCalcCount = currentCount; // Reset calculation count on stop
+      return 0; // Return 0 immediately if stopped
     }
     
-    // If no pulses during this period, keep last RPM but decay it
-    if (countDiff == 0) {
-      // Decay RPM if no new pulses (makes UI smoother)
-      if (_lastRPM > 0) {
-        _lastRPM = (uint16_t)(_lastRPM * 0.9f);
-      }
-      return _lastRPM;
-    }
-    
-    // Calculate RPM based on pulse count and time difference
+    // --- Calculate based on interval ---
     uint32_t timeDiff = currentTime - _lastCalcTime;
+    uint32_t pulsesInInterval;
 
-    // Prevent division by zero if timeDiff is too small
+    // Prevent division by zero and ensure minimum interval has passed
+    // Note: Sensor::process should already handle the interval, but this adds safety.
     if (timeDiff == 0) {
-        return _lastRPM; // Return last calculated RPM
+        return _lastRPM; // Return previous value until interval passes
     }
 
-    // Calculation factor assumes 6 state changes per electrical revolution
-    // and 3 electrical revolutions per mechanical for this motor (adjust if needed)
-    _lastRPM = (uint16_t)((countDiff * 60000UL) / (timeDiff * 6UL * 3UL)); 
-    
-    // Store values for next calculation
+    // Calculate pulses during the interval, handling overflow
+    if (currentCount >= _lastCalcCount) {
+        pulsesInInterval = currentCount - _lastCalcCount;
+    } else {
+        // Handle overflow of _pulseCount
+        pulsesInInterval = (0xFFFFFFFF - _lastCalcCount) + currentCount + 1;
+    }
+
+    // Calculate pulses per second
+    float pulsesPerSecond = (float)pulsesInInterval / (timeDiff / 1000.0f);
+
+    #if DEBUG_MODE
+        // Log pulses per second
+        Serial.printf("RPM Calc: Pulses/sec = %.2f (pulses=%u, time=%ums)\n", pulsesPerSecond, pulsesInInterval, timeDiff);
+    #endif
+
+    // Calculate RPM: (Pulses/Second * 60 Seconds/Minute) / 6 Pulses/Revolution
+    _lastRPM = (uint32_t)((pulsesPerSecond * 60.0f) / 36.0f);
+
+    // Update state for next calculation
     _lastCalcTime = currentTime;
-    _lastPulseCount = currentCount;
-    
+    _lastCalcCount = currentCount;
+
+    uint32_t profileEndTime = micros(); // Profiling end
+    #if DEBUG_MODE
+        Serial.printf("RPM Calc: Took %u us\n", profileEndTime - profileStartTime);
+    #endif
     return _lastRPM;
   }
 };
 
 // Implementation of the static ISR handler
-// Place it here in the header for simplicity, or move to a .cpp file if preferred.
 ICACHE_RAM_ATTR void KunrayHallRpmSensor::staticIsrHandler(void* arg) {
     // Cast the argument back to our class instance
     KunrayHallRpmSensor* instance = static_cast<KunrayHallRpmSensor*>(arg);

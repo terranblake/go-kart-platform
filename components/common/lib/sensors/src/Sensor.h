@@ -63,9 +63,9 @@ public:
       _lastUpdateTime = currentTime;
       SensorValue val = read();
       // Removed noisy log print
-      // #if DEBUG_MODE 
-      //   Serial.printf("Sensor %d: %ld\n", _commandId, getValue()); // Assumes getValue() returns int32_t or similar
-      // #endif
+      #if DEBUG_MODE 
+        Serial.printf("Sensor %d: %d\n", _commandId, getValue()); 
+      #endif
       // TODO: Add logic to only send if value has changed significantly (optional)
       return canInterface.sendMessage(
         kart_common_MessageType_STATUS, 
