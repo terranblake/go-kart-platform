@@ -127,17 +127,9 @@ void setupPins() {
     internalReader.configureAttenuation(ADC1_CHANNEL_7, BRAKE_ATTEN);    // Use enum for channel
     // internalReader.configureAttenuation(ADC1_CHANNEL_4, STEERING_ATTEN); // Use enum for channel
 
-    // Digital Inputs (Configure with pull-ups/pull-downs as needed)
-    pinMode(TURN_SIGNAL_LEFT_PIN, INPUT_PULLUP);
-    pinMode(TURN_SIGNAL_RIGHT_PIN, INPUT_PULLUP);
-    pinMode(HAZARD_SWITCH_PIN, INPUT_PULLUP);
-    pinMode(LIGHTS_MODE_OFF_PIN, INPUT_PULLUP);
-    pinMode(LIGHTS_MODE_ON_PIN, INPUT_PULLUP);
-    pinMode(LIGHTS_MODE_LOW_PIN, INPUT_PULLUP);
-    pinMode(LIGHTS_MODE_HIGH_PIN, INPUT_PULLUP);
 
 #if DEBUG_MODE
-    Serial.println(F("GPIO pin setup complete."));
+    Serial.println(F("GPIO pin setup complete (Digital pins handled by Sensor::begin())."));
 #endif
 }
 
@@ -163,20 +155,20 @@ void setupSensors() {
   sensorRegistry.registerSensor(throttleSensor);
 
   // --- Brake Sensor (Placeholder - uses same settings as throttle for now) ---
-   brakeSensor = new MappedAnalogSensor(
-    kart_common_ComponentType_CONTROLS,
-    kart_controls_ControlComponentId_BRAKE,
-    kart_controls_ControlCommandId_POSITION,
-    kart_common_ValueType_UINT16, 
-    &internalReader,
-    BRAKE_PIN,
-    BRAKE_UPDATE_INTERVAL,
-    BRAKE_MIN_ADC, 
-    BRAKE_MAX_ADC, 
-    0,
-    1024              
-  );
-  sensorRegistry.registerSensor(brakeSensor);
+  //  brakeSensor = new MappedAnalogSensor(
+  //   kart_common_ComponentType_CONTROLS,
+  //   kart_controls_ControlComponentId_BRAKE,
+  //   kart_controls_ControlCommandId_POSITION,
+  //   kart_common_ValueType_UINT16, 
+  //   &internalReader,
+  //   BRAKE_PIN,
+  //   BRAKE_UPDATE_INTERVAL,
+  //   BRAKE_MIN_ADC, 
+  //   BRAKE_MAX_ADC, 
+  //   0,
+  //   1024              
+  // );
+  // sensorRegistry.registerSensor(brakeSensor);
 
   // --- Steering Sensor (Placeholder - if using analog) ---
   // steeringSensor = new MappedAnalogSensor(...);

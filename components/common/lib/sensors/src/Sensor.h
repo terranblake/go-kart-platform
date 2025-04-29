@@ -64,7 +64,8 @@ public:
       SensorValue val = read();
       // Removed noisy log print
       #if DEBUG_MODE 
-        Serial.printf("Sensor %d: %d\n", _commandId, getValue()); 
+        // Include component ID for clarity
+        Serial.printf("Sensor %d:%d: %d\n", _componentId, _commandId, getValue()); 
       #endif
       // TODO: Add logic to only send if value has changed significantly (optional)
       return canInterface.sendMessage(
