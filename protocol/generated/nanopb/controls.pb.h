@@ -12,34 +12,34 @@
 /* Enum definitions */
 /* Control component IDs */
 typedef enum _kart_controls_ControlComponentId {
-    kart_controls_ControlComponentId_THROTTLE = 0,
-    kart_controls_ControlComponentId_BRAKE = 1,
-    kart_controls_ControlComponentId_STEERING = 2,
-    kart_controls_ControlComponentId_TRANSMISSION = 3,
-    kart_controls_ControlComponentId_SUSPENSION = 4,
-    kart_controls_ControlComponentId_COOLING = 5,
-    kart_controls_ControlComponentId_USER_INTERFACE = 6,
-    kart_controls_ControlComponentId_SECURITY = 7,
-    kart_controls_ControlComponentId_DIAGNOSTIC = 8,
-    kart_controls_ControlComponentId_AUTONOMOUS = 9,
-    kart_controls_ControlComponentId_ALL = 10
+    kart_controls_ControlComponentId_SYSTEM = 0, /* General system controls/status */
+    kart_controls_ControlComponentId_THROTTLE = 1, /* Throttle pedal input */
+    kart_controls_ControlComponentId_BRAKE = 2, /* Brake pedal input */
+    kart_controls_ControlComponentId_STEERING = 3, /* Steering wheel input */
+    kart_controls_ControlComponentId_TURN_SIGNAL_SWITCH = 4, /* Turn signal switch input */
+    kart_controls_ControlComponentId_HAZARD_SWITCH = 5, /* Hazard light switch input */
+    kart_controls_ControlComponentId_LIGHTS_SWITCH = 6, /* Headlight switch input */
+    /* Add other physical controls here */
+    kart_controls_ControlComponentId_ALL = 255 /* All controls components */
 } kart_controls_ControlComponentId;
 
 /* Control command IDs */
 typedef enum _kart_controls_ControlCommandId {
-    kart_controls_ControlCommandId_ENABLE = 0,
-    kart_controls_ControlCommandId_DISABLE = 1,
-    kart_controls_ControlCommandId_RESET = 2,
-    kart_controls_ControlCommandId_MODE = 3,
-    kart_controls_ControlCommandId_PARAMETER = 4,
-    kart_controls_ControlCommandId_LIMIT = 5,
-    kart_controls_ControlCommandId_CALIBRATE = 6,
-    kart_controls_ControlCommandId_EMERGENCY = 7,
-    /* Sensor readings */
-    kart_controls_ControlCommandId_VOLTAGE = 8,
-    kart_controls_ControlCommandId_CURRENT = 9,
-    kart_controls_ControlCommandId_TEMPERATURE = 10,
-    kart_controls_ControlCommandId_PRESSURE = 11
+    /* Generic commands (can apply to SYSTEM or specific components) */
+    kart_controls_ControlCommandId_ENABLE = 0, /* Enable component/feature */
+    kart_controls_ControlCommandId_DISABLE = 1, /* Disable component/feature */
+    kart_controls_ControlCommandId_RESET = 2, /* Reset component */
+    kart_controls_ControlCommandId_MODE = 3, /* Set operating mode (use specific enums for value) */
+    kart_controls_ControlCommandId_PARAMETER = 4, /* Set generic parameter */
+    kart_controls_ControlCommandId_CALIBRATE = 6, /* Trigger calibration routine */
+    kart_controls_ControlCommandId_EMERGENCY = 7, /* Emergency state command */
+    /* Specific input readings/states */
+    kart_controls_ControlCommandId_POSITION = 10, /* Position of analog control (Throttle, Brake, Steering) (0-1024) */
+    kart_controls_ControlCommandId_STATE = 11, /* State of a digital input/switch (use specific enums for value) */
+    /* Sensor readings (if controls component has integrated sensors) */
+    kart_controls_ControlCommandId_VOLTAGE = 20,
+    kart_controls_ControlCommandId_CURRENT = 21,
+    kart_controls_ControlCommandId_TEMPERATURE = 22
 } kart_controls_ControlCommandId;
 
 /* Control mode values */
@@ -57,7 +57,14 @@ typedef enum _kart_controls_ControlModeValue {
 typedef enum _kart_controls_ControlCalibrateValue {
     kart_controls_ControlCalibrateValue_CAL_START = 0,
     kart_controls_ControlCalibrateValue_CAL_STOP = 1,
-    kart_controls_ControlCalibrateValue_CAL_RESET = 2
+    kart_controls_ControlCalibrateValue_CAL_RESET = 2,
+    kart_controls_ControlCalibrateValue_CAL_THROTTLE_MIN = 10, /* Specific calibration targets */
+    kart_controls_ControlCalibrateValue_CAL_THROTTLE_MAX = 11,
+    kart_controls_ControlCalibrateValue_CAL_BRAKE_MIN = 12,
+    kart_controls_ControlCalibrateValue_CAL_BRAKE_MAX = 13,
+    kart_controls_ControlCalibrateValue_CAL_STEERING_CENTER = 14,
+    kart_controls_ControlCalibrateValue_CAL_STEERING_LEFT_LIMIT = 15,
+    kart_controls_ControlCalibrateValue_CAL_STEERING_RIGHT_LIMIT = 16
 } kart_controls_ControlCalibrateValue;
 
 /* Control emergency values */
@@ -67,30 +74,64 @@ typedef enum _kart_controls_ControlEmergencyValue {
     kart_controls_ControlEmergencyValue_LIMP_HOME = 2
 } kart_controls_ControlEmergencyValue;
 
+/* Used with ControlComponentId.TURN_SIGNAL_SWITCH and ControlCommandId.STATE */
+typedef enum _kart_controls_TurnSignalStateValue {
+    kart_controls_TurnSignalStateValue_TURN_SIGNAL_OFF = 0,
+    kart_controls_TurnSignalStateValue_TURN_SIGNAL_LEFT = 1,
+    kart_controls_TurnSignalStateValue_TURN_SIGNAL_RIGHT = 2
+} kart_controls_TurnSignalStateValue;
+
+/* Used with ControlComponentId.HAZARD_SWITCH and ControlCommandId.STATE */
+typedef enum _kart_controls_HazardStateValue {
+    kart_controls_HazardStateValue_HAZARD_OFF = 0,
+    kart_controls_HazardStateValue_HAZARD_ON = 1
+} kart_controls_HazardStateValue;
+
+/* Used with ControlComponentId.LIGHTS_SWITCH and ControlCommandId.MODE
+ Mirrors LightModeValue where applicable, but represents the *switch position* */
+typedef enum _kart_controls_LightsSwitchModeValue {
+    kart_controls_LightsSwitchModeValue_LIGHTS_MODE_OFF = 0, /* Switch position OFF */
+    kart_controls_LightsSwitchModeValue_LIGHTS_MODE_ON = 1, /* Switch position ON (or Parking/Running lights) */
+    kart_controls_LightsSwitchModeValue_LIGHTS_MODE_LOW = 2, /* Switch position LOW BEAM */
+    kart_controls_LightsSwitchModeValue_LIGHTS_MODE_HIGH = 3 /* Switch position HIGH BEAM */
+} kart_controls_LightsSwitchModeValue;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Helper constants for enums */
-#define _kart_controls_ControlComponentId_MIN kart_controls_ControlComponentId_THROTTLE
+#define _kart_controls_ControlComponentId_MIN kart_controls_ControlComponentId_SYSTEM
 #define _kart_controls_ControlComponentId_MAX kart_controls_ControlComponentId_ALL
 #define _kart_controls_ControlComponentId_ARRAYSIZE ((kart_controls_ControlComponentId)(kart_controls_ControlComponentId_ALL+1))
 
 #define _kart_controls_ControlCommandId_MIN kart_controls_ControlCommandId_ENABLE
-#define _kart_controls_ControlCommandId_MAX kart_controls_ControlCommandId_PRESSURE
-#define _kart_controls_ControlCommandId_ARRAYSIZE ((kart_controls_ControlCommandId)(kart_controls_ControlCommandId_PRESSURE+1))
+#define _kart_controls_ControlCommandId_MAX kart_controls_ControlCommandId_TEMPERATURE
+#define _kart_controls_ControlCommandId_ARRAYSIZE ((kart_controls_ControlCommandId)(kart_controls_ControlCommandId_TEMPERATURE+1))
 
 #define _kart_controls_ControlModeValue_MIN kart_controls_ControlModeValue_MANUAL
 #define _kart_controls_ControlModeValue_MAX kart_controls_ControlModeValue_TEST
 #define _kart_controls_ControlModeValue_ARRAYSIZE ((kart_controls_ControlModeValue)(kart_controls_ControlModeValue_TEST+1))
 
 #define _kart_controls_ControlCalibrateValue_MIN kart_controls_ControlCalibrateValue_CAL_START
-#define _kart_controls_ControlCalibrateValue_MAX kart_controls_ControlCalibrateValue_CAL_RESET
-#define _kart_controls_ControlCalibrateValue_ARRAYSIZE ((kart_controls_ControlCalibrateValue)(kart_controls_ControlCalibrateValue_CAL_RESET+1))
+#define _kart_controls_ControlCalibrateValue_MAX kart_controls_ControlCalibrateValue_CAL_STEERING_RIGHT_LIMIT
+#define _kart_controls_ControlCalibrateValue_ARRAYSIZE ((kart_controls_ControlCalibrateValue)(kart_controls_ControlCalibrateValue_CAL_STEERING_RIGHT_LIMIT+1))
 
 #define _kart_controls_ControlEmergencyValue_MIN kart_controls_ControlEmergencyValue_NORMAL
 #define _kart_controls_ControlEmergencyValue_MAX kart_controls_ControlEmergencyValue_LIMP_HOME
 #define _kart_controls_ControlEmergencyValue_ARRAYSIZE ((kart_controls_ControlEmergencyValue)(kart_controls_ControlEmergencyValue_LIMP_HOME+1))
+
+#define _kart_controls_TurnSignalStateValue_MIN kart_controls_TurnSignalStateValue_TURN_SIGNAL_OFF
+#define _kart_controls_TurnSignalStateValue_MAX kart_controls_TurnSignalStateValue_TURN_SIGNAL_RIGHT
+#define _kart_controls_TurnSignalStateValue_ARRAYSIZE ((kart_controls_TurnSignalStateValue)(kart_controls_TurnSignalStateValue_TURN_SIGNAL_RIGHT+1))
+
+#define _kart_controls_HazardStateValue_MIN kart_controls_HazardStateValue_HAZARD_OFF
+#define _kart_controls_HazardStateValue_MAX kart_controls_HazardStateValue_HAZARD_ON
+#define _kart_controls_HazardStateValue_ARRAYSIZE ((kart_controls_HazardStateValue)(kart_controls_HazardStateValue_HAZARD_ON+1))
+
+#define _kart_controls_LightsSwitchModeValue_MIN kart_controls_LightsSwitchModeValue_LIGHTS_MODE_OFF
+#define _kart_controls_LightsSwitchModeValue_MAX kart_controls_LightsSwitchModeValue_LIGHTS_MODE_HIGH
+#define _kart_controls_LightsSwitchModeValue_ARRAYSIZE ((kart_controls_LightsSwitchModeValue)(kart_controls_LightsSwitchModeValue_LIGHTS_MODE_HIGH+1))
 
 
 #ifdef __cplusplus

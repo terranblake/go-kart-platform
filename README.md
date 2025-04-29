@@ -28,9 +28,9 @@ Modular electric go-kart with standardized communication, component control, and
 └─────┬─────────┬──────────┬─────────┬────┘
       ^         ^          ^         ^
       ▼         ▼          ▼         ▼
-┌──────────┐ ┌────────┐ ┌──────┐ ┌─────────┐
-│  Lights  │ │ Motors │ │ BMS  │ │ Sensors │
-└──────────┘ └────────┘ └──────┘ └─────────┘
+┌──────────┐ ┌────────┐ ┌──────┐ ┌─────────┐ ┌─────────┐
+│  Lights  │ │ Motors │ │ BMS  │ │ Sensors │ │ Controls│
+└──────────┘ └────────┘ └──────┘ └─────────┘ └─────────┘
 ```
 
 ## Component Reference
@@ -41,13 +41,15 @@ Modular electric go-kart with standardized communication, component control, and
 | Telemetry | Data storage | Python, sqlite | telemetry/collector/ |
 | Lights | Lighting control | Arduino, C++ | components/lights/ |
 | Motors | Motor control | Arduino, C++ | components/motors/ |
+| Controls | Driver input handling | Arduino, C++ | components/controls/ |
+| Navigation | Position/IMU/Environment | Arduino, C++ | components/navigation/ |
 | Protocol | Message definitions | Protobuf | protocol/kart_protocol.proto |
 | CrossPlatformCAN | CAN interface | C++, Python | components/common/lib/CrossPlatformCAN/ |
 
 ## Protocol Summary
 - **Message Format**: `[msg_type, comp_type, comp_id, cmd_id, value_type, value]`
 - **Message Types**: COMMAND(0), STATUS(1), ACK(2), ERROR(3)
-- **Component Types**: LIGHTS(0), MOTORS(1), SENSORS(2), BATTERY(3), CONTROLS(4)
+- **Component Types**: LIGHTS(0), MOTORS(1), BATTERIES(2), CONTROLS(3), NAVIGATION(4)
 
 ## Quick Start
 ```bash
@@ -75,10 +77,13 @@ go-kart-platform/
 ├── components/          # Arduino component controllers
 │   ├── lights/          # Light control system
 │   ├── motors/          # Motor control system
-│   ├── batteries/       # Battery management
-│   ├── inputs/          # User input processing
+│   ├── batteries/       # Battery management (BMS)
+│   ├── controls/        # Driver input handling
+│   ├── navigation/      # GPS/IMU/Environment sensors
 │   └── common/lib/      # Shared libraries
 │       └── CrossPlatformCAN/  # CAN interface library
+│       └── sensors/       # Sensor framework
+│       └── adc/           # ADC reader framework
 ├── protocol/            # Protocol Buffer definitions
 └── docs/                # Documentation
 ```
@@ -97,7 +102,7 @@ go-kart-platform/
    - Access UI at `http://localhost:5000`
 
 3. **Protocol Changes**:
-   - Edit `protocol/kart_protocol.proto`
+   - Edit `protocol/*.proto`
    - Generate code with `./protocol/build.sh`
    - Update implementations in affected components
 <!-- LLM_CODE_MARKER_END -->

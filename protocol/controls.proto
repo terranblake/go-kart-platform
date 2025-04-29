@@ -4,35 +4,36 @@ package kart.controls;
 
 // Control component IDs
 enum ControlComponentId {
-  THROTTLE = 0;
-  BRAKE = 1;
-  STEERING = 2;
-  TRANSMISSION = 3;
-  SUSPENSION = 4;
-  COOLING = 5;
-  USER_INTERFACE = 6;
-  SECURITY = 7;
-  DIAGNOSTIC = 8;
-  AUTONOMOUS = 9;
-  ALL = 10;
+  SYSTEM = 0;             // General system controls/status
+  THROTTLE = 1;           // Throttle pedal input
+  BRAKE = 2;              // Brake pedal input
+  STEERING = 3;           // Steering wheel input
+  TURN_SIGNAL_SWITCH = 4; // Turn signal switch input
+  HAZARD_SWITCH = 5;      // Hazard light switch input
+  LIGHTS_SWITCH = 6;      // Headlight switch input
+  // Add other physical controls here
+  ALL = 255;              // All controls components
 }
 
 // Control command IDs
 enum ControlCommandId {
-  ENABLE = 0;
-  DISABLE = 1;
-  RESET = 2;
-  MODE = 3;
-  PARAMETER = 4;
-  LIMIT = 5;
-  CALIBRATE = 6;
-  EMERGENCY = 7;
+  // Generic commands (can apply to SYSTEM or specific components)
+  ENABLE = 0;             // Enable component/feature
+  DISABLE = 1;            // Disable component/feature
+  RESET = 2;              // Reset component
+  MODE = 3;               // Set operating mode (use specific enums for value)
+  PARAMETER = 4;          // Set generic parameter
+  CALIBRATE = 6;          // Trigger calibration routine
+  EMERGENCY = 7;          // Emergency state command
 
-  // Sensor readings
-  VOLTAGE = 8;
-  CURRENT = 9;
-  TEMPERATURE = 10;
-  PRESSURE = 11;
+  // Specific input readings/states
+  POSITION = 10;          // Position of analog control (Throttle, Brake, Steering) (0-1024)
+  STATE = 11;             // State of a digital input/switch (use specific enums for value)
+  
+  // Sensor readings (if controls component has integrated sensors)
+  VOLTAGE = 20;
+  CURRENT = 21;
+  TEMPERATURE = 22;
 }
 
 // Control mode values
@@ -51,6 +52,13 @@ enum ControlCalibrateValue {
   CAL_START = 0;
   CAL_STOP = 1;
   CAL_RESET = 2;
+  CAL_THROTTLE_MIN = 10; // Specific calibration targets
+  CAL_THROTTLE_MAX = 11;
+  CAL_BRAKE_MIN = 12;
+  CAL_BRAKE_MAX = 13;
+  CAL_STEERING_CENTER = 14;
+  CAL_STEERING_LEFT_LIMIT = 15;
+  CAL_STEERING_RIGHT_LIMIT = 16;
 }
 
 // Control emergency values
@@ -58,4 +66,29 @@ enum ControlEmergencyValue {
   NORMAL = 0;
   STOP = 1;
   LIMP_HOME = 2;
+}
+
+// --- Value Enums for STATE/MODE Commands ---
+
+// Used with ControlComponentId.TURN_SIGNAL_SWITCH and ControlCommandId.STATE
+enum TurnSignalStateValue {
+  TURN_SIGNAL_OFF = 0;
+  TURN_SIGNAL_LEFT = 1;
+  TURN_SIGNAL_RIGHT = 2;
+}
+
+// Used with ControlComponentId.HAZARD_SWITCH and ControlCommandId.STATE
+enum HazardStateValue {
+  HAZARD_OFF = 0;
+  HAZARD_ON = 1;
+}
+
+// Used with ControlComponentId.LIGHTS_SWITCH and ControlCommandId.MODE
+// Mirrors LightModeValue where applicable, but represents the *switch position*
+enum LightsSwitchModeValue {
+  LIGHTS_MODE_OFF = 0;    // Switch position OFF
+  LIGHTS_MODE_ON = 1;     // Switch position ON (or Parking/Running lights)
+  LIGHTS_MODE_LOW = 2;    // Switch position LOW BEAM
+  LIGHTS_MODE_HIGH = 3;   // Switch position HIGH BEAM
+  // Add AUTO if the switch supports it
 }
