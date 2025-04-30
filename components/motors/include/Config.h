@@ -80,6 +80,17 @@
 // Use transistors for brake control (vs relays)
 #define USING_TRANSISTOR
 
+// Shunt Resistor (Using ADS1115 - Specify channels 0-3)
+#define SHUNT_ADS_CH_P 2 // Example: ADS1115 Channel A2 for positive side
+#define SHUNT_ADS_CH_N 3 // Example: ADS1115 Channel A3 for negative side
+
+#define SHUNT_RESISTANCE_MOHM 1.0f // Shunt resistance in milliohms (0.001 Ohm = 1 mOhm)
+// #define SHUNT_VREF_MV 1100.0f      // REMOVED - Vref/Scaling handled by ADS1115Reader gain
+
+// --- Update Intervals ---
+#define TEMP_UPDATE_INTERVAL 1000
+#define CURRENT_UPDATE_INTERVAL 100 // How often to check current
+
 // Function prototypes
 void setupPins();
 void setThrottle(uint8_t level);

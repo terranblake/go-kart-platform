@@ -34,6 +34,9 @@ MappedAnalogSensor* throttleSensor = nullptr;
 MappedAnalogSensor* brakeSensor = nullptr; // Placeholder
 // MappedAnalogSensor* steeringSensor = nullptr; // Placeholder if using analog steering
 
+// Current Sensor
+// DifferentialCurrentSensor* shuntCurrentSensor = nullptr; // <-- REMOVED
+
 // Digital Inputs
 DigitalInputSensor* turnLeftSensor = nullptr;
 DigitalInputSensor* turnRightSensor = nullptr;
@@ -247,7 +250,8 @@ void parseSerialCommands() {
       Serial.println(F("--- Controls Status ---"));
       // Manually trigger reads and print for debug
       if (throttleSensor) Serial.printf("Throttle: %d / 1024\n", throttleSensor->getValue());
-      if (brakeSensor) Serial.printf("Brake: %d / 1024\n", brakeSensor->getValue());
+      // if (brakeSensor) Serial.printf("Brake: %d / 1024\n", brakeSensor->getValue()); // Keep commented
+      // if (shuntCurrentSensor) Serial.printf("Current: %d mA\n", shuntCurrentSensor->getValue()); // <-- REMOVED
       if (turnLeftSensor) Serial.printf("Turn Left Pin: %s\n", turnLeftSensor->getValue() ? "ACTIVE (LOW)" : "Inactive (HIGH)");
       if (turnRightSensor) Serial.printf("Turn Right Pin: %s\n", turnRightSensor->getValue() ? "ACTIVE (LOW)" : "Inactive (HIGH)");
       if (hazardSensor) Serial.printf("Hazard Pin: %s\n", hazardSensor->getValue() ? "ACTIVE (LOW)" : "Inactive (HIGH)");

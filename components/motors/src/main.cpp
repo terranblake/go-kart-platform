@@ -10,6 +10,7 @@
 // Reverted to relative path
 #include "ThermistorSensor.h"
 #include "KunrayHallRpmSensor.h"
+#include "DifferentialCurrentSensor.h"
 
 // Include ADC Reader framework
 #include "AnalogReader.h"       // Base interface
@@ -42,7 +43,7 @@ bool currentHighBrake = false;
 
 // ADC Reader Instantiation (Moved to global scope)
 Adafruit_ADS1115 ads;         // Create ADS1115 object (use default I2C address 0x48)
-ADS1115Reader adsReader(&ads); // Create the reader wrapper, passing the object
+// ADS1115Reader adsReader(&ads); // Create the reader wrapper, passing the object
 
 // Sensor framework integration - add sensor objects
 SensorRegistry sensorRegistry(canInterface, kart_common_ComponentType_MOTORS, NODE_ID);
@@ -50,6 +51,7 @@ KunrayHallRpmSensor* motorRpmSensor;
 ThermistorSensor* batteryTempSensor;
 ThermistorSensor* controllerTempSensor;
 ThermistorSensor* motorTempSensor;
+DifferentialCurrentSensor* shuntCurrentSensor = nullptr;
 
 // Function prototypes for new functions
 #if DEBUG_MODE == 1
@@ -75,9 +77,9 @@ void setup() {
       // Consider halting or indicating error
     #endif
   } else {
-     adsReader.setGain(GAIN_TWO); // Set gain after successful begin()
+     adsReader.setGain(GAIN_TWO); // Reverted gain for thermistors (~1.7V range -> +/- 2.048V FS)
      #if DEBUG_MODE
-      Serial.println(F("ADS1115 Reader initialized with Gain +/-2.048V"));
+      Serial.println(F("ADS1115 Reader initialized with Gain +/-2.048V (GAIN_TWO)"));
      #endif
   }
 
@@ -131,20 +133,20 @@ void setup() {
                                handleEmergencyCommand);
 
   // Initialize temperature sensors using ADS1115 Reader
-  batteryTempSensor = new ThermistorSensor(
-    kart_common_ComponentType_BATTERIES,
-    kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
-    kart_batteries_BatteryCommandId_TEMPERATURE,
-    (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
-    1,                         // Use ADS1115 Channel 1 for Battery Temp
-    1000,                      // Update interval (ms)
-    SERIES_RESISTOR,
-    THERMISTOR_NOMINAL,
-    TEMPERATURE_NOMINAL,
-    B_COEFFICIENT,
-    kart_common_ValueType_INT16, // Using INT16
-    3300                       // Divider supply voltage (mV)
-  );
+  // batteryTempSensor = new ThermistorSensor(
+  //   kart_common_ComponentType_BATTERIES,
+  //   kart_batteries_BatteryComponentId_MOTOR_LEFT_REAR,
+  //   kart_batteries_BatteryCommandId_TEMPERATURE,
+  //   (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
+  //   1,                         // Use ADS1115 Channel 1 for Battery Temp
+  //   1000,                      // Update interval (ms)
+  //   SERIES_RESISTOR,
+  //   THERMISTOR_NOMINAL,
+  //   TEMPERATURE_NOMINAL,
+  //   B_COEFFICIENT,
+  //   kart_common_ValueType_INT16, // Using INT16
+  //   3300                       // Divider supply voltage (mV)
+  // );
   
   // todo: how to support controller sensors? Needs ADC channel assignment
   // controllerTempSensor = new ThermistorSensor(
@@ -156,20 +158,32 @@ void setup() {
   //   3300                       // Divider supply voltage (mV)
   // );
   
-  motorTempSensor = new ThermistorSensor(
-    kart_common_ComponentType_MOTORS,
-    kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
-    kart_motors_MotorCommandId_TEMPERATURE,
-    (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
-    0,                         // Use ADS1115 Channel 0 for Motor Temp
-    1000,                      // Update interval (ms)
-    SERIES_RESISTOR,
-    THERMISTOR_NOMINAL,
-    TEMPERATURE_NOMINAL,
-    B_COEFFICIENT,
-    kart_common_ValueType_INT16, // Using INT16
-    3300                       // Divider supply voltage (mV)
-  );
+  // motorTempSensor = new ThermistorSensor(
+  //   kart_common_ComponentType_MOTORS,
+  //   kart_motors_MotorComponentId_MOTOR_LEFT_REAR,
+  //   kart_motors_MotorCommandId_TEMPERATURE,
+  //   (AnalogReader*)&adsReader,   // Explicitly cast to AnalogReader*
+  //   0,                         // Use ADS1115 Channel 0 for Motor Temp
+  //   1000,                      // Update interval (ms)
+  //   SERIES_RESISTOR,
+  //   THERMISTOR_NOMINAL,
+  //   TEMPERATURE_NOMINAL,
+  //   B_COEFFICIENT,
+  //   kart_common_ValueType_INT16, // Using INT16
+  //   3300                       // Divider supply voltage (mV)
+  // );
+
+  // --- Initialize Current Sensor using ADS1115 Reader --- 
+  // shuntCurrentSensor = new DifferentialCurrentSensor(
+  //   kart_common_ComponentType_BATTERIES, // Logically belongs to Batteries
+  //   0, // Assuming Component ID 0 for main battery pack current
+  //   kart_batteries_BatteryCommandId_CURRENT, // Command ID for Current
+  //   (AnalogReader*)&adsReader, // Pass the ADS1115 reader instance
+  //   SHUNT_ADS_CH_P,            // Positive ADS channel from Config.h
+  //   SHUNT_ADS_CH_N,            // Negative ADS channel from Config.h
+  //   CURRENT_UPDATE_INTERVAL,   // Update interval from Config.h
+  //   SHUNT_RESISTANCE_MOHM    // Shunt resistance from Config.h
+  // );
 
   // Initialize RPM sensor with the sensor framework
   motorRpmSensor = new KunrayHallRpmSensor(
@@ -179,10 +193,11 @@ void setup() {
   
   // Register the sensors with the registry
   // begin() is called inside registerSensor (which now attaches the single RPM interrupt)
-  sensorRegistry.registerSensor(motorRpmSensor);
-  sensorRegistry.registerSensor(batteryTempSensor);
-  // sensorRegistry.registerSensor(controllerTempSensor); // Register if implemented
-  sensorRegistry.registerSensor(motorTempSensor);
+  // sensorRegistry.registerSensor(motorRpmSensor);
+  // sensorRegistry.registerSensor(batteryTempSensor);
+  // // sensorRegistry.registerSensor(controllerTempSensor); // Register if implemented
+  // sensorRegistry.registerSensor(motorTempSensor);
+  // sensorRegistry.registerSensor(shuntCurrentSensor);
   
 #if DEBUG_MODE
   Serial.println(F("Motor controller initialized"));
@@ -580,18 +595,18 @@ void parseSerialCommands() {
       // Declare variables here
       int32_t batTempTenths = batteryTempSensor ? batteryTempSensor->getValue() : -9999;
       int32_t motTempTenths = motorTempSensor ? motorTempSensor->getValue() : -9999;
-      // int32_t ctrlTempTenths = controllerTempSensor ? controllerTempSensor->getValue() : -9999;
+      int32_t current_mA = shuntCurrentSensor ? shuntCurrentSensor->getValue() : -32768;
 
       Serial.print(F("Battery Temp (Sensor): "));
       // Corrected printf format string
       if (batTempTenths != -9999) Serial.printf("%.1f C\n", (float)batTempTenths / 10.0f); else Serial.println("N/A");
 
-      // Serial.print(F("Controller Temp (Sensor): "));
-      // if (ctrlTempTenths != -9999) Serial.printf("%.1f C\n", (float)ctrlTempTenths / 10.0f); else Serial.println("N/A");
-
       Serial.print(F("Motor Temp (Sensor): "));
       // Corrected printf format string
        if (motTempTenths != -9999) Serial.printf("%.1f C\n", (float)motTempTenths / 10.0f); else Serial.println("N/A");
+
+      Serial.print(F("Shunt Current (Sensor): "));
+      if (current_mA != -32768) Serial.printf("%d mA\n", current_mA); else Serial.println("N/A");
 
       // Hall state/count are internal to Kunray sensor now
       // Serial.print(F("Hall pulse count: "));

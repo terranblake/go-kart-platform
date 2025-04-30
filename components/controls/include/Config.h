@@ -45,8 +45,8 @@
 #define STEERING_ATTEN ADC_ATTEN_DB_12 // Example
 
 // --- Sensor Configuration ---
-#define THROTTLE_MIN_ADC 1000   // Calibrated min ADC value for throttle released
-#define THROTTLE_MAX_ADC 3000  // Calibrated max ADC value for throttle fully pressed
+#define THROTTLE_MIN_ADC 100   // Example raw ADC value for throttle released
+#define THROTTLE_MAX_ADC 3000  // Example raw ADC value for throttle fully pressed
 #define BRAKE_MIN_ADC 100      // Example raw ADC value for brake released
 #define BRAKE_MAX_ADC 4000     // Example raw ADC value for brake fully pressed
 
