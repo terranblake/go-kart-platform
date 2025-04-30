@@ -2,18 +2,19 @@ import time
 import logging
 import threading
 import os
+import requests # Import requests library
 from flask import Flask, Blueprint, render_template
 from flask_socketio import SocketIO
 from flask_cors import CORS
 
 # Import CAN interface
-from lib.can.interface import CANInterfaceWrapper
+from can.interface import CANInterfaceWrapper
 from api.telemetry import register_telemetry_routes
 from api.commands import register_command_routes
 from api.direct_commands import register_direct_command_routes
 from api.protocol import register_protocol_routes
-from lib.can.protocol_registry import ProtocolRegistry
-from lib.telemetry.store import TelemetryStore
+from can.protocol_registry import ProtocolRegistry
+from telemetry.store import TelemetryStore
 
 # Let ProtocolRegistry autodetect the path
 protocol_path = None
@@ -52,7 +53,10 @@ thread_lock = threading.Lock()
 UPDATE_INTERVAL = 0.1  # seconds
 clients_connected = False
 running = True
-state_history = []
+# state_history = [] # Remove dashboard-local history
+
+# Define Telemetry Collector API URL (ideally from config/env)
+COLLECTOR_API_URL = "http://localhost:5001" # Default from collector config
 
 # Home page route
 @app.route('/')
@@ -101,38 +105,47 @@ def handle_disconnect():
 
 
 def send_updates():
-    """Send periodic state updates to connected clients."""
+    """Send periodic state updates to connected clients by fetching from Telemetry Collector."""
     global running, clients_connected
-    
-    logger.info("Starting update thread")
+
+    logger.info("Starting update thread (fetching from collector)")
     running = True
-    last_update = time.time()
-    
+    last_update_time = time.time()
+
     while running and clients_connected:
-        try:
-            # Process CAN messages is now handled automatically by the background thread
-            # No need to call can_interface.process() here
-            
-            # Get the current state from telemetry store
-            current_time = time.time()
-            if current_time - last_update >= UPDATE_INTERVAL:
-                state = telemetry_store.get_current_state(readable=True)
-                
-                # Send the state to all connected clients
+        current_time = time.time()
+        if current_time - last_update_time >= UPDATE_INTERVAL:
+            try:
+                # Fetch the current state from the Telemetry Collector API
+                response = requests.get(f"{COLLECTOR_API_URL}/api/state/current", timeout=0.5) # Add timeout
+                response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
+                state = response.json()
+
+                # Send the fetched state to all connected clients
                 socketio.emit('state_update', state)
-                last_update = current_time
-                
-                # Add to history (limit to 1000 entries)
-                state_history.append(state)
-                if len(state_history) > 1000:
-                    state_history.pop(0)
-            
-            # Sleep a bit to avoid hogging CPU
-            time.sleep(0.01)
-        except Exception as e:
-            logger.error(f"Error in update thread:", e, exc_info=True)
-            time.sleep(1.0)  # Longer sleep on error
-    
+                last_update_time = current_time
+
+                # Remove local history management
+                # state_history.append(state)
+                # if len(state_history) > 1000:
+                #     state_history.pop(0)
+
+            except requests.exceptions.Timeout:
+                 logger.warning("Timeout fetching state from Telemetry Collector.")
+            except requests.exceptions.ConnectionError:
+                logger.error("Connection error fetching state from Telemetry Collector. Is it running?")
+                # Optional: Sleep longer if connection fails repeatedly
+                time.sleep(2.0)
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error fetching state from Telemetry Collector: {e}")
+                time.sleep(1.0) # Longer sleep on other request errors
+            except Exception as e:
+                logger.error(f"Error in update thread: {e}", exc_info=True)
+                time.sleep(1.0) # Longer sleep on general error
+
+        # Sleep a bit to avoid hogging CPU, especially if requests fail quickly
+        time.sleep(0.05)
+
     logger.info("Update thread stopped")
 
 if __name__ == "__main__":

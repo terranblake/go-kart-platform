@@ -1,0 +1,7 @@
+# List required Python packages for the Telemetry Collector
+
+Flask>=2.0
+cffi>=1.15
+# Add other dependencies as needed, e.g.:
+# Flask-SocketIO (if using websockets in API)
+# PyYAML (if using YAML config)

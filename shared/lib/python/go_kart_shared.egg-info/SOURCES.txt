@@ -1,0 +1,15 @@
+setup.py
+./can/__init__.py
+./can/interface.py
+./can/protocol_registry.py
+./telemetry/__init__.py
+./telemetry/store.py
+can/__init__.py
+can/interface.py
+can/protocol_registry.py
+go_kart_shared.egg-info/PKG-INFO
+go_kart_shared.egg-info/SOURCES.txt
+go_kart_shared.egg-info/dependency_links.txt
+go_kart_shared.egg-info/top_level.txt
+telemetry/__init__.py
+telemetry/store.py

@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: go_kart_shared_lib
+Version: 0.1.1
+Summary: Shared Python libraries for Go-Kart Platform (CAN, Telemetry)
+Author: Your Name / Team
+Dynamic: author
+Dynamic: summary

@@ -1,0 +1,1 @@
+# Make shared a namespace package (or regular package) 

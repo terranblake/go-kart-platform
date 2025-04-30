@@ -14,3 +14,10 @@ pytest==6.2.5
 pytest-flask==1.2.0
 gevent==21.8.0
 gevent-websocket==0.10.1
+
+# Dashboard Server Requirements
+Flask>=2.0
+Flask-SocketIO>=5.0
+Flask-Cors>=3.0
+cffi>=1.15
+requests>=2.20

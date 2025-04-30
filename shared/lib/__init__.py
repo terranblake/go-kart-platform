@@ -1,0 +1,1 @@
+# Make shared/lib a namespace package (or regular package) 
