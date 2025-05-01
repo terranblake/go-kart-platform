@@ -51,10 +51,13 @@ def state_to_readable_dict(state: GoKartState, protocol: ProtocolRegistry) -> di
     return readable_dict
 
 class TelemetryStore:
-    def __init__(self, protocol: ProtocolRegistry):
+    def __init__(self, protocol: ProtocolRegistry, limit=100):
         self.state = GoKartState() # Holds the *very last* message received
         self.protocol = protocol
-        # self.history = [] # In-memory history removed, handled by PersistentTelemetryStore
+        self.limit = limit
+
+        # even though we use persistent store, we still need to keep a history for the dashboard
+        self.history = []
         self.last_update_time = time.time()
 
     def get_current_state(self, readable=False):
@@ -71,22 +74,18 @@ class TelemetryStore:
         Stub method for backward compatibility with dashboard.
         In the base class, this returns an empty list.
         PersistentTelemetryStore overrides this with DB access.
+        Keep this data for 
         """
-        logger.warning("Using stub get_history() that returns empty list. Use PersistentTelemetryStore for history.")
-        return []
+        # get limit max self.limit
+        _limit = min(limit, self.limit)
+        return self.history[-_limit:]
 
     def update_state(self, state: GoKartState):
         """Update the current state (last message received)."""
         self.state = state
         self.last_update_time = state.timestamp
-        # state_dict = state.to_dict()
-        # self.history.append(state_dict)
-        # # limit history to 100 entries
-        # if len(self.history) > 100:
-        #     self.history.pop(0)
-        # return state_dict # Return the raw state object instead? Or None?
-        return None # Let Persistent store handle return value
-
-    # Removed to_readable_dict, use static function state_to_readable_dict instead
-    # def to_readable_dict(self):
-    #     ...
+        state_dict = state.to_dict()
+        self.history.append(state_dict)
+        if len(self.history) > self.limit:
+            self.history.pop(0)
+        return state_dict # Return the raw state object instead? Or None?

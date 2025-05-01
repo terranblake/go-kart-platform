@@ -28,13 +28,12 @@ import os
 import platform
 import time
 import threading
-from typing import Callable
 from cffi import FFI
 
 # Use relative imports
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
 from shared.lib.python.telemetry.state import GoKartState
-from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
+from shared.lib.python.telemetry.store import TelemetryStore
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -63,7 +62,7 @@ ffi.cdef("""
         kart_common_ComponentType comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
+        void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
     );
     bool can_interface_send_message(
         can_interface_t handle,
@@ -109,7 +108,7 @@ class CANInterfaceWrapper:
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: PersistentTelemetryStore = None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: TelemetryStore = None):
         """
         Initialize the CAN interface.
         
@@ -170,6 +169,8 @@ class CANInterfaceWrapper:
     def _handle_message(self, msg_type, comp_type, comp_id, cmd_id, val_type, value):
         """Default message handler that logs messages and processes them through the protocol registry"""
         
+        self.logger.info(f"Received message: {msg_type} {comp_type} {comp_id} {cmd_id} {val_type} {value}")
+
         if not self.telemetry_store:
             logger.error("Telemetry store is not set, dropping message")
             return
@@ -227,7 +228,7 @@ class CANInterfaceWrapper:
         
         # Define the callback function signature for CFFI
         # This MUST match the signature in c_api.h!
-        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        @ffi.callback("void(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)")
         def callback(msg_type_c, comp_type_c, comp_id_c, cmd_id_c, val_type_c, value_c):
             try:
                 # Call the user-provided Python handler
