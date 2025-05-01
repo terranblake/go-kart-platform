@@ -2,19 +2,20 @@ import time
 import logging
 import threading
 import os
+import sys
 import requests # Import requests library
 from flask import Flask, Blueprint, render_template
 from flask_socketio import SocketIO
 from flask_cors import CORS
 
-# Import CAN interface
-from can.interface import CANInterfaceWrapper
+from shared.lib.python.can.interface import CANInterfaceWrapper
+from shared.lib.python.can.protocol_registry import ProtocolRegistry
+from shared.lib.python.telemetry.persistent_store import TelemetryStore
+
 from api.telemetry import register_telemetry_routes
 from api.commands import register_command_routes
 from api.direct_commands import register_direct_command_routes
 from api.protocol import register_protocol_routes
-from can.protocol_registry import ProtocolRegistry
-from telemetry.store import TelemetryStore
 
 # Let ProtocolRegistry autodetect the path
 protocol_path = None
@@ -22,8 +23,6 @@ protocol_path = None
 # Create telemetry store and protocol registry
 protocol_registry = ProtocolRegistry(pb_path=protocol_path)
 telemetry_store = TelemetryStore(protocol=protocol_registry)
-
-# Initialize CAN interface with telemetry store reference and protocol registry
 can_interface = CANInterfaceWrapper(
     node_id=0x01, 
     channel='can0', 

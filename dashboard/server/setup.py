@@ -23,8 +23,8 @@ protocol_gen_dir = os.path.join(repo_root, 'protocol', 'generated', 'nanopb')
 print(f"Protocol generated directory: {protocol_gen_dir}")
 
 # Path to the server lib/can directory for the output library
-server_lib_can_dir = os.path.join(os.path.dirname(__file__), 'lib', 'can')
-print(f"Server lib/can directory: {server_lib_can_dir}")
+shared_lib_can_dir = os.path.join(repo_root, 'shared', 'lib', 'python', 'can')
+print(f"Shared lib/can directory: {shared_lib_can_dir}")
 
 # Check if directories exist
 if not os.path.exists(cross_platform_can_dir):
@@ -40,7 +40,7 @@ if not os.path.exists(protocol_gen_dir):
     sys.exit(1)
 
 # Ensure the server lib/can directory exists
-os.makedirs(server_lib_can_dir, exist_ok=True)
+os.makedirs(shared_lib_can_dir, exist_ok=True)
 
 # Detect the system platform
 SYSTEM_PLATFORM = platform.system().lower()
@@ -79,38 +79,37 @@ def build_crossplatform_can():
                     shutil.copy(os.path.join(nanopb_dir, file), nanopb_include_dir)
                     print(f"Copied {file} to {nanopb_include_dir}")
 
-        # Create a placeholder or compile based on platform
+        # Change to the CrossPlatformCAN directory for compiling
+        os.chdir(cross_platform_can_dir)
+
+        # Platform-specific build commands
         if SYSTEM_PLATFORM == 'linux':
-            # Change to the CrossPlatformCAN directory for compiling
-            os.chdir(cross_platform_can_dir)
-            
-            # Build the library on Linux
-            build_cmd = [
-                "g++", "-shared", "-fPIC", 
-                "-I", include_dir,
-                "-I", nanopb_include_dir,
-                "-DDEBUG_MODE",
-                "CANInterface.cpp", "ProtobufCANInterface.cpp", "c_api.cpp",
-                "-o", "libCrossPlatformCAN.so"
-            ]
-            
-            subprocess.run(build_cmd, check=True)
-            
-            # Copy the shared library to the server lib/can directory with the correct name
-            shutil.copy("libCrossPlatformCAN.so", os.path.join(server_lib_can_dir, "libcaninterface.so"))
-            
-            print(f"CrossPlatformCAN library built and copied to {server_lib_can_dir}/libcaninterface.so")
+            platform_define = "-DPLATFORM_LINUX"
+            output_lib = "libcaninterface.so"
+        elif SYSTEM_PLATFORM == 'darwin':
+            platform_define = "-DPLATFORM_DARWIN"
+            output_lib = "libcaninterface.dylib"
         else:
-            # On non-Linux platforms, just create a placeholder file
-            placeholder_path = os.path.join(server_lib_can_dir, "libcaninterface.so")
-            with open(placeholder_path, 'w') as f:
-                f.write("# This is a placeholder file for non-Linux platforms.\n")
-                f.write("# The actual library must be built on a Linux system or Raspberry Pi.\n")
-            
-            print(f"Created placeholder library file at {placeholder_path}")
-            print("NOTE: This is not an actual shared library and will not work.")
-            print("The real library must be built on a Linux system or Raspberry Pi.")
-            
+            print(f"Unsupported platform: {SYSTEM_PLATFORM}")
+            sys.exit(1)
+
+        # Build the library
+        build_cmd = [
+            "g++", "-shared", "-fPIC",
+            "-I", include_dir,
+            "-I", nanopb_include_dir,
+            "-DDEBUG_MODE",
+            "CANInterface.cpp", "ProtobufCANInterface.cpp", "c_api.cpp",
+            "-o", output_lib
+        ]
+
+        subprocess.run(build_cmd, check=True)
+
+        # Copy the shared library to the server lib/can directory with the correct name
+        shutil.copy(output_lib, os.path.join(shared_lib_can_dir, output_lib))
+
+        print(f"CrossPlatformCAN library built and copied to {shared_lib_can_dir}/{output_lib}")
+
     except subprocess.CalledProcessError as e:
         print(f"Error building CrossPlatformCAN library: {str(e)}")
         if SYSTEM_PLATFORM != 'linux':

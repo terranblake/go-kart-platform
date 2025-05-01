@@ -13,7 +13,8 @@ extern "C" {
 
 // Constructor and destructor wrappers
 EXPORT can_interface_t can_interface_create(uint32_t node_id) {
-    ProtobufCANInterface* interface = new ProtobufCANInterface(node_id);
+    // Provide default csPin and intPin (-1) for non-ESP32 platforms
+    ProtobufCANInterface* interface = new ProtobufCANInterface(node_id, -1, -1);
     return interface;
 }
 

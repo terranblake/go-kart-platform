@@ -16,7 +16,7 @@ if PROJECT_ROOT not in sys.path:
 try:
     # Use relative imports since we're adding project root to path
     from shared.lib.python.can.protocol_registry import ProtocolRegistry
-    from shared.lib.python.can.interface import CANInterfaceWrapper, MockCANInterface
+    from shared.lib.python.can.interface import CANInterfaceWrapper
     from shared.lib.python.telemetry.store import TelemetryStore
     # print(f"DEBUG: Successfully imported modules.")
 except ImportError as e:
@@ -270,11 +270,11 @@ class CANSimulator:
             
             # Turn signal switch position - matches light signals
             if 10 <= (self.simulation_time % 30) < 20:
-                turn_signal_state = 'TURN_SIGNAL_LEFT'
+                turn_signal_state = 'LEFT'
             elif 20 <= (self.simulation_time % 30) < 30:
-                turn_signal_state = 'TURN_SIGNAL_RIGHT'
+                turn_signal_state = 'RIGHT'
             else:
-                turn_signal_state = 'TURN_SIGNAL_OFF'
+                turn_signal_state = 'NONE'
                 
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'TURN_SIGNAL_SWITCH', 'STATE',

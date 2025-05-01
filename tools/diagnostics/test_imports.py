@@ -31,8 +31,8 @@ try:
     print("Successfully imported TelemetryStore")
     
     # Try to import the CAN interface
-    from shared.lib.python.can.interface import CANInterfaceWrapper, MockCANInterface
-    print("Successfully imported CANInterfaceWrapper and MockCANInterface")
+    from shared.lib.python.can.interface import CANInterfaceWrapper
+    print("Successfully imported CANInterfaceWrapper")
     
     print("All imports successful!")
     

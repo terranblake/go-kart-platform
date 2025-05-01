@@ -4,7 +4,7 @@ API routes for viewing and exploring the protocol structure
 
 from flask import jsonify, render_template, Blueprint
 import logging
-from lib.can.protocol_registry import ProtocolRegistry
+from shared.lib.python.can.protocol_registry import ProtocolRegistry
 
 logger = logging.getLogger(__name__)
 

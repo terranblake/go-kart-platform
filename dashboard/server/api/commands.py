@@ -4,7 +4,7 @@ API routes for sending commands to the go-kart
 
 from flask import jsonify, request, Blueprint
 import logging
-from lib.can.interface import CANInterfaceWrapper
+from shared.lib.python.can.interface import CANInterfaceWrapper
 
 logger = logging.getLogger(__name__)
 

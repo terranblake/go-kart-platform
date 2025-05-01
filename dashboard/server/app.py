@@ -4,6 +4,14 @@ Go-Kart Dashboard Server - Main entry point
 
 import threading
 import logging
+import os
+import sys
+
+# Add project root to Python path for shared module imports
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from api.endpoints import app, socketio, send_updates
 # Configure logging
 logging.basicConfig(level=logging.INFO,

@@ -4,6 +4,14 @@
 
 #include "CANInterface.h"
 
+// --- Define Multicast Constants (for Darwin) ---
+#ifdef PLATFORM_DARWIN
+#define MULTICAST_GROUP "239.0.0.1"
+#define MULTICAST_PORT 5555
+#define CAN_MESSAGE_BUFFER_SIZE 13 // 4 (id) + 1 (len) + 8 (data)
+#endif
+// --------------------------------------------
+
 // Constructors
 #ifdef PLATFORM_ESP32
 CANInterface::CANInterface(int csPin, int intPin) : 
@@ -108,7 +116,90 @@ bool CANInterface::begin(long baudRate, const char* canDevice, int csPin, int in
 
   Serial.printf("MCP2515 initialized successfully at %ld bps.\n", baudRate);
   return true;
-#elif defined PLATFORM_LINUX
+#elif defined(PLATFORM_DARWIN)
+  // macOS/Darwin implementation using UDP Multicast
+  printf("macOS CAN Interface: Initializing UDP Multicast on %s:%d\n", MULTICAST_GROUP, MULTICAST_PORT);
+
+  // 1. Create UDP socket
+  m_socket = socket(AF_INET, SOCK_DGRAM, 0);
+  if (m_socket < 0) {
+    perror("Multicast socket creation failed");
+    return false;
+  }
+  printf("Debug: Multicast socket created successfully (fd=%d)\n", m_socket);
+
+  // 2. Allow multiple sockets to use the same PORT number
+  int reuse = 1;
+  if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse)) < 0) {
+    perror("Setting SO_REUSEADDR error");
+    close(m_socket); m_socket = -1;
+    return false;
+  }
+  #ifdef SO_REUSEPORT // Needed on macOS more often than Linux
+  if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, (char *)&reuse, sizeof(reuse)) < 0) {
+     perror("Setting SO_REUSEPORT error");
+     close(m_socket); m_socket = -1;
+     return false;
+  }
+  #endif
+  printf("Debug: SO_REUSEADDR/SO_REUSEPORT set\n");
+
+  // 3. Set up local address structure
+  memset((char *) &m_local_addr, 0, sizeof(m_local_addr));
+  m_local_addr.sin_family = AF_INET;
+  m_local_addr.sin_port = htons(MULTICAST_PORT);
+  m_local_addr.sin_addr.s_addr = htonl(INADDR_ANY); // Bind to any interface
+
+  // 4. Bind to the local address
+  if (bind(m_socket, (struct sockaddr*) &m_local_addr, sizeof(m_local_addr)) < 0) {
+    perror("Multicast bind failed");
+    close(m_socket); m_socket = -1;
+    return false;
+  }
+   printf("Debug: Multicast socket bound to port %d\n", MULTICAST_PORT);
+
+  // 5. Set up multicast group address structure
+  memset((char *) &m_multicast_addr, 0, sizeof(m_multicast_addr));
+  m_multicast_addr.sin_family = AF_INET;
+  m_multicast_addr.sin_port = htons(MULTICAST_PORT);
+  m_multicast_addr.sin_addr.s_addr = inet_addr(MULTICAST_GROUP);
+
+  // 6. Join the multicast group
+  struct ip_mreq mreq;
+  mreq.imr_multiaddr.s_addr = inet_addr(MULTICAST_GROUP);
+  mreq.imr_interface.s_addr = htonl(INADDR_ANY); // Use default interface
+  if (setsockopt(m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
+    perror("Adding multicast group error");
+    close(m_socket); m_socket = -1;
+    return false;
+  }
+  printf("Debug: Joined multicast group %s\n", MULTICAST_GROUP);
+
+  // 7. Enable loopback (receive own messages)
+  char loopch = 1;
+  if(setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
+      perror("Setting IP_MULTICAST_LOOP error");
+      // Non-fatal, continue anyway
+  } else {
+      printf("Debug: Multicast loopback enabled.\n");
+  }
+
+  // 8. Set multicast TTL (optional, default is 1 for local network)
+  // char ttl = 1; // Example: TTL of 1
+  // setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+
+  // 9. Set non-blocking mode for reads
+  int flags = fcntl(m_socket, F_GETFL, 0);
+  if (flags < 0 || fcntl(m_socket, F_SETFL, flags | O_NONBLOCK) < 0) {
+      perror("Setting non-blocking mode failed");
+      close(m_socket); m_socket = -1;
+      return false;
+  }
+  printf("Debug: Multicast socket set to non-blocking mode\n");
+
+  printf("macOS CAN Interface: UDP Multicast Initialized Successfully.\n");
+  return true;
+#elif defined(PLATFORM_LINUX)
   // Linux implementation using SocketCAN
   if ((m_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
     perror("Socket creation failed");
@@ -156,6 +247,23 @@ void CANInterface::end() {
   // Resetting might put it in a safe state if needed.
   // m_mcp2515.reset(); 
   Serial.println("MCP2515 end() - No specific action needed by library.");
+#elif defined(PLATFORM_DARWIN)
+  printf("macOS CAN Interface: Shutting down UDP Multicast.\n");
+  if (m_socket >= 0) {
+    // Leave the multicast group
+    struct ip_mreq mreq;
+    mreq.imr_multiaddr.s_addr = inet_addr(MULTICAST_GROUP);
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+    if (setsockopt(m_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
+      perror("Dropping multicast group error");
+    } else {
+        printf("Debug: Left multicast group %s\n", MULTICAST_GROUP);
+    }
+    // Close the socket
+    close(m_socket);
+    m_socket = -1;
+    printf("Debug: Multicast socket closed\n");
+  }
 #elif defined PLATFORM_LINUX
   if (m_socket >= 0) {
     close(m_socket);
@@ -201,6 +309,36 @@ bool CANInterface::sendMessage(const CANMessage& msg) {
 #endif
 
   return (result == MCP2515::ERROR_OK);
+#elif defined(PLATFORM_DARWIN)
+  if (m_socket < 0) {
+    printf("ERROR: sendMessage called on invalid socket\n");
+    return false;
+  }
+
+  // Serialize CANMessage to buffer
+  unsigned char buffer[CAN_MESSAGE_BUFFER_SIZE];
+  uint32_t net_id = htonl(msg.id); // Use network byte order for ID
+  memcpy(buffer, &net_id, 4);
+  buffer[4] = msg.length;
+  memcpy(buffer + 5, msg.data, 8); // Copy up to 8 data bytes
+
+  // Send via UDP multicast
+  ssize_t bytes_sent = sendto(m_socket, buffer, CAN_MESSAGE_BUFFER_SIZE, 0,
+                              (struct sockaddr*) &m_multicast_addr, sizeof(m_multicast_addr));
+
+  if (bytes_sent < 0) {
+    perror("Multicast sendto failed");
+    return false;
+  } else if (bytes_sent != CAN_MESSAGE_BUFFER_SIZE) {
+    printf("ERROR: Incomplete multicast send (%zd of %d bytes)\n", bytes_sent, CAN_MESSAGE_BUFFER_SIZE);
+    return false;
+  }
+
+  #if DEBUG_MODE // Optional debug print
+  printf("Debug: Multicast sent %zd bytes - ID: 0x%X, DLC: %d\n", bytes_sent, msg.id, msg.length);
+  #endif
+
+  return true;
 #elif defined PLATFORM_LINUX
   // Linux implementation
   struct can_frame frame;
@@ -274,6 +412,21 @@ bool CANInterface::messageAvailable() {
   // ESP32 implementation using MCP2515
   // checkReceive() returns ERROR_OK if a message is available
   return (m_mcp2515.checkReceive() == MCP2515::ERROR_OK);
+#elif defined(PLATFORM_DARWIN)
+  if (m_socket < 0) return false;
+
+  fd_set readSet;
+  FD_ZERO(&readSet);
+  FD_SET(m_socket, &readSet);
+
+  struct timeval timeout = {0, 0}; // Zero timeout for non-blocking check
+  int result = select(m_socket + 1, &readSet, NULL, NULL, &timeout);
+
+  if (result < 0) {
+    perror("Multicast select error");
+    return false;
+  }
+  return (result > 0) && FD_ISSET(m_socket, &readSet);
 #elif defined PLATFORM_LINUX
   fd_set readSet;
   FD_ZERO(&readSet);
@@ -318,6 +471,42 @@ bool CANInterface::receiveMessage(CANMessage& msg) {
     // No message available or read error
     return false;
   }
+#elif defined(PLATFORM_DARWIN)
+  if (m_socket < 0) return false;
+
+  unsigned char buffer[CAN_MESSAGE_BUFFER_SIZE];
+  struct sockaddr_in sender_addr;
+  socklen_t addr_len = sizeof(sender_addr);
+
+  ssize_t bytes_received = recvfrom(m_socket, buffer, CAN_MESSAGE_BUFFER_SIZE, 0,
+                                    (struct sockaddr*) &sender_addr, &addr_len);
+
+  if (bytes_received < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      return false; // No data available (non-blocking)
+    }
+    perror("Multicast recvfrom error");
+    return false;
+  }
+
+  if (bytes_received != CAN_MESSAGE_BUFFER_SIZE) {
+    printf("Debug: Incomplete multicast message received (%zd bytes)\n", bytes_received);
+    return false;
+  }
+
+  // Deserialize buffer to CANMessage
+  uint32_t net_id;
+  memcpy(&net_id, buffer, 4);
+  msg.id = ntohl(net_id); // Convert ID back to host byte order
+  msg.length = buffer[4];
+  if (msg.length > 8) msg.length = 8; // Sanity check DLC
+  memcpy(msg.data, buffer + 5, msg.length);
+
+  #if DEBUG_MODE // Optional debug print
+  printf("Debug: Multicast received %zd bytes - ID: 0x%X, DLC: %d\n", bytes_received, msg.id, msg.length);
+  #endif
+
+  return true;
 #elif defined PLATFORM_LINUX
   struct can_frame frame;
   

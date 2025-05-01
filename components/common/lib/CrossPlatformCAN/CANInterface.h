@@ -21,7 +21,22 @@
   #include <Arduino.h>
   #include <SPI.h>        // Required for MCP2515 library
   #include <MCP2515.h>    // Include the autowp MCP2515 library header
-#elif defined(__linux__) || defined(__unix__)
+#elif defined(__APPLE__) || defined(__darwin__)
+  // macOS/Darwin platform (using UDP Multicast for virtual CAN)
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  #include <errno.h>
+  #include <sys/socket.h>
+  #include <sys/ioctl.h>
+  #include <net/if.h>
+  #include <netinet/in.h> // Added for INET sockets
+  #include <arpa/inet.h>  // Added for inet_addr
+  #define PLATFORM_DARWIN
+#else
+// #elif defined(__linux__) || defined(__unix__)
   // Linux platform (Raspberry Pi)
   #include <stdio.h>
   #include <stdlib.h>
@@ -35,8 +50,8 @@
   #include <linux/can.h>
   #include <linux/can/raw.h>
   #define PLATFORM_LINUX
-#else
-  #error "Unsupported platform - must be either Arduino or Linux"
+// #else
+//   #error "Unsupported platform - must be either Arduino or Linux"
 #endif
 
 // Common CAN message structure
@@ -106,6 +121,10 @@ private:
   int m_socket;
   struct sockaddr_can m_addr;
   struct ifreq m_ifr;
+#elif defined(PLATFORM_DARWIN)
+  int m_socket;                // UDP socket file descriptor
+  struct sockaddr_in m_multicast_addr; // Multicast group address/port
+  struct sockaddr_in m_local_addr;     // Local address/port to bind to
 #endif
 };
 

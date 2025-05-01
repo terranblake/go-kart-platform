@@ -32,10 +32,45 @@
             max-height: 100vh;
             overflow-y: auto;
         }
+        .controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(10, 10, 10, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        .status {
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .status.connected {
+            color: #4CAF50; /* Green */
+        }
+        .status.disconnected {
+            color: #F44336; /* Red */
+        }
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #444;
+        }
     </style>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
+    <div class="controls">
+        <div id="connection-status" class="status">Connecting...</div>
+        <button id="load-more">Load More Data</button>
+        <button id="clear-data">Clear</button>
+    </div>
+    
     <div class="container">
         <table id="telemetry-table">
             <thead>
@@ -58,6 +93,13 @@
         // Connect to Socket.IO server
         const socket = io();
         const tableBody = document.getElementById('telemetry-data');
+        const statusElement = document.getElementById('connection-status');
+        const loadMoreButton = document.getElementById('load-more');
+        const clearButton = document.getElementById('clear-data');
+        const collectorUrl = '{{ collector_url }}';
+        let offset = 0;
+        const limit = 50;
+        let isConnected = false;
         
         // Function to format timestamp
         function formatTimestamp(timestamp) {
@@ -71,8 +113,8 @@
             });
         }
         
-        // Listen for state_update events
-        socket.on('state_update', function(state) {
+        // Function to add a row to the table
+        function addRowToTable(state, prepend = true) {
             // Create a new row
             const row = document.createElement('tr');
             
@@ -81,22 +123,78 @@
             timeCell.textContent = formatTimestamp(state.timestamp || Date.now()/1000);
             row.appendChild(timeCell);
             
-            // Add other state fields - using let instead of const for the cell variables
-            let cell;
+            // Add other state fields
             {% for field in state_fields %}
                 {% if field != 'timestamp' %}
-                cell = document.createElement('td');
+                let cell = document.createElement('td');
                 cell.textContent = state['{{ field }}'] !== undefined ? state['{{ field }}'] : 'N/A';
                 row.appendChild(cell);
                 {% endif %}
             {% endfor %}
             
-            // Insert at the beginning of the table (most recent at top)
-            if (tableBody.firstChild) {
-                tableBody.insertBefore(row, tableBody.firstChild);
+            // Insert based on prepend flag
+            if (prepend) {
+                // Add to top for new data
+                if (tableBody.firstChild) {
+                    tableBody.insertBefore(row, tableBody.firstChild);
+                } else {
+                    tableBody.appendChild(row);
+                }
             } else {
+                // Add to bottom for historical data
                 tableBody.appendChild(row);
             }
+        }
+        
+        // Function to load historical data from the collector API
+        function loadHistoricalData() {
+            fetch(`${collectorUrl}/api/state/history?limit=${limit}&offset=${offset}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Add the data to the table in reverse chronological order
+                    if (data && data.length > 0) {
+                        // Stop if we're not getting any more records
+                        if (data.length < limit) {
+                            loadMoreButton.disabled = true;
+                            loadMoreButton.textContent = 'No More Data';
+                        }
+                        
+                        // Process records in reverse order (oldest to newest)
+                        for (let i = data.length - 1; i >= 0; i--) {
+                            addRowToTable(data[i], false);
+                        }
+                        offset += data.length;
+                    } else {
+                        loadMoreButton.disabled = true;
+                        loadMoreButton.textContent = 'No Data Available';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching historical data:', error);
+                    statusElement.textContent = 'Error fetching data';
+                    statusElement.className = 'status disconnected';
+                });
+        }
+        
+        // Load initial data when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            loadHistoricalData();
+        });
+        
+        // Load more data when button is clicked
+        loadMoreButton.addEventListener('click', loadHistoricalData);
+        
+        // Clear all data when clear button is clicked
+        clearButton.addEventListener('click', function() {
+            tableBody.innerHTML = '';
+            offset = 0;
+            loadMoreButton.disabled = false;
+            loadMoreButton.textContent = 'Load More Data';
+        });
+        
+        // Listen for state_update events via Socket.IO
+        socket.on('state_update', function(state) {
+            addRowToTable(state, true);
             
             // Limit number of rows to prevent performance issues
             if (tableBody.children.length > 1000) {
@@ -107,11 +205,17 @@
         // Listen for connection
         socket.on('connect', function() {
             console.log('Connected to telemetry server');
+            statusElement.textContent = 'Connected';
+            statusElement.className = 'status connected';
+            isConnected = true;
         });
         
         // Listen for disconnection
         socket.on('disconnect', function() {
             console.log('Disconnected from telemetry server');
+            statusElement.textContent = 'Disconnected';
+            statusElement.className = 'status disconnected';
+            isConnected = false;
         });
     </script>
 </body>

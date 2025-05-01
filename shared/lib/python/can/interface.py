@@ -25,6 +25,7 @@ It is not responsible for:
 
 import logging
 import os
+import platform
 import time
 import threading
 from typing import Callable
@@ -33,7 +34,7 @@ from cffi import FFI
 # Use relative imports
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
 from shared.lib.python.telemetry.state import GoKartState
-from shared.lib.python.telemetry.store import TelemetryStore
+from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ ffi.cdef("""
         kart_common_ComponentType comp_type,
         uint8_t component_id,
         uint8_t command_id,
-        void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
+        void (*handler)(int, int, uint8_t, uint8_t, int, int32_t)
     );
     bool can_interface_send_message(
         can_interface_t handle,
@@ -82,7 +83,17 @@ lib = None
 
 # Try to load the library, but don't fail if it can't be loaded
 try:
-    lib_path = os.path.join(os.path.dirname(__file__), "libcaninterface.so")
+    SYSTEM_PLATFORM = platform.system().lower()
+    lib_name = 'invalid'
+    if SYSTEM_PLATFORM == "linux":
+        lib_name = "libcaninterface.so"
+    elif SYSTEM_PLATFORM == "darwin":
+        lib_name = "libcaninterface.dylib"
+    else:
+        logger.error(f"Unsupported platform: {SYSTEM_PLATFORM}")
+        raise Exception(f"Unsupported platform: {SYSTEM_PLATFORM}")
+
+    lib_path = os.path.join(os.path.dirname(__file__), lib_name)
     logger.info(f"Loading CAN interface library from: {lib_path}")
     lib = ffi.dlopen(lib_path)
     has_can_hardware = True
@@ -92,51 +103,13 @@ except Exception as e:
     logger.warning("Running in simulation mode without CAN hardware")
     has_can_hardware = False
 
-# Message handler type
-MessageHandlerCallback = Callable[[int, int, int, int, int, int], None]
-
-class MockCANInterface:
-    """
-    A mock implementation of the CAN interface for when hardware is not available.
-    This allows the server to run in a simulation mode.
-    """
-    def __init__(self, node_id):
-        """Initialize the mock CAN interface"""
-        self.node_id = node_id
-        self.logger = logging.getLogger(__name__)
-        self.logger.info(f"Created mock CAN interface with node_id={node_id}")
-        self.handlers = {}
-        
-    def begin(self, baudrate, device):
-        """Mock implementation of begin()"""
-        self.logger.info(f"Mock CAN interface initialized with baudrate={baudrate}, device={device}")
-        return True
-        
-    def register_handler(self, msg_type, comp_type, comp_id, cmd_id, handler):
-        """Mock implementation of register_handler()"""
-        key = (msg_type, comp_type, comp_id, cmd_id)
-        self.handlers[key] = handler
-        self.logger.debug(f"Registered mock handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
-        return True
-        
-    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
-        """Mock implementation of send_message()"""
-        self.logger.info(f"Mock send message: msg_type={msg_type}, comp_type={comp_type}, " 
-                   f"comp_id={comp_id}, cmd_id={cmd_id}, value_type={value_type}, value={value}")
-        return True
-        
-    def process(self):
-        """Mock implementation of process()"""
-        # In a real implementation, we might simulate some messages here
-        pass
-
 class CANInterfaceWrapper:
     """
     A wrapper for the CANInterface that provides a higher-level API
     for sending and receiving CAN messages.
     """
     
-    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: TelemetryStore = None):
+    def __init__(self, node_id=0x01, channel='can0', baudrate=500000, telemetry_store: PersistentTelemetryStore = None):
         """
         Initialize the CAN interface.
         
@@ -164,26 +137,18 @@ class CANInterfaceWrapper:
         self.component_types_by_value = {v: k for k, v in self.protocol_registry.registry['component_types'].items()}
         self.value_types_by_value = {v: k for k, v in self.protocol_registry.registry['value_types'].items()}
         
+        # Original code restored:
         # Create and initialize the CAN interface or mock
-        if self.has_can_hardware:
-            logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
-            # Create the CAN interface first
-            self._can_interface = lib.can_interface_create(node_id)
-            if not self._can_interface:
-                logger.error("Failed to create CAN interface, falling back to mock mode")
-                self.has_can_hardware = False
-                self._can_interface = MockCANInterface(node_id)
-            else:
-                # Initialize the CAN interface
-                channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
-                success = lib.can_interface_begin(self._can_interface, baudrate, channel_cstr)
-                if not success:
-                    logger.warning(f"Failed to initialize CAN interface on channel {channel}, but continuing anyway")
-                else:
-                    logger.info(f"CAN interface initialized successfully on channel {channel}")
+        self.logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
+        self._can_interface = lib.can_interface_create(node_id)
+        self.logger.info(f"Attempting to initialize CAN interface handle {self._can_interface}...")
+        channel_cstr = ffi.new("char[]", channel.encode('utf-8'))
+        success = lib.can_interface_begin(self._can_interface, self.baudrate, channel_cstr)
+        if not success:
+            # Depending on platform, this might not be fatal (e.g., multicast might succeed anyway)
+            self.logger.warning(f"Call to can_interface_begin for channel {channel} returned false. Interface might still work partially.")
         else:
-            logger.info(f"Creating mock CAN interface with node ID: {node_id}")
-            self._can_interface = MockCANInterface(node_id)
+            self.logger.info(f"CAN interface initialized successfully via can_interface_begin on channel {channel}")
 
         # Start automatic message processing
         self.auto_process = False
@@ -260,28 +225,29 @@ class CANInterfaceWrapper:
         if isinstance(message_type, str):
             msg_type = self.protocol_registry.get_message_type(message_type)
         
-        # Register the handler with the C++ library if available
-        if self.has_can_hardware:
-            # Create a callback that won't be garbage collected
-            @ffi.callback("void(int, int, int, int, int, int)")
-            def callback(msg_type, comp_type, comp_id, cmd_id, val_type, value):
-                handler(msg_type, comp_type, comp_id, cmd_id, val_type, value)
-            
-            # Store the callback to prevent garbage collection
-            self.callbacks.append(callback)
-            
-            # Register the handler with the C++ library
-            lib.can_interface_register_handler(
-                self._can_interface, 
-                msg_type, 
-                comp_type, 
-                comp_id, 
-                cmd_id, 
-                callback
-            )
-        else:
-            # Register the handler with the mock interface
-            self._can_interface.register_handler(msg_type, comp_type, comp_id, cmd_id, handler)
+        # Define the callback function signature for CFFI
+        # This MUST match the signature in c_api.h!
+        @ffi.callback("void(int, int, uint8_t, uint8_t, int, int32_t)")
+        def callback(msg_type_c, comp_type_c, comp_id_c, cmd_id_c, val_type_c, value_c):
+            try:
+                # Call the user-provided Python handler
+                handler(msg_type_c, comp_type_c, comp_id_c, cmd_id_c, val_type_c, value_c)
+            except Exception as e:
+                print(f"Error in CAN message handler callback: {e}")
+
+        # Keep a reference to the callback object! CFFI requires this.
+        self.callbacks.append(callback)
+
+        # Register the actual callback
+        lib.can_interface_register_handler(
+            self._can_interface,
+            msg_type,
+            comp_type,
+            comp_id,
+            cmd_id,
+            callback  # Pass the CFFI callback object
+        )
+        print(f"Registered handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
     
     def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
         """
@@ -340,7 +306,7 @@ class CANInterfaceWrapper:
                 direct_value
             )
             
-            self.logger.debug(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}")
+            self.logger.info(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}")
             
             # Send the message
             return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, val)
@@ -351,11 +317,7 @@ class CANInterfaceWrapper:
     def process(self):
         """Process CAN messages once."""
         # Process messages using the C++ library if available
-        if self.has_can_hardware:
-            lib.can_interface_process(self._can_interface)
-        else:
-            # Process messages using the mock interface
-            self._can_interface.process()
+        lib.can_interface_process(self._can_interface)
     
     def start_processing(self, interval=0.01):
         """

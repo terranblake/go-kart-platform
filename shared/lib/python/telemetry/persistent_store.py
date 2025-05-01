@@ -109,12 +109,108 @@ class PersistentTelemetryStore(TelemetryStore):
                 rows = cursor.fetchall()
                 # Convert rows to dictionaries
                 history = [dict(row) for row in rows]
-                return history
+                # Convert to readable format
+                readable_history = []
+                for record in history:
+                    state_obj = GoKartState(**record)
+                    readable_record = state_to_readable_dict(state_obj, self.protocol)
+                    readable_history.append(readable_record)
+                return readable_history
             except sqlite3.Error as e:
                 logger.error(f"Database history query error: {e}")
                 return []
             finally:
                 conn.close()
+                
+    def get_history_with_pagination(self, limit: int = 100, offset: int = 0):
+        """
+        Return paginated telemetry history from the database
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            
+        Returns:
+            List of telemetry records in readable format
+        """
+        with self._db_lock:
+            conn = self._get_db_conn()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT * FROM telemetry_history
+                    ORDER BY timestamp DESC
+                    LIMIT ? OFFSET ?
+                """, (limit, offset))
+                rows = cursor.fetchall()
+                # Convert rows to dictionaries and make them readable
+                readable_history = []
+                for row in rows:
+                    row_dict = dict(row)
+                    state_obj = GoKartState(**row_dict)
+                    readable_record = state_to_readable_dict(state_obj, self.protocol)
+                    readable_history.append(readable_record)
+                return readable_history
+            except sqlite3.Error as e:
+                logger.error(f"Database paginated history query error: {e}")
+                return []
+            finally:
+                conn.close()
+                
+    def get_database_stats(self):
+        """
+        Get statistics about the telemetry database
+        
+        Returns:
+            Dictionary with database statistics
+        """
+        with self._db_lock:
+            conn = self._get_db_conn()
+            try:
+                cursor = conn.cursor()
+                # Get total count
+                cursor.execute("SELECT COUNT(*) as total FROM telemetry_history")
+                total_count = cursor.fetchone()['total']
+                
+                # Get earliest and latest timestamps
+                cursor.execute("SELECT MIN(timestamp) as earliest, MAX(timestamp) as latest FROM telemetry_history")
+                time_range = cursor.fetchone()
+                earliest = time_range['earliest'] if time_range else None
+                latest = time_range['latest'] if time_range else None
+                
+                # Get component type distribution
+                cursor.execute("""
+                    SELECT component_type, COUNT(*) as count 
+                    FROM telemetry_history 
+                    GROUP BY component_type
+                """)
+                component_distribution = {}
+                for row in cursor.fetchall():
+                    comp_type = row['component_type']
+                    comp_name = self.protocol.get_component_type_name(comp_type)
+                    component_distribution[comp_name] = row['count']
+                
+                return {
+                    'total_records': total_count,
+                    'earliest_timestamp': earliest,
+                    'latest_timestamp': latest,
+                    'component_distribution': component_distribution,
+                    'db_path': self.db_path
+                }
+            except sqlite3.Error as e:
+                logger.error(f"Database stats query error: {e}")
+                return {'error': str(e)}
+            finally:
+                conn.close()
+                
+    def get_last_update_time(self):
+        """
+        Get the timestamp of the most recent telemetry update
+        
+        Returns:
+            Timestamp of the most recent update or None if no updates
+        """
+        return self.last_update_time
 
     # Optional: Method to get state for a specific component
     def get_component_state(self, component_type_name: str, component_id_name: str):

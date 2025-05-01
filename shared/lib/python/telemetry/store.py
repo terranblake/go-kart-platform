@@ -66,10 +66,14 @@ class TelemetryStore:
         else:
             return state_dict
 
-    # Removed get_history as it's handled by PersistentTelemetryStore
-    # def get_history(self):
-    #     """Return the telemetry history"""
-    #     return self.history
+    def get_history(self, limit=100):
+        """
+        Stub method for backward compatibility with dashboard.
+        In the base class, this returns an empty list.
+        PersistentTelemetryStore overrides this with DB access.
+        """
+        logger.warning("Using stub get_history() that returns empty list. Use PersistentTelemetryStore for history.")
+        return []
 
     def update_state(self, state: GoKartState):
         """Update the current state (last message received)."""

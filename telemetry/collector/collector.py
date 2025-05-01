@@ -6,11 +6,18 @@ import logging
 import configparser
 import signal
 import sys
+import os
 import threading
+
+# Add project root to Python path for shared module imports
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from shared.lib.python.can.interface import CANInterfaceWrapper
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
 from shared.lib.python.telemetry.state import GoKartState
-from storage import PersistentTelemetryStore
+from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
 from api import create_api
 
 # Global variables for graceful shutdown
@@ -111,7 +118,7 @@ def main():
     logger.info("Using CANInterfaceWrapper's default handler to update TelemetryStore.")
 
     # Start CAN processing
-    if can_interface.has_can_hardware or isinstance(can_interface._can_interface, MockCANInterface):
+    if can_interface.has_can_hardware:
         can_interface.start_processing()
         logger.info("Started CAN message processing thread.")
     else:

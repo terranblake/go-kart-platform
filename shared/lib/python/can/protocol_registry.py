@@ -43,6 +43,10 @@ class ProtocolRegistry:
         if pb_path and os.path.exists(pb_path):
             self.logger.debug(f"Using provided protocol path: {pb_path}")
             return pb_path
+
+        # Get the project root - assume it's two directories up from the current file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..', '..'))
             
         # Try common locations based on project structure
         possible_paths = [
@@ -52,14 +56,9 @@ class ProtocolRegistry:
             # Relative to current directory
             os.path.join(os.getcwd(), "protocol", "generated", "python"),
             
-            # Relative to server directory 
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
-                         "protocol", "generated", "python"),
+            # Relative to project root
+            os.path.join(project_root, "protocol", "generated", "python"),
             
-            # One level up from server directory (project root)
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 
-                         "protocol", "generated", "python"),
-                         
             # Raspberry Pi specific path
             "/home/pi/go-kart-platform/protocol/generated/python",
         ]
@@ -70,9 +69,8 @@ class ProtocolRegistry:
                 self.logger.debug(f"Found protocol directory at: {path}")
                 return path
                 
-        # If we get here, just return the provided path or default
-        # The _load_modules will handle the error case
-        self.logger.warning(f"Could not find protocol directory, using default: {pb_path or './protocol/generated/python'}")
+        # If we get here, log our attempts
+        self.logger.warning(f"Could not find protocol directory. Tried paths: {possible_paths}")
         return pb_path or "./protocol/generated/python"
         
     def _load_modules(self) -> None:
@@ -355,6 +353,7 @@ class ProtocolRegistry:
     
     def get_component_types(self) -> List[str]:
         """Get all registered component types"""
+        print(f"Getting component types: {self.registry['components'].keys()}")
         return list(self.registry['components'].keys())
     
     def get_commands(self, component_type: str) -> List[str]:

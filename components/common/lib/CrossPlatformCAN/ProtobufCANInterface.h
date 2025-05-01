@@ -13,7 +13,9 @@
 // todo: switch to using PLATFORM_EMBEDDED
 #if defined(PLATFORM_ARDUINO) || defined(PLATFORM_ESP32)
 #define MAX_HANDLERS 32
-#elif defined(PLATFORM_LINUX)
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_DARWIN)
+#define MAX_HANDLERS 128
+#else
 #define MAX_HANDLERS 128
 #endif
 
