@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""" Telemetry Collector Main Entry Point """
+""" Telemetry Collector Main Entry Point - Unified for Vehicle/Remote Roles """
 
 import logging
 import configparser
@@ -8,6 +8,9 @@ import signal
 import sys
 import os
 import threading
+import time # For shutdown wait
+import argparse # Import argparse
+import asyncio
 
 # Add project root to Python path for shared module imports
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -16,133 +19,201 @@ if PROJECT_ROOT not in sys.path:
 
 from shared.lib.python.can.interface import CANInterfaceWrapper
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
-from shared.lib.python.telemetry.state import GoKartState
+# from shared.lib.python.telemetry.state import GoKartState # Not directly used here now
 from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
-from api import create_api
+from api import create_api_server_manager # Use the new manager function
+from uplink_manager import UplinkManager # Import UplinkManager
 
 # Global variables for graceful shutdown
 stop_event = threading.Event()
 can_interface = None
-api_thread = None
+uplink_manager_thread = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# --- Argument Parsing ---
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Telemetry Collector Service")
+    parser.add_argument(
+        '--config', 
+        type=str, 
+        default='config.ini', # Default config file name
+        help='Path to the configuration file (default: telemetry/collector/config.ini relative to script)'
+    )
+    return parser.parse_args()
+
 def load_config(config_path='config.ini'):
     """Load configuration from file."""
+    abs_config_path = os.path.abspath(config_path)
+    # Check if it exists directly first
+    if not os.path.exists(abs_config_path):
+        # If not found directly, try relative to the script directory as fallback
+        script_dir = os.path.dirname(__file__)
+        path_relative_to_script = os.path.join(script_dir, config_path)
+        if os.path.exists(path_relative_to_script):
+            abs_config_path = path_relative_to_script
+            logger.debug(f"Config path '{config_path}' resolved relative to script: {abs_config_path}")
+        else:
+             # If neither exists, log warning and rely purely on defaults
+             logger.warning(f"Config file '{config_path}' (resolved to '{abs_config_path}') not found. Using defaults.")
+             abs_config_path = None # Signal that file wasn't read
+
+    # Initialize parser, NO DEFAULTS HERE
     config = configparser.ConfigParser()
+
     try:
-        config.read(config_path)
-        if not config.sections():
-             # Handle case where file exists but is empty or invalid
-             logger.warning(f"Config file '{config_path}' is empty or invalid. Using defaults.")
-             # Set defaults explicitly if needed, or rely on get defaults
-             return config['DEFAULT'] # Return default section even if empty
-        return config['DEFAULT']
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found: {config_path}. Exiting.")
-        sys.exit(1)
+        if abs_config_path:
+            read_ok = config.read(abs_config_path)
+            if not read_ok:
+                 logger.warning(f"Config file '{abs_config_path}' exists but failed to read. Using defaults.")
+        # Return the ConfigParser object itself
+        return config
     except Exception as e:
-        logger.error(f"Error loading configuration: {e}. Exiting.")
+        logger.error(f"Error loading configuration from {abs_config_path or 'defaults'}: {e}. Exiting.")
         sys.exit(1)
 
-def _handle_message(telemetry_store, msg_type, comp_type, comp_id, cmd_id, val_type, value):
-    """CAN message handler callback."""
-    # Create a GoKartState object from the received data
-    state_data = {
-        'message_type': msg_type,
-        'component_type': comp_type,
-        'component_id': comp_id,
-        'command_id': cmd_id,
-        'value_type': val_type,
-        'value': value
-    }
-    state = GoKartState(**state_data)
-    # Update the persistent store
-    telemetry_store.update_state(state)
-    # logger.debug(f"Handled message: {state.to_dict()}") # Optional: Log handled messages
 
 def signal_handler(signum, frame):
     """Handle termination signals for graceful shutdown."""
-    logger.info(f"Received signal {signum}. Initiating shutdown...")
-    stop_event.set()
-    if can_interface:
-        can_interface.stop_processing()
-    # Note: Stopping Flask requires more complex handling if run directly.
-    # If running via a WSGI server (like gunicorn), the server handles shutdown.
-    logger.info("Shutdown complete.")
-    sys.exit(0)
+    global uplink_manager_thread, stop_event
+    if not stop_event.is_set(): # Prevent double handling
+        logger.info(f"Received signal {signum}. Initiating shutdown...")
+        stop_event.set() # Signal all loops to stop
+        
+        if uplink_manager_thread:
+            logger.info("Stopping Uplink Manager...")
+            uplink_manager_thread.stop() # Signal the thread's internal loop to stop
 
-def run_api_server(app, host, port):
-    """Run the Flask API server."""
-    try:
-        logger.info(f"Starting API server on {host}:{port}")
-        app.run(host=host, port=port)
-    except Exception as e:
-        logger.error(f"API server error: {e}", exc_info=True)
-        stop_event.set() # Signal main thread to stop
+        if can_interface:
+            logger.info("Stopping CAN processing...")
+            can_interface.stop_processing()
+            
+        # Stop the asyncio loop if it's running (for remote role)
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                logger.info("Stopping asyncio event loop...")
+                loop.stop()
+        except RuntimeError: # No running loop
+            pass 
+        except Exception as e:
+             logger.error(f"Error stopping asyncio loop: {e}")
+
+        # API server shutdown: Flask thread is daemon, WS server stopped by loop.stop()
+        logger.info("Shutdown signal processed. Main thread will exit shortly.")
+        # No need for sleep or join here, let main loop check stop_event
+    else:
+        logger.info("Shutdown already in progress.")
+
 
 def main():
-    global can_interface, api_thread
+    global can_interface, uplink_manager_thread
 
-    # Load configuration
-    config = load_config()
-    log_level = config.get('LOG_LEVEL', 'INFO')
+    args = parse_arguments()
+    config_file_path = args.config
+    # config is now a ConfigParser object
+    config = load_config(config_file_path)
+
+    # Setup logging using config.get with fallback
+    log_level = config.get('DEFAULT', 'LOG_LEVEL', fallback='INFO')
     logging.basicConfig(level=getattr(logging, log_level.upper(), logging.INFO),
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    logger.info("Starting Telemetry Collector Service")
+    # Determine role using config.get with fallback
+    role = config.get('DEFAULT', 'ROLE', fallback='vehicle')
+    # Log the config file path provided via argument
+    logger.info(f"Attempting to use configuration file: {config_file_path}") 
+    logger.info(f"Starting Telemetry Collector Service in ROLE: {role}")
 
-    # Initialize components
-    protocol_registry = ProtocolRegistry() # Autodetects path
+    protocol_registry = ProtocolRegistry()
     telemetry_store = PersistentTelemetryStore(
         protocol=protocol_registry,
-        db_path=config.get('DB_PATH', 'telemetry.db'),
-        max_history_records=config.getint('MAX_HISTORY_RECORDS', 10000)
-    )
-    can_interface = CANInterfaceWrapper(
-        node_id=config.getint('CAN_NODE_ID', 0x02),
-        channel=config.get('CAN_INTERFACE', 'can0'),
-        baudrate=config.getint('CAN_BAUDRATE', 500000),
-        telemetry_store=telemetry_store # Pass store to CAN wrapper
+        db_path=config.get('DEFAULT', 'DB_PATH', fallback='telemetry.db'),
+        max_history_records=config.getint('DEFAULT', 'MAX_HISTORY_RECORDS', fallback=50000),
+        role=role,
+        dashboard_retention_s=config.getint('DEFAULT', 'DASHBOARD_RETENTION_S', fallback=600),
+        local_uplinked_retention_s=config.getint('DEFAULT', 'LOCAL_UPLINKED_RETENTION_S', fallback=3600)
     )
 
-    # Register the handler to use the specific telemetry_store instance
-    # This handler will receive ALL messages by default if specific handlers aren't registered
-    # We might want to register more specific handlers later if needed.
-    # For now, let the CANInterfaceWrapper's default handler update the store.
-    # NOTE: The CANInterfaceWrapper already has a _handle_message that updates
-    # the provided telemetry_store. We don't need to register another one unless
-    # we want *different* behavior here.
-    # Let's rely on the wrapper's internal handler for now.
-    logger.info("Using CANInterfaceWrapper's default handler to update TelemetryStore.")
-
-    # Start CAN processing
-    if can_interface.has_can_hardware:
-        can_interface.start_processing()
-        logger.info("Started CAN message processing thread.")
+    # --- Conditional Initialization based on Role ---
+    if role == 'vehicle':
+        logger.info("Initializing CAN Interface (Role: Vehicle)...")
+        try:
+            can_interface = CANInterfaceWrapper(
+                # Use config.get with type and fallback
+                node_id=int(str(config.get('DEFAULT', 'CAN_NODE_ID', fallback='0x02')), 0),
+                channel=config.get('DEFAULT', 'CAN_INTERFACE', fallback='can0'),
+                baudrate=config.getint('DEFAULT', 'CAN_BAUDRATE', fallback=500000),
+                telemetry_store=telemetry_store
+            )
+            if can_interface.has_can_hardware:
+                can_interface.start_processing()
+                logger.info("Started CAN message processing thread.")
+            else:
+                logger.error("Failed to initialize CAN interface. CAN listener disabled.")
+                can_interface = None
+        except Exception as e:
+             logger.error(f"Error initializing CAN interface: {e}. CAN listener disabled.", exc_info=True)
+             can_interface = None
     else:
-        logger.error("Failed to initialize CAN interface. Exiting.")
-        sys.exit(1)
+        logger.info("CAN Listener is disabled (Role: Remote).")
 
-    # Create and start the API server in a separate thread
-    api_app = create_api(telemetry_store)
-    api_host = config.get('API_HOST', '0.0.0.0')
-    api_port = config.getint('API_PORT', 5001)
-    api_thread = threading.Thread(target=run_api_server, args=(api_app, api_host, api_port), daemon=True)
-    api_thread.start()
+    if role == 'vehicle':
+        logger.info("Initializing Uplink Manager (Role: Vehicle)...")
+        uplink_manager_thread = UplinkManager(
+            store=telemetry_store,
+            remote_url=config.get('DEFAULT', 'REMOTE_ENDPOINT_URL', fallback='ws://localhost:8765/ws/telemetry/upload'),
+            batch_size=config.getint('DEFAULT', 'UPLINK_BATCH_SIZE', fallback=50),
+            reconnect_delay=config.getint('DEFAULT', 'UPLINK_RECONNECT_DELAY', fallback=5),
+            status_report_interval=config.getint('DEFAULT', 'UPLINK_STATUS_REPORT_INTERVAL', fallback=10),
+            pruning_retention_s=config.getint('DEFAULT', 'LOCAL_UPLINKED_RETENTION_S', fallback=3600)
+        )
+        uplink_manager_thread.start()
+        logger.info("Started Uplink Manager thread.")
+    else:
+        logger.info("Uplink Manager is disabled (Role: Remote).")
 
-    # Register signal handlers for graceful shutdown
+    # Register signal handlers AFTER potentially starting threads
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    logger.info("Telemetry Collector Service running. Press Ctrl+C to stop.")
+    logger.info("Starting API Server Manager...")
+    try:
+        # Need to pass abs_config_path to log correctly which config was used
+        # Need to re-check path resolution in load_config
+        create_api_server_manager(
+            telemetry_store=telemetry_store,
+            role=role,
+            # Use config.get with type and fallback
+            http_host=config.get('DEFAULT', 'HTTP_HOST', fallback='0.0.0.0'),
+            http_port=config.getint('DEFAULT', 'HTTP_PORT', fallback=5001),
+            ws_host=config.get('DEFAULT', 'WS_HOST', fallback='0.0.0.0'),
+            ws_port=config.getint('DEFAULT', 'WS_PORT', fallback=8765)
+        )
+    except Exception as e:
+        logger.error(f"API Server Manager failed to start or crashed: {e}", exc_info=True)
+        signal_handler(signal.SIGTERM, None) # Simulate signal
 
-    # Keep the main thread alive while checking the stop event
-    while not stop_event.is_set():
-        stop_event.wait(timeout=1.0) # Wait with timeout to allow signal handling
+    # If create_api_server_manager returns cleanly (e.g., after catching KeyboardInterrupt),
+    # or if threads are daemonized, the main thread might exit here.
+    # --- Keep main thread alive for vehicle role until stop signal --- 
+    if role == 'vehicle':
+        logger.info("Vehicle collector entering main wait loop...")
+        while not stop_event.is_set():
+            try:
+                # Wait with timeout allows checking the event periodically
+                stop_event.wait(timeout=1.0) 
+            except KeyboardInterrupt:
+                 # Handle potential KeyboardInterrupt here if signal handler doesn't catch it first
+                 if not stop_event.is_set():
+                      signal_handler(signal.SIGINT, None)
+        logger.info("Vehicle collector main wait loop finished.")
+    # For remote role, asyncio.run() blocks until stopped by signal handler
+    # If API Server Manager crashes, signal_handler is called which should stop loops.
+    
+    logger.info("Telemetry Collector Service main function finished.")
 
-    logger.info("Main thread exiting.")
 
 if __name__ == "__main__":
     main()

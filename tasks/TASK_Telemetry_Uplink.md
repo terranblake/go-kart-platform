@@ -42,8 +42,9 @@ This task focuses on the collector refactoring, the streaming uplink mechanism, 
         - Reports its status and statistics (Queue Size, Latency, Throughput based on send/ack timings) via `SYSTEM_MONITOR`/`UPLINK_MANAGER` CAN messages.
     - Refactor `collector.py`:
         - Load unified config (`ROLE`, `DB_PATH`, `REMOTE_ENDPOINT_URL`, etc.).
-        - Conditionally initialize/start CAN listener (`ENABLE_CAN_LISTENER`).
-        - Conditionally initialize/start `UplinkManager` thread (`ENABLE_UPLINK_MANAGER`).
+        - Conditional startup of CAN listener (`ROLE=vehicle`).
+        - Conditional startup of UplinkManager thread (`ROLE=remote`).
+        - Initialization of CAN listener and Uplink Manager is based solely on `ROLE=vehicle`.
     - Refactor `api.py`:
         - Adjust dashboard history endpoint for `ROLE=vehicle`.
         - Add WebSocket endpoint (`/ws/telemetry/upload`) (active if `ROLE=remote`) to accept incoming connections from vehicles.
@@ -52,7 +53,7 @@ This task focuses on the collector refactoring, the streaming uplink mechanism, 
             - Sends acknowledgements back to the vehicle upon successful storage.
             - Uses the collector's `PersistentTelemetryStore` instance to save records to the *remote* DB.
 - **Configuration:**
-    - Unified config: `ROLE` (`vehicle`/`remote`), `DB_PATH`, `REMOTE_ENDPOINT_URL` (vehicle only, format e.g., `ws://host:port/ws/telemetry/upload`), `ENABLE_CAN_LISTENER` (vehicle only), `ENABLE_UPLINK_MANAGER` (vehicle only), `DASHBOARD_RETENTION_S` (vehicle only), `MAX_LOCAL_RECORDS`, API key/auth mechanism for WebSocket (optional).
+    - Unified config: `ROLE` (`vehicle`/`remote`), `DB_PATH`, `REMOTE_ENDPOINT_URL` (vehicle only, format e.g., `ws://host:port/ws/telemetry/upload`), `DASHBOARD_RETENTION_S` (vehicle only), `MAX_LOCAL_RECORDS`, relevant CAN settings (if `ROLE=vehicle`), relevant Uplink settings (if `ROLE=vehicle`), HTTP/WS host/port settings, API key/auth mechanism for WebSocket (optional).
 - **Testing:**
     - Unit tests for `UplinkManager` logic (connection state, buffering, ack handling, stats calculation).
     - Integration tests simulating vehicle collector and remote collector interaction over a WebSocket, including connection drops/reconnects. **Uplink tests must interact with a real WebSocket endpoint** (e.g., a local test server spun up during the test).
@@ -90,7 +91,7 @@ This task focuses on the collector refactoring, the streaming uplink mechanism, 
 2.  **Collector Refactor (Store):** Modify `PersistentTelemetryStore` (DB schema, fetch/mark methods).
 3.  **Collector Refactor (Remote API):** Implement WebSocket server endpoint in `api.py` for `ROLE=remote`.
 4.  **Collector Refactor (Uplink Manager):** Implement `UplinkManager` using WebSockets client, including connection logic, streaming, ack handling, and buffering.
-5.  **Collector Refactor (Main):** Implement unified config loading and conditional component initialization in `collector.py`.
+5.  **Collector Refactor (Main):** Implement unified config loading and role-based conditional component initialization in `collector.py`.
 6.  **Integration & Testing:** Test vehicle->remote streaming, ack mechanism, disconnect/reconnect scenarios using a real WebSocket test server.
 <!-- LLM_CONTEXT_END -->
 

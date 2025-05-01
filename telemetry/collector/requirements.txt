@@ -2,6 +2,7 @@
 
 Flask>=2.0
 cffi>=1.15
+websockets>=10.0 # Added for uplink manager and remote API
 # Add other dependencies as needed, e.g.:
 # Flask-SocketIO (if using websockets in API)
 # PyYAML (if using YAML config)

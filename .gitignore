@@ -12,3 +12,4 @@
 *.pyz
 *.log
 .vscode/**
+*.db

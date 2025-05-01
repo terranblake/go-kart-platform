@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package kart.system_monitor;
+
+// System Monitor Component IDs
+// Identifies the specific system component being reported on.
+enum SystemMonitorComponentId {
+  RESERVED_ZERO = 0; // Reserve 0 if needed
+  RASPBERRY_PI = 1; // Represents the main RPi system (for Task 2 health metrics)
+  ESP32_MAIN = 2;   // Represents a primary ESP32 (for Task 2 health metrics)
+  UPLINK_MANAGER = 3; // Logical component representing the vehicle's telemetry uplink process
+  // Add other monitored components if necessary
+}
+
+// System Monitor Command IDs
+// Specifies the data type being reported.
+enum SystemMonitorCommandId {
+  // --- Uplink Manager Status --- (Task 1)
+  UPLINK_STATUS = 0;            // Current status of the uplink connection (enum UplinkStatusValue)
+  UPLINK_QUEUE_SIZE = 1;        // Number of records currently buffered locally waiting for uplink (uint16 or uint24)
+  UPLINK_AVG_LATENCY_MS = 2;    // Rolling average uplink latency (send to ack) in ms (uint16)
+  UPLINK_AVG_THROUGHPUT_KBPS = 3; // Rolling average uplink throughput in KB/sec (uint16)
+
+  // --- RPi/ESP32 Health Metrics --- (To be detailed in Task 2: TASK_System_Health_Monitoring.md)
+  // COMPONENT_UPTIME_S = 10;
+  // INTERNAL_TEMP_C = 11;
+  // CPU_LOAD_PERCENT = 12;
+  // MEMORY_FREE_BYTES = 13;
+  // DISK_USAGE_PERCENT = 14; // RPi only
+  // NETWORK_SENT_KBPS = 15;  // RPi only
+  // NETWORK_RECV_KBPS = 16;  // RPi only
+  // WIFI_RSSI_DBM = 17;      // ESP32 only
+  // TASK_STACK_HIGHWATER_BYTES = 18; // ESP32 only
+}
+
+// --- Value Enums ---
+
+// Used with UPLINK_MANAGER and UPLINK_STATUS command
+enum UplinkStatusValue {
+  DISCONNECTED = 0;
+  CONNECTING = 1;
+  CONNECTED = 2;
+  ERROR = 3;
+} 

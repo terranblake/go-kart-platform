@@ -156,221 +156,176 @@ class CANSimulator:
         # Simulate speed oscillating between 20-40 km/h
         speed = 30 + 10 * math.sin(self.simulation_time / 10)
         
-        # --- LIGHTS simulation ---
-        if self.realistic_counter % 5 == 0:  # Update lights every 5 cycles
+        # --- LIGHTS simulation (staggered) ---
+        if self.realistic_counter % 10 == 0:  # Update lights less frequently
             # Headlights status (front lights)
             self.can_interface.send_command(
                 'STATUS', 'LIGHTS', 'FRONT', 'MODE',
-                'ON' if self.simulation_time % 60 < 50 else 'DIM'  # Toggle between ON and DIM
+                'ON' if self.simulation_time % 60 < 50 else 'DIM'
             )
-            
-            # Taillights status (rear lights)
+            time.sleep(0.0001) # Tiny sleep
             self.can_interface.send_command(
-                'STATUS', 'LIGHTS', 'REAR', 'MODE',
-                'ON'  # Rear lights always on when vehicle active
+                'STATUS', 'LIGHTS', 'REAR', 'MODE', 'ON'
             )
-            
-            # Periodically simulate turn signals
+            time.sleep(0.0001)
+            # Turn signals
             turn_signal = 'NONE'
             if 10 <= (self.simulation_time % 30) < 20:
                 turn_signal = 'LEFT'
             elif 20 <= (self.simulation_time % 30) < 30:
                 turn_signal = 'RIGHT'
-                
             self.can_interface.send_command(
                 'STATUS', 'LIGHTS', 'REAR', 'SIGNAL', turn_signal
             )
-        
-        # --- MOTORS simulation ---
-        if self.realistic_counter % 3 == 0:  # Update motors every 3 cycles
-            # Primary motor throttle/speed
+            logger.debug("Simulated Lights Update")
+
+        # --- MOTORS simulation (staggered) ---
+        if self.realistic_counter % 2 == 0:  # Update motors more frequently
+            # Motor 1 Throttle
             self.can_interface.send_command(
                 'STATUS', 'MOTORS', 'MOTOR_LEFT_REAR', 'THROTTLE', 
                 direct_value=int(speed)
             )
-            
-            # RPM value tied to speed (simplified calculation)
-            rpm = int(speed * 10)  # Simplified RPM calculation
+            time.sleep(0.0001) # Tiny sleep
+            # Motor 1 RPM
+            rpm = int(speed * 10) 
             self.can_interface.send_command(
                 'STATUS', 'MOTORS', 'MOTOR_LEFT_REAR', 'RPM', 
                 direct_value=rpm
             )
-            
-            # Motor temperature increases slightly with speed and time
+            time.sleep(0.0001)
+            # Motor 1 Temp
             motor_temp = 40 + 0.1 * speed + 0.01 * self.simulation_time
             self.can_interface.send_command(
                 'STATUS', 'MOTORS', 'MOTOR_LEFT_REAR', 'TEMPERATURE', 
                 direct_value=int(motor_temp)
             )
-            
-            # Second motor similarly but slight variation
+            time.sleep(0.0001)
+            # Motor 2 Throttle
             self.can_interface.send_command(
                 'STATUS', 'MOTORS', 'MOTOR_RIGHT_REAR', 'THROTTLE', 
-                direct_value=int(speed * 0.98)  # Slight imbalance
+                direct_value=int(speed * 0.98)
             )
-            
-            # Direction status
+            time.sleep(0.0001)
+            # Common Direction
             self.can_interface.send_command(
                 'STATUS', 'MOTORS', 'MOTOR_LEFT_REAR', 'DIRECTION', 'FORWARD'
             )
-        
-        # --- BATTERIES simulation ---
-        if self.realistic_counter % 10 == 0:  # Update batteries every 10 cycles
-            # Main battery voltage (slowly decreasing)
-            battery_voltage = 12.6 - (self.simulation_time / 3600)  # Drops ~1V per hour
+            logger.debug("Simulated Motor Update")
+            
+        # --- BATTERIES simulation (staggered) ---
+        if self.realistic_counter % 5 == 0: # Medium frequency
+            battery_voltage = 12.6 - (self.simulation_time / 3600)
             self.can_interface.send_command(
                 'STATUS', 'BATTERIES', 'MOTOR_LEFT_REAR', 'VOLTAGE',
-                direct_value=int(battery_voltage * 10)  # Store as dV
+                direct_value=int(battery_voltage * 10)
             )
-            
-            # Battery current varies with motor throttle
-            battery_current = 5 + (speed / 10)  # A
+            time.sleep(0.0001)
+            battery_current = 5 + (speed / 10)
             self.can_interface.send_command(
                 'STATUS', 'BATTERIES', 'MOTOR_LEFT_REAR', 'CURRENT',
-                direct_value=int(battery_current * 10)  # Store as dA
+                direct_value=int(battery_current * 10)
             )
-            
-            # Battery temperature
-            battery_temp = 25 + (battery_current / 10)  # °C
+            time.sleep(0.0001)
+            battery_temp = 25 + (battery_current / 10)
             self.can_interface.send_command(
                 'STATUS', 'BATTERIES', 'MOTOR_LEFT_REAR', 'TEMPERATURE',
                 direct_value=int(battery_temp)
             )
-            
-            # Accessory battery
+            time.sleep(0.0001)
             self.can_interface.send_command(
                 'STATUS', 'BATTERIES', 'ACCESSORY', 'VOLTAGE',
-                direct_value=int(11.9 * 10)  # Accessory battery at 11.9V
+                direct_value=int(11.9 * 10)
             )
+            logger.debug("Simulated Battery Update")
         
-        # --- CONTROLS simulation ---
-        if self.realistic_counter % 2 == 0:  # Update controls frequently
+        # --- CONTROLS simulation (staggered) ---
+        if self.realistic_counter % 3 == 0: # Frequent, but slightly less than motors
             # Throttle pedal position
-            throttle_position = int(speed / 100 * 1024)  # 0-1024 range
+            throttle_position = int(speed / 100 * 1024)
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'THROTTLE', 'POSITION',
                 direct_value=throttle_position
             )
-            
-            # Brake pedal position - occasionally apply brakes
+            time.sleep(0.0001)
+            # Brake pedal position
             brake_position = 0
-            if (self.simulation_time % 30) > 25:  # Brake at end of each 30s cycle
-                brake_position = int(((self.simulation_time % 30) - 25) * 200)  # Gradually increase
+            if (self.simulation_time % 30) > 25:
+                brake_position = int(((self.simulation_time % 30) - 25) * 200)
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'BRAKE', 'POSITION',
                 direct_value=brake_position
             )
-            
-            # Steering position - slight turns
-            steering_position = int(512 + 200 * math.sin(self.simulation_time / 5))  # Center = 512
+            time.sleep(0.0001)
+            # Steering position
+            steering_position = int(512 + 200 * math.sin(self.simulation_time / 5))
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'STEERING', 'POSITION',
                 direct_value=steering_position
             )
-            
-            # Turn signal switch position - matches light signals
+            time.sleep(0.0001)
+            # Turn signal switch position
             if 10 <= (self.simulation_time % 30) < 20:
                 turn_signal_state = 'LEFT'
             elif 20 <= (self.simulation_time % 30) < 30:
                 turn_signal_state = 'RIGHT'
             else:
                 turn_signal_state = 'NONE'
-                
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'TURN_SIGNAL_SWITCH', 'STATE',
                 turn_signal_state
             )
-            
+            time.sleep(0.0001)
             # System mode
             self.can_interface.send_command(
                 'STATUS', 'CONTROLS', 'SYSTEM', 'MODE',
-                'MANUAL'  # Always in manual mode for simulation
+                'MANUAL'
             )
+            logger.debug("Simulated Controls Update")
         
-        # --- NAVIGATION simulation ---
-        # Use some of the nav simulation logic for more realistic movement
-        elapsed_time = time.time() - self.nav_time_offset
-        
-        # Convert time to movement along a figure-8 pattern
-        angle = (elapsed_time * 15) % 360  # Complete a cycle every 24 seconds
-        
-        # Calculate position changes
-        # Base coordinates (San Francisco, for example)
-        lat_base = 37.7749
-        long_base = -122.4194
-        
-        # Small variations in a figure-8 pattern
-        self.nav_latitude = lat_base + 0.001 * math.sin(math.radians(angle))
-        self.nav_longitude = long_base + 0.002 * math.sin(math.radians(angle * 2))
-        
-        # Calculate heading and speed
-        self.nav_heading = (angle + 90) % 360
-        self.nav_speed = 25 + 5 * math.sin(elapsed_time / 5)  # Varies between 20-30 km/h
-        
-        # Send navigation data
-        if self.realistic_counter % 4 == 0:  # Update navigation less frequently
-            # GPS position
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'LATITUDE',
-                direct_value=int(self.nav_latitude * 1000000)  # Store as microdegrees
-            )
+        # --- NAVIGATION simulation (staggered) ---
+        if self.realistic_counter % 4 == 0: # Medium frequency
+            # Update position based on time
+            elapsed_time = time.time() - self.nav_time_offset
+            angle = (elapsed_time * 15) % 360
+            lat_base = 37.7749
+            long_base = -122.4194
+            self.nav_latitude = lat_base + 0.001 * math.sin(math.radians(angle))
+            self.nav_longitude = long_base + 0.002 * math.sin(math.radians(angle * 2))
+            self.nav_heading = (angle + 90) % 360
+            self.nav_speed = 25 + 5 * math.sin(elapsed_time / 5)
             
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'LONGITUDE',
-                direct_value=int(self.nav_longitude * 1000000)  # Store as microdegrees
-            )
+            # Send GPS data
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'LATITUDE', direct_value=int(self.nav_latitude * 1000000))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'LONGITUDE', direct_value=int(self.nav_longitude * 1000000))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'SPEED', direct_value=int(self.nav_speed * 10))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'COURSE', direct_value=int(self.nav_heading * 10))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'GPS_FIX_STATUS', direct_value=1)
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'SATELLITES', direct_value=random.randint(8, 12))
             
-            # Speed from GPS
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'SPEED',
-                direct_value=int(self.nav_speed * 10)  # Store as dkm/h
-            )
-            
-            # Heading/course
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'COURSE',
-                direct_value=int(self.nav_heading * 10)  # Store as ddegrees
-            )
-            
-            # GPS fix and satellites
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'GPS_FIX_STATUS',
-                direct_value=1  # FIX_ACQUIRED
-            )
-            
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'GPS_PRIMARY', 'SATELLITES',
-                direct_value=random.randint(8, 12)  # Random number of satellites
-            )
-            
-            # IMU data
-            accel_x = math.sin(math.radians(self.nav_heading)) * 0.1  # Small acceleration in direction of travel
+            # Send IMU data
+            time.sleep(0.0001)
+            accel_x = math.sin(math.radians(self.nav_heading)) * 0.1
             accel_y = math.cos(math.radians(self.nav_heading)) * 0.1
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'IMU_PRIMARY', 'ACCEL_X', direct_value=int(accel_x * 100))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'IMU_PRIMARY', 'ACCEL_Y', direct_value=int(accel_y * 100))
+            # Add Z accel/gyro if desired
             
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'IMU_PRIMARY', 'ACCEL_X',
-                direct_value=int(accel_x * 100)  # Store as cm/s^2
-            )
-            
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'IMU_PRIMARY', 'ACCEL_Y',
-                direct_value=int(accel_y * 100)  # Store as cm/s^2
-            )
-            
-            # Environment data
-            ambient_temp = 22 + 2 * math.sin(self.simulation_time / 300)  # 22°C ±2°C over time
-            humidity = 60 + 10 * math.sin(self.simulation_time / 600)  # 60% ±10% over time
-            
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'ENVIRONMENT_PRIMARY', 'TEMPERATURE_AMBIENT',
-                direct_value=int(ambient_temp * 10)  # Store as d°C
-            )
-            
-            self.can_interface.send_command(
-                'STATUS', 'NAVIGATION', 'ENVIRONMENT_PRIMARY', 'HUMIDITY_RELATIVE',
-                direct_value=int(humidity)  # Store as %
-            )
-        
+            # Send Environment data
+            time.sleep(0.0001)
+            ambient_temp = 22 + 2 * math.sin(self.simulation_time / 300)
+            humidity = 60 + 10 * math.sin(self.simulation_time / 600)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'ENVIRONMENT_PRIMARY', 'TEMPERATURE_AMBIENT', direct_value=int(ambient_temp * 10))
+            time.sleep(0.0001)
+            self.can_interface.send_command('STATUS', 'NAVIGATION', 'ENVIRONMENT_PRIMARY', 'HUMIDITY_RELATIVE', direct_value=int(humidity))
+            logger.debug("Simulated Navigation Update")
+
         # Update counters for next cycle
         self.simulation_time += self.interval
         self.realistic_counter += 1
