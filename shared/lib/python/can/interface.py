@@ -29,6 +29,7 @@ import platform
 import time
 import threading
 from cffi import FFI
+from typing import Optional
 
 # Use relative imports
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
@@ -71,7 +72,8 @@ ffi.cdef("""
         uint8_t component_id,
         uint8_t command_id,
         int value_type,
-        int32_t value
+        int32_t value,
+        int8_t delay_override
     );
     void can_interface_process(can_interface_t handle);
 """)
@@ -140,7 +142,6 @@ class CANInterfaceWrapper:
         # Format: { node_id: {'last_master_ms': int, 'last_collector_sync_time': float} }
         self._node_sync_info = {}
         
-        # Original code restored:
         # Create and initialize the CAN interface or mock
         self.logger.info(f"Creating hardware CAN interface with node ID: {node_id}")
         self._can_interface = lib.can_interface_create(node_id)
@@ -163,80 +164,17 @@ class CANInterfaceWrapper:
     def __del__(self):
         """Clean up resources when the object is destroyed"""
         self.stop_processing()
-        if self._can_interface and self.has_can_hardware:
-            lib.can_interface_destroy(self._can_interface)
+        lib.can_interface_destroy(self._can_interface)
     
     def _get_type_name(self, registry_dict, value):
         """Helper to get a type name from the registry dictionary by its value"""
         return registry_dict.get(value, f"Unknown({value})")
     
     def _handle_message(self, source_node_id, msg_type, comp_type, comp_id, cmd_id, val_type, value, timestamp_delta):
-        """Default message handler: Stores sync info or calculates recorded_at and stores telemetry."""
-        
+        """Default message handler: Stores telemetry using collector receive time."""
+
         current_collector_time = time.time()
-        
-        # Check if it's a time sync message
-        is_time_sync_msg = (comp_type == self.protocol_registry.get_component_type('SYSTEM_MONITOR') and
-                            comp_id == self.protocol_registry.get_component_id('SYSTEM_MONITOR', 'TIME_MASTER') and
-                            cmd_id == self.protocol_registry.get_command_id('SYSTEM_MONITOR', 'GLOBAL_TIME_SYNC_MS'))
-
-        if is_time_sync_msg:
-            # Store sync info for the sending node (which is the Time Master)
-            master_timestamp_ms = value # Value is the 24-bit master time in ms
-            self.logger.info(f"TIME_SYNC Received from {source_node_id:#04x}: MasterMS={master_timestamp_ms}, CollectorTime={current_collector_time:.3f}. Updating sync info.")
-            self._node_sync_info[source_node_id] = {
-                'last_master_ms': master_timestamp_ms,
-                'last_collector_sync_time': current_collector_time
-            }
-            # Do NOT store sync messages themselves as telemetry
-            return 
-        
-        # --- It's a data message, calculate recorded_at --- 
         self.logger.info(f"Received message from node {source_node_id:#04x}: Type={msg_type} CompT={comp_type} CompID={comp_id} CmdID={cmd_id} ValT={val_type} Val={value} Delta={timestamp_delta}")
-
-        # --- Existing Time Sync Logic (kept for future use) ---
-        time_master_node_id = None
-        if self._node_sync_info:
-            time_master_node_id = next(iter(self._node_sync_info))
-        sync_info = None
-        if time_master_node_id is not None:
-            sync_info = self._node_sync_info.get(time_master_node_id)
-        
-        temp_recorded_at = current_collector_time # Default if sync fails
-        if sync_info:
-            # ... (Keep reconstruction logic inside the if block) ...
-            last_master_ms = sync_info['last_master_ms']
-            last_collector_sync_time = sync_info['last_collector_sync_time']
-            self.logger.debug(
-                f"Calculating recorded_at: last_coll_sync_t={last_collector_sync_time:.4f}, "
-                f"last_master_ms(masked)={last_master_ms}, delta_ms={timestamp_delta}, src={source_node_id:#04x}"
-            )
-            collector_epoch_ms = int(last_collector_sync_time * 1000)
-            mask_24bit = 0xFFFFFF
-            base = collector_epoch_ms & ~mask_24bit
-            candidate0 = (base - (mask_24bit + 1)) | last_master_ms
-            candidate1 = base | last_master_ms
-            candidate2 = (base + (mask_24bit + 1)) | last_master_ms
-            candidates = { 
-                abs(collector_epoch_ms - candidate0): candidate0,
-                abs(collector_epoch_ms - candidate1): candidate1,
-                abs(collector_epoch_ms - candidate2): candidate2
-            }
-            reconstructed_full_master_ms = candidates[min(candidates.keys())]
-            recorded_at_epoch_ms = reconstructed_full_master_ms + timestamp_delta
-            temp_recorded_at = recorded_at_epoch_ms / 1000.0 # Store calculated value temporarily
-            self.logger.debug(f"Reconstructed Master Epoch MS: {reconstructed_full_master_ms}, Calculated recorded_at={temp_recorded_at:.4f}")
-            # ... (Keep sanity check logic) ...
-            time_diff = abs(current_collector_time - temp_recorded_at)
-            if time_diff > 1.0: # Warn if difference > 1 second
-                self.logger.warning(
-                    f"Large time difference ({time_diff:.3f}s) between collector ({current_collector_time:.3f}) "
-                    f"and calculated recorded_at ({temp_recorded_at:.3f}). Check sync frequency/rollover."
-                    f" MasterMS={last_master_ms}, Delta={timestamp_delta}, Src={source_node_id:#04x}"
-                )
-        else:
-            self.logger.warning(f"No sync info found for Time Master (looked for node {time_master_node_id}). Using collector time for recorded_at.")
-        # --- End Existing Time Sync Logic ---
 
         # --- Simplified Approach: Use Collector Time --- 
         recorded_at = current_collector_time
@@ -248,7 +186,7 @@ class CANInterfaceWrapper:
             return
 
         state_data = {
-            'timestamp': recorded_at, # This field maps to recorded_at in DB
+            'timestamp': recorded_at, # Maps to recorded_at in DB
             'message_type': msg_type,
             'component_type': comp_type,
             'component_id': comp_id,
@@ -272,23 +210,33 @@ class CANInterfaceWrapper:
         """Register default handlers for status messages from components."""
         self.logger.info("Registering default handlers")
         registered_count = 0
-        
+
         try:
-            for component_type in self.protocol_registry.get_component_types():
-                for command in self.protocol_registry.get_commands(component_type):
-                    self.logger.debug(f"Registering handlers for component type: {component_type} command: {command}")
 
-                    # convert the type, command, and value to their numeric values
-                    comp_type = self.protocol_registry.get_component_type(component_type)
-                    cmd_id = self.protocol_registry.get_command_id(component_type, command)
+            pong_comp_type = self.protocol_registry.get_component_type('SYSTEM_MONITOR') # Still need these for the check below
+            pong_cmd_id = self.protocol_registry.get_command_id('SYSTEM_MONITOR', 'PONG')
+            
+            for component_type_name in self.protocol_registry.get_component_types():
+                component_type_id = self.protocol_registry.get_component_type(component_type_name)
+                if component_type_id is None: continue
 
-                    # Register handler for STATUS messages from all component IDs
-                    self.register_handler('STATUS', comp_type, 255, cmd_id, self._handle_message)
+                for command_name in self.protocol_registry.get_commands(component_type_name):
+                    command_id = self.protocol_registry.get_command_id(component_type_name, command_name)
+                    if command_id is None: continue
+
+                    # Skip registering default _handle_message if it's PONG
+                    if component_type_id == pong_comp_type and command_id == pong_cmd_id:
+                         self.logger.debug(f"Skipping default handler registration for PONG.")
+                         continue
+
+                    # Register handler for STATUS messages
+                    self.logger.debug(f"Registering default handler for {component_type_name}/{command_name} (STATUS)")
+                    self.register_handler('STATUS', component_type_id, 255, command_id, self._handle_message)
                     registered_count += 1
+
         except Exception as e:
-            self.logger.error(f"Error registering default handlers: {e}")
-            # Don't exit just because we couldn't register handlers
-        
+            self.logger.error(f"Error registering default handlers: {e}", exc_info=True)
+
         self.logger.info(f"Registered {registered_count} message handlers")
     
     def register_handler(self, message_type, comp_type, comp_id, cmd_id, handler):
@@ -315,7 +263,8 @@ class CANInterfaceWrapper:
                 # Call the user-provided Python handler
                 handler(source_node_id_c, msg_type_c, comp_type_c, comp_id_c, cmd_id_c, val_type_c, value_c, timestamp_delta_c)
             except Exception as e:
-                print(f"Error in CAN message handler callback: {e}")
+                # Use logger instead of print
+                self.logger.error(f"Error in CAN message handler callback: {e}", exc_info=True)
 
         # Keep a reference to the callback object! CFFI requires this.
         self.callbacks.append(callback)
@@ -331,7 +280,7 @@ class CANInterfaceWrapper:
         )
         print(f"Registered handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
     
-    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value):
+    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value, delay_override: Optional[int] = None):
         """
         Send a message over the CAN interface.
         
@@ -342,29 +291,32 @@ class CANInterfaceWrapper:
             cmd_id (int): The command ID.
             value_type (int): The value type ID.
             value (int): The value to send.
+            delay_override (Optional[int]): Value for the delay byte (data[1]). -1 or None for default delta calc.
             
         Returns:
             bool: True if the message was sent successfully, False otherwise.
         """
-        # Send the message using the C++ library if available
-        if self.has_can_hardware:
-            return lib.can_interface_send_message(
-                self._can_interface, 
-                msg_type, 
-                comp_type, 
-                comp_id, 
-                cmd_id, 
-                value_type, 
-                value
-            )
-        else:
-            # Mock interface needs updating if used
-            self.logger.warning("Mock CAN interface does not support timestamp delta.")
-            # Send the message using the mock interface
-            # return self._can_interface.send_message(msg_type, comp_type, comp_id, cmd_id, value_type, value)
-            return False # Return False as mock doesn't support it
+        # Use -1 if delay_override is None, otherwise cast to int8
+        c_delay_override = -1 if delay_override is None else int(delay_override)
+        
+        # Clamp c_delay_override to int8 range if necessary (though uint8 is more likely intended)
+        # Assuming the C side handles uint8 interpretation from int8 input
+        if not (-128 <= c_delay_override <= 127):
+            self.logger.warning(f"delay_override {delay_override} out of int8 range. Using -1 (default delta).")
+            c_delay_override = -1
+
+        return lib.can_interface_send_message(
+            self._can_interface,
+            msg_type,
+            comp_type,
+            comp_id,
+            cmd_id,
+            value_type,
+            value,
+            c_delay_override # Pass the potentially modified override value
+        )
     
-    def send_command(self, message_type_name, component_type_name, component_name, command_name, value_name=None, direct_value=None):
+    def send_command(self, message_type_name, component_type_name, component_name, command_name, value_name=None, direct_value=None, delay_override: Optional[int] = None):
         """
         Send a command message on the CAN bus using high-level parameters.
         This method uses the protocol registry to convert the high-level parameters to the appropriate IDs.
@@ -376,6 +328,7 @@ class CANInterfaceWrapper:
             command_name (str): The name of the command (e.g., 'MODE', 'BRIGHTNESS')
             value_name (str, optional): The name of the value (e.g., 'ON', 'OFF')
             direct_value (int, optional): A direct integer value to send instead of a named value.
+            delay_override (Optional[int]): Value for the delay byte (data[1]), typically used for PING.
             
         Returns:
             bool: True if the command was sent successfully, False otherwise.
@@ -391,12 +344,12 @@ class CANInterfaceWrapper:
                 direct_value
             )
             
-            self.logger.info(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}")
+            self.logger.info(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}" + (f" w/ delay_override={delay_override}" if delay_override is not None else ""))
             
-            # Send the message, pass 0 for timestamp delta as collector doesn't need it for sending
-            return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, val)
+            # Call send_message with the optional delay_override
+            return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, val, delay_override=delay_override)
         except Exception as e:
-            self.logger.error(f"Error sending command: {e}")
+            self.logger.error(f"Error sending command: {e}", exc_info=True)
             return False
     
     def process(self):
@@ -425,39 +378,6 @@ class CANInterfaceWrapper:
         self.process_thread = threading.Thread(target=process_loop, daemon=True)
         self.process_thread.start()
     
-    def send_time_sync(self):
-        """Sends a GLOBAL_TIME_SYNC message with the current time."""
-        if not self.has_can_hardware:
-            self.logger.warning("Cannot send time sync, no CAN hardware.")
-            return False
-            
-        # Use milliseconds since epoch, fitting into 24 bits
-        current_time_ms = int(time.time() * 1000)
-        time_value_24bit = current_time_ms & 0xFFFFFF # Mask to lower 24 bits
-        
-        # Log the values being sent
-        self.logger.debug(
-            f"Sending Time Sync: Full MS={current_time_ms}, Masked 24bit={time_value_24bit}"
-        )
-        
-        try:
-            # Create message params using registry lookups
-            msg_type = self.protocol_registry.get_message_type('STATUS')
-            comp_type = self.protocol_registry.get_component_type('SYSTEM_MONITOR')
-            comp_id = self.protocol_registry.get_component_id('SYSTEM_MONITOR', 'TIME_MASTER')
-            cmd_id = self.protocol_registry.get_command_id('SYSTEM_MONITOR', 'GLOBAL_TIME_SYNC_MS')
-            val_type = self.protocol_registry.get_value_type('UINT24') # Assuming UINT24 is suitable
-            
-            self.logger.debug(f"Sending Time Sync: {time_value_24bit}ms (masked)")
-            # Pass 0 for delta when sending time sync itself
-            return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, time_value_24bit)
-            
-        except KeyError as e:
-            self.logger.error(f"Error sending time sync: Invalid name in protocol registry - {e}")
-            return False
-        except Exception as e:
-             self.logger.error(f"Error sending time sync: {e}", exc_info=True)
-             return False
 
     def stop_processing(self):
         """Stop the background thread that processes CAN messages."""

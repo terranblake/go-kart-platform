@@ -131,6 +131,7 @@ private:
   uint64_t m_lastSyncTimeMs = 0; // Time of last handled sync event (ms since epoch)
 
   // --- Helper Functions ---
+  bool _handlePingAndSetRTC(const CANMessage& msg);
   uint64_t getCurrentTimeMs(); // Function to get current time in ms
 
   // Debug logging helper

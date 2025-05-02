@@ -13,6 +13,11 @@
 #include <Arduino.h>
 #endif
 
+#ifdef PLATFORM_ESP32 // Guard for ESP32-specific time functions
+#include <sys/time.h> // Required for timeval, settimeofday, gettimeofday
+#include <time.h>     // Required for time_t
+#endif
+
 // Debug mode
 #ifndef DEBUG_MODE
 #define DEBUG_MODE 0
@@ -63,25 +68,47 @@ void ProtobufCANInterface::registerHandler(kart_common_MessageType msg_type,
 bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type, 
                                       kart_common_ComponentType component_type,
                                       uint8_t component_id, uint8_t command_id, 
-                                      kart_common_ValueType value_type, int32_t value) {
-  
-#if CAN_LOGGING_ENABLED
-    logMessage("SEND", message_type, component_type, component_id, command_id, value_type, value);
+                                      kart_common_ValueType value_type, int32_t value,
+                                      int8_t delay_override) {
+
+    uint8_t final_delta_byte = 0;
+
+    // Check if this is a PING command with a valid override
+    bool is_ping_with_override = (message_type == kart_common_MessageType_COMMAND &&
+                                component_type == kart_common_ComponentType_SYSTEM_MONITOR &&
+                                command_id == kart_system_monitor_SystemMonitorCommandId_PING &&
+                                delay_override >= 0);
+
+    if (is_ping_with_override) {
+        // Use the provided override for PING messages
+        final_delta_byte = static_cast<uint8_t>(delay_override);
+#if CAN_LOGGING_ENABLED || DEBUG_MODE
+        printf("[sendMessage] Using delay_override %d for PING data[1].\n", final_delta_byte);
 #endif
+    } else {
+        // Calculate Timestamp Delta based on internal state for other messages
+        uint64_t nowMs = getCurrentTimeMs();
+        uint64_t deltaMs = 0;
 
-    // Calculate Timestamp Delta
-    uint64_t nowMs = getCurrentTimeMs();
-    uint64_t deltaMs = 0;
-    if (m_lastSyncTimeMs > 0) { // Avoid huge delta if no sync received yet
-        deltaMs = nowMs - m_lastSyncTimeMs;
+        if (m_lastSyncTimeMs > 0) {
+             if (nowMs >= m_lastSyncTimeMs) {
+                 deltaMs = nowMs - m_lastSyncTimeMs;
+             } else {
+                 // Clock potentially went backwards or very large delta - clamp to 0?
+                 deltaMs = 0; 
+#if CAN_LOGGING_ENABLED || DEBUG_MODE
+                 printf("[sendMessage] WARNING: nowMs < m_lastSyncTimeMs! Clamping delta to 0. now=%llu, last=%llu\n", 
+                        (unsigned long long)nowMs, (unsigned long long)m_lastSyncTimeMs);
+#endif
+             }
+        } 
+
+        final_delta_byte = static_cast<uint8_t>(deltaMs & 0xFF);
+#if CAN_LOGGING_ENABLED || DEBUG_MODE
+        printf("[sendMessage] Calculated delta %u for data[1]. now=%llu, last=%llu\n", 
+            final_delta_byte, (unsigned long long)nowMs, (unsigned long long)m_lastSyncTimeMs);
+#endif
     }
-    
-    // Clamp to 8 bits (0-255 milliseconds) - simple truncation
-    uint8_t calculated_delta = static_cast<uint8_t>(deltaMs & 0xFF);
-
-    // Force print to stderr for visibility
-    fprintf(stderr, "[SEND_DELTA_CALC] nowMs=%llu, lastSyncMs=%llu, deltaMs=%llu, calculated_delta=%u\n", 
-            (unsigned long long)nowMs, (unsigned long long)m_lastSyncTimeMs, (unsigned long long)deltaMs, calculated_delta);
 
     // Pack first byte (message type and component type)
     uint8_t header = packHeader(message_type, component_type);
@@ -95,7 +122,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     msg.length = 8;      // Always use 8 bytes for consistency
     
     msg.data[0] = header;
-    msg.data[1] = calculated_delta;
+    msg.data[1] = final_delta_byte; // Use the determined delta byte
     msg.data[2] = component_id;
     msg.data[3] = command_id;
     msg.data[4] = static_cast<uint8_t>(value_type) << 4; // Value type in high nibble
@@ -104,7 +131,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     msg.data[7] = packed_value & 0xFF;                   // Value byte 0 (LSB)
     
 #if CAN_LOGGING_ENABLED
-    printf("ProtobufCANInterface: Created CAN frame - ID: 0x%X, Data:", msg.id);
+    printf("ProtobufCANInterface: Final CAN frame - ID: 0x%X, Data:", msg.id);
     for (int i = 0; i < msg.length; i++) {
         printf(" %02X", msg.data[i]);
     }
@@ -133,35 +160,24 @@ void ProtobufCANInterface::process()
         return;
     }
 
-    // Check for Time Sync Message FIRST
-    kart_common_MessageType preliminary_msg_type;
-    kart_common_ComponentType preliminary_comp_type;
-    unpackHeader(msg.data[0], preliminary_msg_type, preliminary_comp_type);
-    uint8_t preliminary_component_id = msg.data[2];
-    uint8_t preliminary_command_id = msg.data[3];
-
-    // Use enum values from common.pb.h and system_monitor.pb.h
-    bool is_time_sync = (preliminary_comp_type == kart_common_ComponentType_SYSTEM_MONITOR &&
-                         preliminary_command_id == kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS);
-
-    if (is_time_sync) {
-        m_lastSyncTimeMs = getCurrentTimeMs();
-#if DEBUG_MODE || CAN_LOGGING_ENABLED
-        printf("ProtobufCANInterface: Received TIME_SYNC from Node 0x%X. Updated internal m_lastSyncTimeMs to %llu\n", msg.id, m_lastSyncTimeMs);
-#endif
-        // Decide whether to return or let sync messages fall through to handlers
-        // For now, let them fall through. If handlers shouldn't see sync, add `return;` here.
-    }
-
-    // Unpack header
-    kart_common_MessageType msg_type;
+    // Peek at message type to check for PING
+    kart_common_MessageType msg_type; // Unpack once here
     kart_common_ComponentType comp_type;
     unpackHeader(msg.data[0], msg_type, comp_type);
+    uint8_t command_id = msg.data[3]; // Get command ID
+
+    bool is_ping_msg = (msg_type == kart_common_MessageType_COMMAND &&
+                        comp_type == kart_common_ComponentType_SYSTEM_MONITOR &&
+                        command_id == kart_system_monitor_SystemMonitorCommandId_PING);
+
+    // Handle PING separately using the helper function
+    if (is_ping_msg) {
+        return _handlePingAndSetRTC(msg);
+    }
 
     // Extract other fields
     uint32_t source_node_id = msg.id; // Get source node ID
     uint8_t component_id = msg.data[2];
-    uint8_t command_id = msg.data[3];
     uint8_t timestamp_delta = msg.data[1]; // Extract delta received from sender
     kart_common_ValueType value_type = static_cast<kart_common_ValueType>(msg.data[4] >> 4);
 
@@ -287,15 +303,100 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
            (handler.command_id == command_id);
 }
 
+// Implementation of the new helper function
+bool ProtobufCANInterface::_handlePingAndSetRTC(const CANMessage& msg) {
+    // Extract the timestamp value sent by the collector (RPi)
+    uint32_t packed_ping_value = (static_cast<uint32_t>(msg.data[5]) << 16) |
+                                 (static_cast<uint32_t>(msg.data[6]) << 8) |
+                                 msg.data[7];
+    int32_t ping_timestamp_value = unpackValue(kart_common_ValueType_UINT24, packed_ping_value); // RPi time when PING was sent (24-bit)
+
+    // Extract the estimated one-way delay sent by the collector
+    uint8_t delay_ms = msg.data[1];
+
+    // Update the internal time reference with the original PING timestamp value.
+    // This is the reference point for calculating the delta on subsequent outgoing messages.
+    m_lastSyncTimeMs = static_cast<uint64_t>(ping_timestamp_value);
+
+#if DEBUG_MODE || CAN_LOGGING_ENABLED
+    printf("ProtobufCANInterface: Received PING from Node 0x%X with value %d, delay %u ms. Updated m_lastSyncTimeMs reference.\n",
+           msg.id, ping_timestamp_value, delay_ms);
+#endif
+
+    // Send PONG back immediately, echoing the original PING value
+    // FIXME: Determine the correct component ID for the PONG response. Using 0 for now.
+    uint8_t pong_component_id = 0; // Placeholder
+    sendMessage(kart_common_MessageType_STATUS,
+                kart_common_ComponentType_SYSTEM_MONITOR,
+                pong_component_id, // ID of this device
+                kart_system_monitor_SystemMonitorCommandId_PONG,
+                kart_common_ValueType_UINT24, // Echo same type
+                ping_timestamp_value);        // Echo original value
+
+#ifdef PLATFORM_ESP32
+    // --- Set ESP32 RTC using PING timestamp adjusted by the received delay (Simplified) ---
+    struct timeval current_esp_tv;
+    if (gettimeofday(&current_esp_tv, NULL) == 0) {
+        // Calculate the target time in the 24-bit millisecond context
+        uint32_t target_ms_24bit = (ping_timestamp_value + delay_ms) & 0xFFFFFF;
+
+        // Create the new timeval: Keep current seconds, adjust microseconds
+        struct timeval new_esp_tv;
+        new_esp_tv.tv_sec = current_esp_tv.tv_sec; // Keep the current second
+        // Adjust microseconds based on the fractional second part of target_ms_24bit
+        new_esp_tv.tv_usec = (target_ms_24bit % 1000) * 1000;
+
+        // Set the ESP32's time
+        if (settimeofday(&new_esp_tv, NULL) != 0) {
+#if DEBUG_MODE || CAN_LOGGING_ENABLED
+            printf("ProtobufCANInterface: WARNING - Failed to set ESP32 time via settimeofday (simplified).\n");
+#endif
+             // If setting time failed, DO NOT update m_lastSyncTimeMs
+        } else {
+#if DEBUG_MODE || CAN_LOGGING_ENABLED
+            printf("ProtobufCANInterface: Set ESP32 time (simplified) - Sec: %ld, uSec: %06ld (from target_ms %u).\n",
+                   (long)new_esp_tv.tv_sec, (long)new_esp_tv.tv_usec, target_ms_24bit);
+#endif
+            // *** Update m_lastSyncTimeMs with the full RECONSTRUCTED time that was SET ***
+            // Calculate the full time corresponding to the set timeval
+            uint64_t reconstructed_arrival_ms = (uint64_t)new_esp_tv.tv_sec * 1000 + (new_esp_tv.tv_usec / 1000);
+            m_lastSyncTimeMs = reconstructed_arrival_ms; // Set the member variable
+        }
+    } else {
+#if DEBUG_MODE || CAN_LOGGING_ENABLED
+        printf("ProtobufCANInterface: WARNING - Failed to get current ESP32 time (gettimeofday failed).\n");
+#endif
+    }
+    // ----------------------------------------------------------------------------
+#endif // PLATFORM_ESP32
+
+    return true; // Indicate PING was handled
+}
+
 // --- Helper Function Implementation ---
 uint64_t ProtobufCANInterface::getCurrentTimeMs() {
-#ifdef PLATFORM_ARDUINO // Or other embedded platforms
-    return millis(); // Use Arduino's millis() if available
+#ifdef PLATFORM_ESP32
+    // Use gettimeofday for ESP32 as we are setting it via PING+delay
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == 0) {
+        return (uint64_t)tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+    } else {
+        // Fallback or error handling
+        #if DEBUG_MODE || CAN_LOGGING_ENABLED
+            printf("ProtobufCANInterface: WARNING - Failed to get ESP32 time via gettimeofday in getCurrentTimeMs! Falling back to millis().\n");
+        #endif
+        #ifdef PLATFORM_ARDUINO // Check if Arduino functions are available
+             return millis(); 
+        #else
+             return 0; // Or another error indicator if no millis()
+        #endif
+    }
+#elif defined(PLATFORM_ARDUINO) 
+    // Use Arduino's millis() for non-ESP32 Arduino platforms
+    return millis();
 #else
     // Use std::chrono for Linux/macOS etc.
-    // Use steady_clock for monotonic time (time since startup/epoch)
     auto now = std::chrono::steady_clock::now();
-    // time_since_epoch() for steady_clock gives duration since clock's epoch (often boot time)
     auto duration = now.time_since_epoch(); 
     return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 #endif

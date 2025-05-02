@@ -186,7 +186,7 @@ class PersistentTelemetryStore(TelemetryStore):
             finally:
                 conn.close()
                 
-            # --- Log Timings --- 
+            # --- Log Timings ---
             lock_wait_ms = (t_after_lock - t_before_lock) * 1000
             insert_exec_ms = (t_before_commit - t_before_insert) * 1000
             commit_ms = (t_after_commit - t_before_commit) * 1000

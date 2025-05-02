@@ -81,7 +81,8 @@ EXPORT bool can_interface_send_message(
     uint8_t component_id,
     uint8_t command_id,
     int value_type,
-    int32_t value
+    int32_t value,
+    int8_t delay_override
 ) {
     if (!handle) {
         printf("Error: Invalid CAN interface handle\n");
@@ -96,7 +97,8 @@ EXPORT bool can_interface_send_message(
         component_id,
         command_id,
         static_cast<kart_common_ValueType>(value_type),
-        value
+        value,
+        delay_override
     );
 }
 

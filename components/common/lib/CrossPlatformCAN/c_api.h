@@ -36,7 +36,8 @@ bool can_interface_send_message(
     uint8_t component_id,
     uint8_t command_id,
     int value_type,
-    int32_t value
+    int32_t value,
+    int8_t delay_override
 );
 void can_interface_process(can_interface_t handle);
 

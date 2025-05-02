@@ -23,24 +23,8 @@ from shared.lib.python.can.protocol_registry import ProtocolRegistry
 from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
 from api import create_api_server_manager # Use the new manager function
 from uplink_manager import UplinkManager # Import UplinkManager
+from ping_broadcaster import PingBroadcaster # Import PingBroadcaster
 
-# --- Time Sync Broadcaster Thread ---
-class TimeSyncBroadcaster(threading.Thread):
-    def __init__(self, can_interface: CANInterfaceWrapper, interval_s: float = 0.1, stop_event: threading.Event = None):
-        super().__init__(daemon=True, name="TimeSyncBroadcaster")
-        self.can_interface = can_interface
-        self.interval_s = interval_s
-        self._stop_event = stop_event or threading.Event()
-
-    def run(self):
-        logger.info(f"Starting Time Sync Broadcaster (interval: {self.interval_s}s)")
-        while not self._stop_event.wait(self.interval_s): # Wait for interval or stop event
-            self.can_interface.send_time_sync()
-        logger.info("Time Sync Broadcaster stopped.")
-
-    def stop(self):
-        self._stop_event.set()
-# ----------------------------------
 
 # Global variables for graceful shutdown
 stop_event = threading.Event()
@@ -175,17 +159,14 @@ def main():
                 baudrate=config.getint('DEFAULT', 'CAN_BAUDRATE', fallback=500000),
                 telemetry_store=telemetry_store
             )
-            if can_interface.has_can_hardware:
-                can_interface.start_processing()
-                logger.info("Started CAN message processing thread.")
-                
-                # Start Time Sync Broadcaster if vehicle and CAN is up
-                time_sync_interval = config.getfloat('DEFAULT', 'TIME_SYNC_INTERVAL_S', fallback=0.1)
-                time_sync_thread = TimeSyncBroadcaster(can_interface, time_sync_interval, stop_event)
-                time_sync_thread.start()
-            else:
-                logger.error("Failed to initialize CAN interface. CAN listener disabled.")
-                can_interface = None
+
+            can_interface.start_processing()
+            logger.info("Started CAN message processing thread.")
+            
+            # Start Time Sync Broadcaster if vehicle and CAN is up
+            time_sync_interval = config.getfloat('DEFAULT', 'TIME_SYNC_INTERVAL_S', fallback=0.1)
+            time_sync_thread = PingBroadcaster(can_interface, telemetry_store, protocol_registry, time_sync_interval, stop_event)
+            time_sync_thread.start()
         except Exception as e:
              logger.error(f"Error initializing CAN interface: {e}. CAN listener disabled.", exc_info=True)
              can_interface = None

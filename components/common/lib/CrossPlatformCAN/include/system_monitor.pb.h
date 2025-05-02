@@ -28,8 +28,10 @@ typedef enum _kart_system_monitor_SystemMonitorCommandId {
     kart_system_monitor_SystemMonitorCommandId_UPLINK_QUEUE_SIZE = 1, /* Number of records currently buffered locally waiting for uplink (uint16 or uint24) */
     kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_LATENCY_MS = 2, /* Rolling average uplink latency (send to ack) in ms (uint16) */
     kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_THROUGHPUT_KBPS = 3, /* Rolling average uplink throughput in KB/sec (uint16) */
-    /* --- Time Synchronization --- */
-    kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS = 4 /* Broadcast time from master (ms, lower 24 bits of epoch ms) */
+    /* --- Time Synchronization & RTT --- */
+    kart_system_monitor_SystemMonitorCommandId_PING = 4, /* COMMAND: Sent by collector to initiate RTT measurement and provide time reference (value = collector time ms, 24-bit) */
+    kart_system_monitor_SystemMonitorCommandId_PONG = 5, /* STATUS: Sent by device in response to PING, echoing the original PING value */
+    kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS = 6 /* STATUS: Reported by collector, storing the calculated RTT for a specific node (value = RTT in ms, uint16?) */
 } kart_system_monitor_SystemMonitorCommandId;
 
 /* Used with UPLINK_MANAGER and UPLINK_STATUS command */
@@ -50,8 +52,8 @@ extern "C" {
 #define _kart_system_monitor_SystemMonitorComponentId_ARRAYSIZE ((kart_system_monitor_SystemMonitorComponentId)(kart_system_monitor_SystemMonitorComponentId_TIME_MASTER+1))
 
 #define _kart_system_monitor_SystemMonitorCommandId_MIN kart_system_monitor_SystemMonitorCommandId_UPLINK_STATUS
-#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS
-#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS+1))
+#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS
+#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS+1))
 
 #define _kart_system_monitor_UplinkStatusValue_MIN kart_system_monitor_UplinkStatusValue_DISCONNECTED
 #define _kart_system_monitor_UplinkStatusValue_MAX kart_system_monitor_UplinkStatusValue_ERROR
