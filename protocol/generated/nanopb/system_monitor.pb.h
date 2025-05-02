@@ -31,7 +31,8 @@ typedef enum _kart_system_monitor_SystemMonitorCommandId {
     /* --- Time Synchronization & RTT --- */
     kart_system_monitor_SystemMonitorCommandId_PING = 4, /* COMMAND: Sent by collector to initiate RTT measurement and provide time reference (value = collector time ms, 24-bit) */
     kart_system_monitor_SystemMonitorCommandId_PONG = 5, /* STATUS: Sent by device in response to PING, echoing the original PING value */
-    kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS = 6 /* STATUS: Reported by collector, storing the calculated RTT for a specific node (value = RTT in ms, uint16?) */
+    kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS = 6, /* STATUS: Reported by collector, storing the calculated RTT for a specific node (value = RTT in ms, uint16?) */
+    kart_system_monitor_SystemMonitorCommandId_SET_TIME = 7 /* COMMAND: Sent by collector TO device, value is target device time (ms modulo 2^24) */
 } kart_system_monitor_SystemMonitorCommandId;
 
 /* Used with UPLINK_MANAGER and UPLINK_STATUS command */
@@ -52,8 +53,8 @@ extern "C" {
 #define _kart_system_monitor_SystemMonitorComponentId_ARRAYSIZE ((kart_system_monitor_SystemMonitorComponentId)(kart_system_monitor_SystemMonitorComponentId_TIME_MASTER+1))
 
 #define _kart_system_monitor_SystemMonitorCommandId_MIN kart_system_monitor_SystemMonitorCommandId_UPLINK_STATUS
-#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS
-#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_ROUNDTRIPTIME_MS+1))
+#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_SET_TIME
+#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_SET_TIME+1))
 
 #define _kart_system_monitor_UplinkStatusValue_MIN kart_system_monitor_UplinkStatusValue_DISCONNECTED
 #define _kart_system_monitor_UplinkStatusValue_MAX kart_system_monitor_UplinkStatusValue_ERROR

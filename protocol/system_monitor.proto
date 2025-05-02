@@ -26,6 +26,7 @@ enum SystemMonitorCommandId {
   PING = 4;                     // COMMAND: Sent by collector to initiate RTT measurement and provide time reference (value = collector time ms, 24-bit)
   PONG = 5;                     // STATUS: Sent by device in response to PING, echoing the original PING value
   ROUNDTRIPTIME_MS = 6;         // STATUS: Reported by collector, storing the calculated RTT for a specific node (value = RTT in ms, uint16?)
+  SET_TIME = 7;                 // COMMAND: Sent by collector TO device, value is target device time (ms modulo 2^24)
 
   // --- RPi/ESP32 Health Metrics --- (To be detailed in Task 2: TASK_System_Health_Monitoring.md)
   // COMPONENT_UPTIME_S = 10;

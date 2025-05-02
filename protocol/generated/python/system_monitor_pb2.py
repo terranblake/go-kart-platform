@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14system_monitor.proto\x12\x13kart.system_monitor*t\n\x18SystemMonitorComponentId\x12\x11\n\rRESERVED_ZERO\x10\x00\x12\x10\n\x0cRASPBERRY_PI\x10\x01\x12\x0e\n\nESP32_MAIN\x10\x02\x12\x12\n\x0eUPLINK_MANAGER\x10\x03\x12\x0f\n\x0bTIME_MASTER\x10\x04*\xa7\x01\n\x16SystemMonitorCommandId\x12\x11\n\rUPLINK_STATUS\x10\x00\x12\x15\n\x11UPLINK_QUEUE_SIZE\x10\x01\x12\x19\n\x15UPLINK_AVG_LATENCY_MS\x10\x02\x12\x1e\n\x1aUPLINK_AVG_THROUGHPUT_KBPS\x10\x03\x12\x08\n\x04PING\x10\x04\x12\x08\n\x04PONG\x10\x05\x12\x14\n\x10ROUNDTRIPTIME_MS\x10\x06*O\n\x11UplinkStatusValue\x12\x10\n\x0c\x44ISCONNECTED\x10\x00\x12\x0e\n\nCONNECTING\x10\x01\x12\r\n\tCONNECTED\x10\x02\x12\t\n\x05\x45RROR\x10\x03\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14system_monitor.proto\x12\x13kart.system_monitor*t\n\x18SystemMonitorComponentId\x12\x11\n\rRESERVED_ZERO\x10\x00\x12\x10\n\x0cRASPBERRY_PI\x10\x01\x12\x0e\n\nESP32_MAIN\x10\x02\x12\x12\n\x0eUPLINK_MANAGER\x10\x03\x12\x0f\n\x0bTIME_MASTER\x10\x04*\xb5\x01\n\x16SystemMonitorCommandId\x12\x11\n\rUPLINK_STATUS\x10\x00\x12\x15\n\x11UPLINK_QUEUE_SIZE\x10\x01\x12\x19\n\x15UPLINK_AVG_LATENCY_MS\x10\x02\x12\x1e\n\x1aUPLINK_AVG_THROUGHPUT_KBPS\x10\x03\x12\x08\n\x04PING\x10\x04\x12\x08\n\x04PONG\x10\x05\x12\x14\n\x10ROUNDTRIPTIME_MS\x10\x06\x12\x0c\n\x08SET_TIME\x10\x07*O\n\x11UplinkStatusValue\x12\x10\n\x0c\x44ISCONNECTED\x10\x00\x12\x0e\n\nCONNECTING\x10\x01\x12\r\n\tCONNECTED\x10\x02\x12\t\n\x05\x45RROR\x10\x03\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,7 +34,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SYSTEMMONITORCOMPONENTID']._serialized_start=45
   _globals['_SYSTEMMONITORCOMPONENTID']._serialized_end=161
   _globals['_SYSTEMMONITORCOMMANDID']._serialized_start=164
-  _globals['_SYSTEMMONITORCOMMANDID']._serialized_end=331
-  _globals['_UPLINKSTATUSVALUE']._serialized_start=333
-  _globals['_UPLINKSTATUSVALUE']._serialized_end=412
+  _globals['_SYSTEMMONITORCOMMANDID']._serialized_end=345
+  _globals['_UPLINKSTATUSVALUE']._serialized_start=347
+  _globals['_UPLINKSTATUSVALUE']._serialized_end=426
 # @@protoc_insertion_point(module_scope)

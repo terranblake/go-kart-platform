@@ -9,7 +9,7 @@
 #include "CANInterface.h"
 #include "common.pb.h"
 #include <chrono> // For time
-#include <cstdint> // For uint64_t
+#include <cstdint> // For uint64_t, uint32_t, UINT32_MAX
 
 // Max number of message handlers
 // todo: switch to using PLATFORM_EMBEDDED
@@ -77,12 +77,16 @@ public:
    * @param command_id Command ID
    * @param value_type Type of value
    * @param value Value to send
+   * @param delay_override Override for data[1] (-1 for default delta calc). Used for PING.
+   * @param destination_node_id Target node ID (UINT32_MAX to use sender's m_nodeId). Added for targeted commands like SET_TIME.
    * @return true on success, false on failure
    */
-  bool sendMessage(kart_common_MessageType message_type, 
+  bool sendMessage(kart_common_MessageType message_type,
                   kart_common_ComponentType component_type,
-                  uint8_t component_id, uint8_t command_id, 
-                  kart_common_ValueType value_type, int32_t value);
+                  uint8_t component_id, uint8_t command_id,
+                  kart_common_ValueType value_type, int32_t value,
+                  int8_t delay_override = -1,
+                  uint32_t destination_node_id = UINT32_MAX);
   
   /**
    * Process incoming messages
@@ -131,7 +135,8 @@ private:
   uint64_t m_lastSyncTimeMs = 0; // Time of last handled sync event (ms since epoch)
 
   // --- Helper Functions ---
-  bool _handlePingAndSetRTC(const CANMessage& msg);
+  bool _handlePingAndSetRTC(const CANMessage& msg); // Now only handles PONG response
+  bool _handleSetDeviceTime(const CANMessage& msg); // ADDED: Handles incoming SET_TIME command
   uint64_t getCurrentTimeMs(); // Function to get current time in ms
 
   // Debug logging helper

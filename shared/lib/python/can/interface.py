@@ -73,7 +73,8 @@ ffi.cdef("""
         uint8_t command_id,
         int value_type,
         int32_t value,
-        int8_t delay_override
+        int8_t delay_override,
+        uint32_t destination_node_id
     );
     void can_interface_process(can_interface_t handle);
 """)
@@ -229,7 +230,6 @@ class CANInterfaceWrapper:
                          self.logger.debug(f"Skipping default handler registration for PONG.")
                          continue
 
-                    # Register handler for STATUS messages
                     self.logger.debug(f"Registering default handler for {component_type_name}/{command_name} (STATUS)")
                     self.register_handler('STATUS', component_type_id, 255, command_id, self._handle_message)
                     registered_count += 1
@@ -280,10 +280,11 @@ class CANInterfaceWrapper:
         )
         print(f"Registered handler for msg_type={msg_type}, comp_type={comp_type}, comp_id={comp_id}, cmd_id={cmd_id}")
     
-    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value, delay_override: Optional[int] = None):
+    def send_message(self, msg_type, comp_type, comp_id, cmd_id, value_type, value,
+                     delay_override: Optional[int] = None,
+                     destination_node_id: Optional[int] = None):
         """
         Send a message over the CAN interface.
-        
         Args:
             msg_type (int): The message type ID.
             comp_type (int): The component type ID.
@@ -291,19 +292,27 @@ class CANInterfaceWrapper:
             cmd_id (int): The command ID.
             value_type (int): The value type ID.
             value (int): The value to send.
-            delay_override (Optional[int]): Value for the delay byte (data[1]). -1 or None for default delta calc.
-            
+            delay_override (Optional[int]): Value for data[1]. -1 or None for default.
+            destination_node_id (Optional[int]): Target node ID. None uses sender ID.
         Returns:
-            bool: True if the message was sent successfully, False otherwise.
+            bool: True if sent successfully, False otherwise.
         """
-        # Use -1 if delay_override is None, otherwise cast to int8
         c_delay_override = -1 if delay_override is None else int(delay_override)
-        
-        # Clamp c_delay_override to int8 range if necessary (though uint8 is more likely intended)
-        # Assuming the C side handles uint8 interpretation from int8 input
         if not (-128 <= c_delay_override <= 127):
-            self.logger.warning(f"delay_override {delay_override} out of int8 range. Using -1 (default delta).")
+            self.logger.warning(f"delay_override {delay_override} out of range. Using -1.")
             c_delay_override = -1
+
+        # Use UINT32_MAX (approx 4 billion) to represent no specific destination in C++
+        # We need its actual value. Let's assume it's large enough that None maps to it.
+        # A safer way might be to get it from ffi or define it.
+        # For now, map None -> UINT32_MAX (represented by -1 cast to uint32 in C? Check C behavior)
+        # Let's use 0xFFFFFFFF explicitly if possible, or a large known value if not.
+        # A default parameter in C++ handles UINT32_MAX, so passing a specific large value
+        # might not be necessary if the C API uses a convention (e.g., 0 or -1 means broadcast/default).
+        # Let's stick to the C++ default logic: UINT32_MAX means use sender ID.
+        # We need to represent UINT32_MAX in Python.
+        UINT32_MAX = 0xFFFFFFFF 
+        c_destination_node_id = UINT32_MAX if destination_node_id is None else int(destination_node_id)
 
         return lib.can_interface_send_message(
             self._can_interface,
@@ -313,14 +322,16 @@ class CANInterfaceWrapper:
             cmd_id,
             value_type,
             value,
-            c_delay_override # Pass the potentially modified override value
+            c_delay_override,
+            c_destination_node_id # Pass destination ID
         )
-    
-    def send_command(self, message_type_name, component_type_name, component_name, command_name, value_name=None, direct_value=None, delay_override: Optional[int] = None):
+
+    def send_command(self, message_type_name, component_type_name, component_name, command_name,
+                     value_name=None, direct_value=None,
+                     delay_override: Optional[int] = None,
+                     destination_node_id: Optional[int] = None):
         """
         Send a command message on the CAN bus using high-level parameters.
-        This method uses the protocol registry to convert the high-level parameters to the appropriate IDs.
-        
         Args:
             message_type_name (str): The name of the message type (e.g., 'COMMAND', 'STATUS')
             component_type_name (str): The name of the component type (e.g., 'LIGHTS', 'MOTORS')
@@ -328,26 +339,28 @@ class CANInterfaceWrapper:
             command_name (str): The name of the command (e.g., 'MODE', 'BRIGHTNESS')
             value_name (str, optional): The name of the value (e.g., 'ON', 'OFF')
             direct_value (int, optional): A direct integer value to send instead of a named value.
-            delay_override (Optional[int]): Value for the delay byte (data[1]), typically used for PING.
-            
+            delay_override (Optional[int]): Value for data[1].
+            destination_node_id (Optional[int]): Target node ID.
         Returns:
-            bool: True if the command was sent successfully, False otherwise.
+            bool: True if sent successfully, False otherwise.
         """
         try:
-            # Create a message tuple from the high-level parameters
             msg_type, comp_type, comp_id, cmd_id, val_type, val = self.protocol_registry.create_message(
-                message_type_name,
-                component_type_name,
-                component_name,
-                command_name,
-                value_name,
-                direct_value
+                message_type_name, component_type_name, component_name,
+                command_name, value_name, direct_value
             )
-            
-            self.logger.info(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}" + (f" w/ delay_override={delay_override}" if delay_override is not None else ""))
-            
-            # Call send_message with the optional delay_override
-            return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, val, delay_override=delay_override)
+
+            log_extra = ""
+            if delay_override is not None:
+                log_extra += f" w/ delay_override={delay_override}"
+            if destination_node_id is not None:
+                 log_extra += f" to node={destination_node_id:#04x}" # Log destination
+            self.logger.info(f"Sending command: {message_type_name} {component_type_name} {component_name} {command_name} {value_name or direct_value}{log_extra}")
+
+            # Call send_message with the optional parameters
+            return self.send_message(msg_type, comp_type, comp_id, cmd_id, val_type, val,
+                                     delay_override=delay_override,
+                                     destination_node_id=destination_node_id)
         except Exception as e:
             self.logger.error(f"Error sending command: {e}", exc_info=True)
             return False
