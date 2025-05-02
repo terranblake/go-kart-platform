@@ -24,10 +24,29 @@ from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStor
 from api import create_api_server_manager # Use the new manager function
 from uplink_manager import UplinkManager # Import UplinkManager
 
+# --- Time Sync Broadcaster Thread ---
+class TimeSyncBroadcaster(threading.Thread):
+    def __init__(self, can_interface: CANInterfaceWrapper, interval_s: float = 0.1, stop_event: threading.Event = None):
+        super().__init__(daemon=True, name="TimeSyncBroadcaster")
+        self.can_interface = can_interface
+        self.interval_s = interval_s
+        self._stop_event = stop_event or threading.Event()
+
+    def run(self):
+        logger.info(f"Starting Time Sync Broadcaster (interval: {self.interval_s}s)")
+        while not self._stop_event.wait(self.interval_s): # Wait for interval or stop event
+            self.can_interface.send_time_sync()
+        logger.info("Time Sync Broadcaster stopped.")
+
+    def stop(self):
+        self._stop_event.set()
+# ----------------------------------
+
 # Global variables for graceful shutdown
 stop_event = threading.Event()
 can_interface = None
 uplink_manager_thread = None
+time_sync_thread = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -76,11 +95,15 @@ def load_config(config_path='config.ini'):
 
 def signal_handler(signum, frame):
     """Handle termination signals for graceful shutdown."""
-    global uplink_manager_thread, stop_event
+    global uplink_manager_thread, stop_event, time_sync_thread
     if not stop_event.is_set(): # Prevent double handling
         logger.info(f"Received signal {signum}. Initiating shutdown...")
         stop_event.set() # Signal all loops to stop
         
+        if time_sync_thread: # Stop time sync thread
+             logger.info("Stopping Time Sync Broadcaster...")
+             time_sync_thread.stop() # Relies on wait timeout
+
         if uplink_manager_thread:
             logger.info("Stopping Uplink Manager...")
             uplink_manager_thread.stop() # Signal the thread's internal loop to stop
@@ -88,6 +111,11 @@ def signal_handler(signum, frame):
         if can_interface:
             logger.info("Stopping CAN processing...")
             can_interface.stop_processing()
+            
+            # Also stop the pruning timer in the telemetry store
+            if hasattr(can_interface.telemetry_store, 'stop_pruning'):
+                logger.info("Stopping telemetry store pruning timer...")
+                can_interface.telemetry_store.stop_pruning()
             
         # Stop the asyncio loop if it's running (for remote role)
         try:
@@ -108,7 +136,7 @@ def signal_handler(signum, frame):
 
 
 def main():
-    global can_interface, uplink_manager_thread
+    global can_interface, uplink_manager_thread, time_sync_thread
 
     args = parse_arguments()
     config_file_path = args.config
@@ -150,6 +178,11 @@ def main():
             if can_interface.has_can_hardware:
                 can_interface.start_processing()
                 logger.info("Started CAN message processing thread.")
+                
+                # Start Time Sync Broadcaster if vehicle and CAN is up
+                time_sync_interval = config.getfloat('DEFAULT', 'TIME_SYNC_INTERVAL_S', fallback=0.1)
+                time_sync_thread = TimeSyncBroadcaster(can_interface, time_sync_interval, stop_event)
+                time_sync_thread.start()
             else:
                 logger.error("Failed to initialize CAN interface. CAN listener disabled.")
                 can_interface = None
@@ -200,14 +233,13 @@ def main():
     # --- Keep main thread alive for vehicle role until stop signal --- 
     if role == 'vehicle':
         logger.info("Vehicle collector entering main wait loop...")
-        while not stop_event.is_set():
-            try:
-                # Wait with timeout allows checking the event periodically
-                stop_event.wait(timeout=1.0) 
-            except KeyboardInterrupt:
-                 # Handle potential KeyboardInterrupt here if signal handler doesn't catch it first
-                 if not stop_event.is_set():
-                      signal_handler(signal.SIGINT, None)
+        if time_sync_thread:
+            time_sync_thread.join()
+            logger.debug("Time sync thread joined.")
+        if uplink_manager_thread:
+            uplink_manager_thread.join()
+            logger.debug("Uplink manager thread joined.")
+        
         logger.info("Vehicle collector main wait loop finished.")
     # For remote role, asyncio.run() blocks until stopped by signal handler
     # If API Server Manager crashes, signal_handler is called which should stop loops.

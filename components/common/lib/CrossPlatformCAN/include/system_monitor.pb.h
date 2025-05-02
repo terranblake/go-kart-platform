@@ -16,7 +16,8 @@ typedef enum _kart_system_monitor_SystemMonitorComponentId {
     kart_system_monitor_SystemMonitorComponentId_RESERVED_ZERO = 0, /* Reserve 0 if needed */
     kart_system_monitor_SystemMonitorComponentId_RASPBERRY_PI = 1, /* Represents the main RPi system (for Task 2 health metrics) */
     kart_system_monitor_SystemMonitorComponentId_ESP32_MAIN = 2, /* Represents a primary ESP32 (for Task 2 health metrics) */
-    kart_system_monitor_SystemMonitorComponentId_UPLINK_MANAGER = 3 /* Logical component representing the vehicle's telemetry uplink process */
+    kart_system_monitor_SystemMonitorComponentId_UPLINK_MANAGER = 3, /* Logical component representing the vehicle's telemetry uplink process */
+    kart_system_monitor_SystemMonitorComponentId_TIME_MASTER = 4 /* Component ID for the central time source */
 } kart_system_monitor_SystemMonitorComponentId;
 
 /* System Monitor Command IDs
@@ -26,7 +27,9 @@ typedef enum _kart_system_monitor_SystemMonitorCommandId {
     kart_system_monitor_SystemMonitorCommandId_UPLINK_STATUS = 0, /* Current status of the uplink connection (enum UplinkStatusValue) */
     kart_system_monitor_SystemMonitorCommandId_UPLINK_QUEUE_SIZE = 1, /* Number of records currently buffered locally waiting for uplink (uint16 or uint24) */
     kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_LATENCY_MS = 2, /* Rolling average uplink latency (send to ack) in ms (uint16) */
-    kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_THROUGHPUT_KBPS = 3 /* Rolling average uplink throughput in KB/sec (uint16) */
+    kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_THROUGHPUT_KBPS = 3, /* Rolling average uplink throughput in KB/sec (uint16) */
+    /* --- Time Synchronization --- */
+    kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS = 4 /* Broadcast time from master (ms, lower 24 bits of epoch ms) */
 } kart_system_monitor_SystemMonitorCommandId;
 
 /* Used with UPLINK_MANAGER and UPLINK_STATUS command */
@@ -43,12 +46,12 @@ extern "C" {
 
 /* Helper constants for enums */
 #define _kart_system_monitor_SystemMonitorComponentId_MIN kart_system_monitor_SystemMonitorComponentId_RESERVED_ZERO
-#define _kart_system_monitor_SystemMonitorComponentId_MAX kart_system_monitor_SystemMonitorComponentId_UPLINK_MANAGER
-#define _kart_system_monitor_SystemMonitorComponentId_ARRAYSIZE ((kart_system_monitor_SystemMonitorComponentId)(kart_system_monitor_SystemMonitorComponentId_UPLINK_MANAGER+1))
+#define _kart_system_monitor_SystemMonitorComponentId_MAX kart_system_monitor_SystemMonitorComponentId_TIME_MASTER
+#define _kart_system_monitor_SystemMonitorComponentId_ARRAYSIZE ((kart_system_monitor_SystemMonitorComponentId)(kart_system_monitor_SystemMonitorComponentId_TIME_MASTER+1))
 
 #define _kart_system_monitor_SystemMonitorCommandId_MIN kart_system_monitor_SystemMonitorCommandId_UPLINK_STATUS
-#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_THROUGHPUT_KBPS
-#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_UPLINK_AVG_THROUGHPUT_KBPS+1))
+#define _kart_system_monitor_SystemMonitorCommandId_MAX kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS
+#define _kart_system_monitor_SystemMonitorCommandId_ARRAYSIZE ((kart_system_monitor_SystemMonitorCommandId)(kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS+1))
 
 #define _kart_system_monitor_UplinkStatusValue_MIN kart_system_monitor_UplinkStatusValue_DISCONNECTED
 #define _kart_system_monitor_UplinkStatusValue_MAX kart_system_monitor_UplinkStatusValue_ERROR

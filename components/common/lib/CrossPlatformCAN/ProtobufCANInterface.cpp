@@ -5,6 +5,9 @@
 #include "ProtobufCANInterface.h"
 #include <stdio.h>
 #include <string.h>
+#include <chrono> // Already included via .h implicitly, but good practice
+#include "common.pb.h" // Include generated protobuf definitions
+#include "system_monitor.pb.h" // Include system monitor definitions for CommandId
 
 #ifdef PLATFORM_ARDUINO
 #include <Arduino.h>
@@ -66,6 +69,20 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     logMessage("SEND", message_type, component_type, component_id, command_id, value_type, value);
 #endif
 
+    // Calculate Timestamp Delta
+    uint64_t nowMs = getCurrentTimeMs();
+    uint64_t deltaMs = 0;
+    if (m_lastSyncTimeMs > 0) { // Avoid huge delta if no sync received yet
+        deltaMs = nowMs - m_lastSyncTimeMs;
+    }
+    
+    // Clamp to 8 bits (0-255 milliseconds) - simple truncation
+    uint8_t calculated_delta = static_cast<uint8_t>(deltaMs & 0xFF);
+
+    // Force print to stderr for visibility
+    fprintf(stderr, "[SEND_DELTA_CALC] nowMs=%llu, lastSyncMs=%llu, deltaMs=%llu, calculated_delta=%u\n", 
+            (unsigned long long)nowMs, (unsigned long long)m_lastSyncTimeMs, (unsigned long long)deltaMs, calculated_delta);
+
     // Pack first byte (message type and component type)
     uint8_t header = packHeader(message_type, component_type);
     
@@ -78,7 +95,7 @@ bool ProtobufCANInterface::sendMessage(kart_common_MessageType message_type,
     msg.length = 8;      // Always use 8 bytes for consistency
     
     msg.data[0] = header;
-    msg.data[1] = 0;                                  // Reserved
+    msg.data[1] = calculated_delta;
     msg.data[2] = component_id;
     msg.data[3] = command_id;
     msg.data[4] = static_cast<uint8_t>(value_type) << 4; // Value type in high nibble
@@ -116,14 +133,36 @@ void ProtobufCANInterface::process()
         return;
     }
 
+    // Check for Time Sync Message FIRST
+    kart_common_MessageType preliminary_msg_type;
+    kart_common_ComponentType preliminary_comp_type;
+    unpackHeader(msg.data[0], preliminary_msg_type, preliminary_comp_type);
+    uint8_t preliminary_component_id = msg.data[2];
+    uint8_t preliminary_command_id = msg.data[3];
+
+    // Use enum values from common.pb.h and system_monitor.pb.h
+    bool is_time_sync = (preliminary_comp_type == kart_common_ComponentType_SYSTEM_MONITOR &&
+                         preliminary_command_id == kart_system_monitor_SystemMonitorCommandId_GLOBAL_TIME_SYNC_MS);
+
+    if (is_time_sync) {
+        m_lastSyncTimeMs = getCurrentTimeMs();
+#if DEBUG_MODE || CAN_LOGGING_ENABLED
+        printf("ProtobufCANInterface: Received TIME_SYNC from Node 0x%X. Updated internal m_lastSyncTimeMs to %llu\n", msg.id, m_lastSyncTimeMs);
+#endif
+        // Decide whether to return or let sync messages fall through to handlers
+        // For now, let them fall through. If handlers shouldn't see sync, add `return;` here.
+    }
+
     // Unpack header
     kart_common_MessageType msg_type;
     kart_common_ComponentType comp_type;
     unpackHeader(msg.data[0], msg_type, comp_type);
 
     // Extract other fields
+    uint32_t source_node_id = msg.id; // Get source node ID
     uint8_t component_id = msg.data[2];
     uint8_t command_id = msg.data[3];
+    uint8_t timestamp_delta = msg.data[1]; // Extract delta received from sender
     kart_common_ValueType value_type = static_cast<kart_common_ValueType>(msg.data[4] >> 4);
 
     // Unpack value
@@ -151,7 +190,7 @@ void ProtobufCANInterface::process()
         }
 
         handlerFound = true;
-        m_handlers[i].handler(msg_type, comp_type, component_id, command_id, value_type, value);
+        m_handlers[i].handler(source_node_id, msg_type, comp_type, component_id, command_id, value_type, value, timestamp_delta);
     }
 
     // Echo status if this was a command (optional)
@@ -246,4 +285,18 @@ bool ProtobufCANInterface::matchesHandler(const HandlerEntry& handler,
            (handler.type == comp_type) &&
            (handler.component_id == component_id || handler.component_id == 0xFF || handler.component_id == 255) &&
            (handler.command_id == command_id);
+}
+
+// --- Helper Function Implementation ---
+uint64_t ProtobufCANInterface::getCurrentTimeMs() {
+#ifdef PLATFORM_ARDUINO // Or other embedded platforms
+    return millis(); // Use Arduino's millis() if available
+#else
+    // Use std::chrono for Linux/macOS etc.
+    // Use steady_clock for monotonic time (time since startup/epoch)
+    auto now = std::chrono::steady_clock::now();
+    // time_since_epoch() for steady_clock gives duration since clock's epoch (often boot time)
+    auto duration = now.time_since_epoch(); 
+    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+#endif
 } 

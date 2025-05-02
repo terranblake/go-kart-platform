@@ -39,13 +39,25 @@ EXPORT bool can_interface_begin(can_interface_t handle, long baudrate, const cha
     return interface->begin(baudrate, device);
 }
 
+// Define the message handler function pointer type
+typedef void (*MessageHandler)(
+    uint32_t source_node_id, // Added: ID of the node that sent the message
+    kart_common_MessageType message_type,
+    kart_common_ComponentType component_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    kart_common_ValueType value_type,
+    int32_t value,
+    uint8_t timestamp_delta_8bit // Added timestamp delta
+);
+
 EXPORT void can_interface_register_handler(
     can_interface_t handle,
     kart_common_MessageType msg_type,
     kart_common_ComponentType comp_type,
     uint8_t component_id,
     uint8_t command_id,
-    void (*handler)(kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t)
+    void (*handler)(uint32_t, kart_common_MessageType, kart_common_ComponentType, uint8_t, uint8_t, kart_common_ValueType, int32_t, uint8_t)
 ) {
     if (!handle) {
         printf("C API ERROR: Null handle in can_interface_register_handler\n");

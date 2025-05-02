@@ -4,6 +4,7 @@ import sqlite3
 import logging
 import time
 import threading
+from threading import Timer, Event # Import Timer and Event
 from shared.lib.python.telemetry.store import TelemetryStore, state_to_readable_dict
 from shared.lib.python.telemetry.state import GoKartState
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
@@ -20,7 +21,8 @@ class PersistentTelemetryStore(TelemetryStore):
                  local_uplinked_retention_s: int = 3600): # Added
         # Pass protocol and memory history limit to base class
         # The base class memory history is still used for immediate state access
-        super().__init__(protocol, limit=dashboard_retention_s * 100) # Estimate 100 msg/sec for memory cache
+        # Reduced memory cache limit as DB is primary store
+        super().__init__(protocol, limit=1000) 
         self.db_path = db_path
         self.max_history_records = max_history_records
         self.role = role
@@ -28,12 +30,45 @@ class PersistentTelemetryStore(TelemetryStore):
         self.local_uplinked_retention_s = local_uplinked_retention_s # Store this
         self._db_lock = threading.Lock() # Use lock for thread safety
         self._duplicate_skip_count = 0 # Initialize counter for skipped duplicates
+
+        # --- Background Pruning Setup ---
+        self._pruning_interval = 60 # Prune every 60 seconds
+        self._pruning_stop_event = Event()
+        self._pruning_timer = None
+        self._start_pruning_timer()
+        # -----------------------------
+        
         self._init_db()
+        # Attempt to enable WAL mode once at startup for potentially better concurrency
+        try:
+            conn = self._get_db_conn() # Gets a connection with WAL potentially enabled by _get_db_conn
+            # The WAL pragma needs to be set per connection, but setting it once
+            # *might* influence the db file's default mode if it works.
+            # We primarily rely on _get_db_conn setting it for each new connection.
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA journal_mode = WAL;")
+            result = cursor.fetchone()
+            logger.info(f"Attempted to set journal_mode=WAL. Result: {result['journal_mode'] if result else 'N/A'}")
+            conn.close()
+        except sqlite3.Error as e:
+            logger.error(f"Failed to set WAL mode during init: {e}")
         # TODO: Load recent history from DB on startup?
         # TODO: Start background pruning thread?
 
     def _get_db_conn(self):
         conn = sqlite3.connect(self.db_path, timeout=10)
+        # Enable WAL mode for potentially better write concurrency
+        try:
+            # Set WAL mode first
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            # Tune WAL settings for potentially better commit performance
+            cursor.execute("PRAGMA synchronous = NORMAL;") # Less stringent sync than FULL
+            cursor.execute("PRAGMA wal_autocheckpoint = 4000;") # Checkpoint less often (default 1000)
+            logger.debug(f"Set journal_mode=WAL, synchronous=NORMAL, wal_autocheckpoint=4000")
+        except sqlite3.Error as e:
+            # Log error but continue, maybe WAL isn't supported/needed
+            logger.warning(f"Could not configure WAL journal mode/settings: {e}") 
         conn.row_factory = sqlite3.Row # Access columns by name
         return conn
 
@@ -64,6 +99,7 @@ class PersistentTelemetryStore(TelemetryStore):
                 # Add indices for common query patterns
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_recorded_at ON telemetry_history (recorded_at)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_uplinked_created_at ON telemetry_history (uplinked, created_at)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_uplinked_id ON telemetry_history (uplinked, id)") # Index for fetching un-uploaded records by ID order
                 
                 # Attempt to drop the old primary key constraint if it exists (best effort)
                 # This is tricky and might fail depending on SQLite version and previous state
@@ -107,13 +143,15 @@ class PersistentTelemetryStore(TelemetryStore):
         state_dict = state.to_dict() # Use the dict from base class
         
         # --- Persist to DB ---
+        t_before_lock = time.time() # Time before acquiring lock
         with self._db_lock: 
+            t_after_lock = time.time() # Time after acquiring lock
             received_time = time.time() # Capture receive time
-            logger.debug(f"STORE UPDATE: recorded_at={state.timestamp}, received_at={received_time}, diff={(received_time - state.timestamp):.4f}s") # Log timestamps
             conn = self._get_db_conn()
             try:
                 cursor = conn.cursor()
                 # Use INSERT OR IGNORE (though less critical now with new PK)
+                t_before_insert = time.time()
                 cursor.execute("""
                     INSERT OR IGNORE INTO telemetry_history 
                         (recorded_at, received_at, created_at, message_type, component_type,
@@ -134,33 +172,32 @@ class PersistentTelemetryStore(TelemetryStore):
                 # Check if the row was actually inserted or ignored
                 if cursor.rowcount == 0:
                     self._duplicate_skip_count += 1
+                    # Note: Duplicate check happens *before* commit
                     # Optionally log less frequently to avoid spam
                     if self._duplicate_skip_count % 100 == 1: # Log every 100 skips
                          logger.warning(f"Ignored insert potentially due to UNIQUE constraint conflict (Total skips: {self._duplicate_skip_count})")
                 
+                t_before_commit = time.time()
                 conn.commit()
-
-                # Prune based on safety cap (MAX_HISTORY_RECORDS), now using ID
-                cursor.execute("SELECT COUNT(*) FROM telemetry_history")
-                count = cursor.fetchone()[0]
-                if count > self.max_history_records:
-                    records_to_delete = count - self.max_history_records
-                    logger.warning(f"Max record limit ({self.max_history_records}) exceeded. Deleting {records_to_delete} oldest records by ID.")
-                    cursor.execute(f"""
-                        DELETE FROM telemetry_history
-                        WHERE id IN (
-                            SELECT id
-                            FROM telemetry_history
-                            ORDER BY id ASC -- Delete oldest by insertion order (ID)
-                            LIMIT ?
-                        )
-                    """, (records_to_delete,))
-                    conn.commit()
+                t_after_commit = time.time()
 
             except sqlite3.Error as e:
                 logger.error(f"Database update error: {e}")
             finally:
                 conn.close()
+                
+            # --- Log Timings --- 
+            lock_wait_ms = (t_after_lock - t_before_lock) * 1000
+            insert_exec_ms = (t_before_commit - t_before_insert) * 1000
+            commit_ms = (t_after_commit - t_before_commit) * 1000
+            total_in_lock_ms = (t_after_commit - t_after_lock) * 1000
+            if lock_wait_ms > 5 or total_in_lock_ms > 5: # Log if lock wait or operation is > 5ms
+                 logger.debug(
+                     f"update_state timing (ms): lock_wait={lock_wait_ms:.2f}, "
+                     f"insert_exec={insert_exec_ms:.2f}, commit={commit_ms:.2f}, "
+                     f"total_in_lock={total_in_lock_ms:.2f}"
+                 )
+            # -----------------
                 
         # Update in-memory store (base class) *after* successful DB insert
         super().update_state(state)
@@ -254,7 +291,109 @@ class PersistentTelemetryStore(TelemetryStore):
              finally:
                  conn.close()
 
-    # TODO: Implement background pruning task for uplinked=1 records
+    # --- Background Pruning --- 
+    def _start_pruning_timer(self):
+        # Schedule the next pruning run
+        if not self._pruning_stop_event.is_set():
+            self._pruning_timer = Timer(self._pruning_interval, self._run_pruning_task)
+            self._pruning_timer.daemon = True # Allow exit even if timer thread is running
+            self._pruning_timer.start()
+
+    def _run_pruning_task(self):
+        """Wrapper to run pruning and reschedule the timer."""
+        if not self._pruning_stop_event.is_set():
+            logger.info(f"Running background pruning task (interval: {self._pruning_interval}s)...")
+            self._prune_db_max_records()
+            self._prune_db_time_based()
+            self._start_pruning_timer() # Reschedule next run
+        else:
+            logger.info("Pruning stop event set, not rescheduling.")
+
+    def _prune_db_max_records(self):
+        """Prunes based on the absolute max_history_records limit."""
+        if not self.max_history_records or self.max_history_records <= 0:
+            return
+            
+        with self._db_lock:
+            conn = self._get_db_conn()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM telemetry_history")
+                count = cursor.fetchone()[0]
+                if count > self.max_history_records:
+                    records_to_delete = count - self.max_history_records
+                    logger.warning(f"Background Prune: Max record limit ({self.max_history_records}) exceeded. Deleting {records_to_delete} oldest records by ID.")
+                    cursor.execute(f"""
+                        DELETE FROM telemetry_history
+                        WHERE id IN (
+                            SELECT id
+                            FROM telemetry_history
+                            ORDER BY id ASC -- Delete oldest by insertion order (ID)
+                            LIMIT ?
+                        )
+                    """, (records_to_delete,))
+                    conn.commit()
+                    logger.info(f"Background Prune: Deleted {cursor.rowcount} records based on max limit.")
+            except sqlite3.Error as e:
+                logger.error(f"Background Prune (Max Records) DB error: {e}")
+            finally:
+                conn.close()
+
+    def _prune_db_time_based(self):
+        """Prunes records based on time retention policies."""
+        # Prune old *uplinked* records (vehicle role only)
+        if self.role == 'vehicle' and self.local_uplinked_retention_s > 0:
+            cutoff_uplinked = time.time() - self.local_uplinked_retention_s
+            with self._db_lock:
+                conn = self._get_db_conn()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        DELETE FROM telemetry_history
+                        WHERE uplinked = 1 AND created_at < ?
+                    """, (cutoff_uplinked,))
+                    conn.commit()
+                    if cursor.rowcount > 0:
+                        logger.info(f"Background Prune: Deleted {cursor.rowcount} old uploaded records (older than {self.local_uplinked_retention_s}s).")
+                except sqlite3.Error as e:
+                    logger.error(f"Background Prune (Uplinked) DB error: {e}")
+                finally:
+                    conn.close()
+                    
+        # Prune old records for dashboard history (both roles?)
+        if self.dashboard_retention_s > 0:
+            cutoff_dashboard = time.time() - self.dashboard_retention_s
+            # This is controversial - should we delete non-uplinked data based on dashboard needs?
+            # For now, let's only delete if it's ALSO uplinked (for vehicle) or just old (for remote)
+            condition = "uplinked = 1" if self.role == 'vehicle' else "1=1" # Always true for remote
+            with self._db_lock:
+                conn = self._get_db_conn()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(f"""
+                        DELETE FROM telemetry_history
+                        WHERE {condition} AND created_at < ?
+                    """, (cutoff_dashboard,))
+                    # Avoid duplicate deletion if uplinked retention is shorter
+                    # Check if rows were actually deleted by *this* query
+                    if cursor.rowcount > 0 and self.role == 'vehicle' and self.local_uplinked_retention_s < self.dashboard_retention_s:
+                         logger.info(f"Background Prune: Deleted {cursor.rowcount} old uploaded records based on dashboard retention ({self.dashboard_retention_s}s).")
+                    elif cursor.rowcount > 0 and self.role == 'remote':
+                         logger.info(f"Background Prune: Deleted {cursor.rowcount} old records based on dashboard retention ({self.dashboard_retention_s}s).")
+                    conn.commit()
+                except sqlite3.Error as e:
+                    logger.error(f"Background Prune (Dashboard) DB error: {e}")
+                finally:
+                    conn.close()
+                    
+    def stop_pruning(self): # Method to stop the timer
+        logger.info("Stopping background pruning timer...")
+        self._pruning_stop_event.set()
+        if self._pruning_timer:
+            self._pruning_timer.cancel()
+            self._pruning_timer = None
+        logger.info("Background pruning stopped.")
+    # --------------------------
 
     def get_history(self, limit: int = 100):
         """Return the telemetry history from the database.

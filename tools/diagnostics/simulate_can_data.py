@@ -635,11 +635,20 @@ class CANSimulator:
             return False
             
         simulation_func = self.simulation_patterns[pattern]
+        logger.info(f"Starting CAN simulation (Pattern: {pattern}, Interval: {self.interval}s)")
         self.running = True
+        # --- FIX: Start CAN processing here ---
+        try:
+            self.can_interface.start_processing(interval=0.01) # Start background listener
+            logger.info("CAN interface processing started.")
+        except Exception as e:
+            logger.error(f"Failed to start CAN interface processing: {e}")
+            self.running = False # Don't proceed if processing fails
+        # ------------------------------------
         start_time = time.time()
-        msg_count = 0
+        self.simulation_time = 0.0 # Reset simulation time
         
-        logger.info(f"Starting CAN simulation with pattern: {pattern}")
+        msg_count = 0
         
         try:
             while self.running:
@@ -663,8 +672,18 @@ class CANSimulator:
         return True
     
     def stop(self):
-        """Stop the CAN message simulation"""
-        self.running = False
+        """Stop the simulation loop."""
+        if self.running:
+            self.running = False
+            logger.info("Stopping CAN simulation...")
+            # --- FIX: Stop CAN processing ---
+            try:
+                self.can_interface.stop_processing()
+                logger.info("CAN interface processing stopped.")
+            except Exception as e:
+                logger.error(f"Error stopping CAN processing: {e}")
+            # ------------------------------
+            logger.info("Simulation stopped.")
 
 def main():
     parser = argparse.ArgumentParser(description='CAN Data Simulation Tool')

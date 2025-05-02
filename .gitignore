@@ -13,3 +13,9 @@
 *.log
 .vscode/**
 *.db
+*.db-shm
+*.db-wal
+*.dyl
+*.dylib
+**/*.so
+**/*.dylib

@@ -44,8 +44,8 @@ message KartMessage {
   ComponentType component_type = 2;  // 3 bits
   // 3 bits reserved in byte 0
 
-  // Byte 1: Reserved for future use
-  // (Not represented in proto)
+  // Byte 1: Reserved (Potential use: timestamp_delta_ms_8bit for time sync)
+  // (Not represented explicitly in proto, handled manually in packing/unpacking)
 
   // Byte 2: Component ID
   uint32 component_id = 3;           // 8 bits (0-255)

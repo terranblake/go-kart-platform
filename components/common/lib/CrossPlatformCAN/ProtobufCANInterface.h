@@ -8,6 +8,8 @@
 
 #include "CANInterface.h"
 #include "common.pb.h"
+#include <chrono> // For time
+#include <cstdint> // For uint64_t
 
 // Max number of message handlers
 // todo: switch to using PLATFORM_EMBEDDED
@@ -19,9 +21,17 @@
 #define MAX_HANDLERS 128
 #endif
 
-// Function pointer type for message handlers
-typedef void (*MessageHandler)(kart_common_MessageType, kart_common_ComponentType, 
-                             uint8_t, uint8_t, kart_common_ValueType, int32_t);
+// Define the message handler function pointer type
+typedef void (*MessageHandler)(
+    uint32_t source_node_id, // Added: ID of the node that sent the message
+    kart_common_MessageType message_type,
+    kart_common_ComponentType component_type,
+    uint8_t component_id,
+    uint8_t command_id,
+    kart_common_ValueType value_type,
+    int32_t value,
+    uint8_t timestamp_delta_8bit // Added timestamp delta
+);
 
 class ProtobufCANInterface {
 public:
@@ -117,6 +127,12 @@ private:
   int m_intPin;
   CANInterface m_canInterface;
   
+  // --- Time Sync State ---
+  uint64_t m_lastSyncTimeMs = 0; // Time of last handled sync event (ms since epoch)
+
+  // --- Helper Functions ---
+  uint64_t getCurrentTimeMs(); // Function to get current time in ms
+
   // Debug logging helper
   void logMessage(const char *prefix, kart_common_MessageType message_type,
                  kart_common_ComponentType component_type,
