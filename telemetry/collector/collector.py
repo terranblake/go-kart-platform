@@ -11,6 +11,7 @@ import threading
 import time # For shutdown wait
 import argparse # Import argparse
 import asyncio
+import redis # Add redis import for potential config checks
 
 # Add project root to Python path for shared module imports
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -22,14 +23,12 @@ from shared.lib.python.can.protocol_registry import ProtocolRegistry
 # from shared.lib.python.telemetry.state import GoKartState # Not directly used here now
 from shared.lib.python.telemetry.persistent_store import PersistentTelemetryStore
 from api import create_api_server_manager # Use the new manager function
-from uplink_manager import UplinkManager # Import UplinkManager
 from ping_broadcaster import PingBroadcaster # Import PingBroadcaster
 
 
 # Global variables for graceful shutdown
 stop_event = threading.Event()
 can_interface = None
-uplink_manager_thread = None
 time_sync_thread = None
 
 # Configure logging
@@ -63,7 +62,7 @@ def load_config(config_path='config.ini'):
              abs_config_path = None # Signal that file wasn't read
 
     # Initialize parser, NO DEFAULTS HERE
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(interpolation=None) # Disable interpolation for Redis URLs
 
     try:
         if abs_config_path:
@@ -79,7 +78,7 @@ def load_config(config_path='config.ini'):
 
 def signal_handler(signum, frame):
     """Handle termination signals for graceful shutdown."""
-    global uplink_manager_thread, stop_event, time_sync_thread
+    global stop_event, time_sync_thread, can_interface
     if not stop_event.is_set(): # Prevent double handling
         logger.info(f"Received signal {signum}. Initiating shutdown...")
         stop_event.set() # Signal all loops to stop
@@ -88,18 +87,12 @@ def signal_handler(signum, frame):
              logger.info("Stopping Time Sync Broadcaster...")
              time_sync_thread.stop() # Relies on wait timeout
 
-        if uplink_manager_thread:
-            logger.info("Stopping Uplink Manager...")
-            uplink_manager_thread.stop() # Signal the thread's internal loop to stop
-
         if can_interface:
             logger.info("Stopping CAN processing...")
             can_interface.stop_processing()
             
             # Also stop the pruning timer in the telemetry store
-            if hasattr(can_interface.telemetry_store, 'stop_pruning'):
-                logger.info("Stopping telemetry store pruning timer...")
-                can_interface.telemetry_store.stop_pruning()
+            # REMOVED: No stop_pruning in Redis implementation
             
         # Stop the asyncio loop if it's running (for remote role)
         try:
@@ -121,7 +114,7 @@ def signal_handler(signum, frame):
 
 
 def main():
-    global can_interface, uplink_manager_thread, time_sync_thread
+    global can_interface, time_sync_thread
 
     args = parse_arguments()
     config_file_path = args.config
@@ -140,13 +133,36 @@ def main():
     logger.info(f"Starting Telemetry Collector Service in ROLE: {role}")
 
     protocol_registry = ProtocolRegistry()
+    
+    # --- Redis Configuration ---
+    local_redis_config = {
+        'host': config.get('REDIS', 'HOST', fallback='localhost'),
+        'port': config.getint('REDIS', 'PORT', fallback=6379),
+        'db': config.getint('REDIS', 'DB', fallback=0)
+    }
+    remote_redis_config = None
+    if role == 'vehicle':
+        remote_host = config.get('REDIS_REMOTE', 'HOST', fallback=None)
+        if remote_host: # Only configure remote if host is specified
+            remote_redis_config = {
+                'host': remote_host,
+                'port': config.getint('REDIS_REMOTE', 'PORT', fallback=6379),
+                'db': config.getint('REDIS_REMOTE', 'DB', fallback=0)
+                # Consider adding password/auth options here if needed
+            }
+        else:
+             logger.info("Remote Redis host not specified in config, remote replication disabled.")
+
+    # --- Instantiate Redis-based Store ---
+    logger.info(f"Initializing Redis Telemetry Store (Local: {local_redis_config['host']}:{local_redis_config['port']})")
     telemetry_store = PersistentTelemetryStore(
         protocol=protocol_registry,
-        db_path=config.get('DEFAULT', 'DB_PATH', fallback='telemetry.db'),
-        max_history_records=config.getint('DEFAULT', 'MAX_HISTORY_RECORDS', fallback=50000),
+        local_redis_config=local_redis_config,
+        remote_redis_config=remote_redis_config, # Pass remote config (can be None)
+        max_history_records=config.getint('REDIS', 'MAX_HISTORY', fallback=10000), # Use REDIS section
         role=role,
-        dashboard_retention_s=config.getint('DEFAULT', 'DASHBOARD_RETENTION_S', fallback=600),
-        local_uplinked_retention_s=config.getint('DEFAULT', 'LOCAL_UPLINKED_RETENTION_S', fallback=3600)
+        retention_seconds=config.getint('REDIS', 'RETENTION_SECONDS', fallback=600) # Use REDIS section
+        # Removed SQLite specific args: db_path, dashboard_retention_s, local_uplinked_retention_s
     )
 
     # --- Conditional Initialization based on Role ---
@@ -174,21 +190,6 @@ def main():
     else:
         logger.info("CAN Listener is disabled (Role: Remote).")
 
-    if role == 'vehicle':
-        logger.info("Initializing Uplink Manager (Role: Vehicle)...")
-        uplink_manager_thread = UplinkManager(
-            store=telemetry_store,
-            remote_url=config.get('DEFAULT', 'REMOTE_ENDPOINT_URL', fallback='ws://localhost:8765/ws/telemetry/upload'),
-            batch_size=config.getint('DEFAULT', 'UPLINK_BATCH_SIZE', fallback=50),
-            reconnect_delay=config.getint('DEFAULT', 'UPLINK_RECONNECT_DELAY', fallback=5),
-            status_report_interval=config.getint('DEFAULT', 'UPLINK_STATUS_REPORT_INTERVAL', fallback=10),
-            pruning_retention_s=config.getint('DEFAULT', 'LOCAL_UPLINKED_RETENTION_S', fallback=3600)
-        )
-        uplink_manager_thread.start()
-        logger.info("Started Uplink Manager thread.")
-    else:
-        logger.info("Uplink Manager is disabled (Role: Remote).")
-
     # Register signal handlers AFTER potentially starting threads
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -203,8 +204,6 @@ def main():
             # Use config.get with type and fallback
             http_host=config.get('DEFAULT', 'HTTP_HOST', fallback='0.0.0.0'),
             http_port=config.getint('DEFAULT', 'HTTP_PORT', fallback=5001),
-            ws_host=config.get('DEFAULT', 'WS_HOST', fallback='0.0.0.0'),
-            ws_port=config.getint('DEFAULT', 'WS_PORT', fallback=8765)
         )
     except Exception as e:
         logger.error(f"API Server Manager failed to start or crashed: {e}", exc_info=True)
@@ -218,9 +217,6 @@ def main():
         if time_sync_thread:
             time_sync_thread.join()
             logger.debug("Time sync thread joined.")
-        if uplink_manager_thread:
-            uplink_manager_thread.join()
-            logger.debug("Uplink manager thread joined.")
         
         logger.info("Vehicle collector main wait loop finished.")
     # For remote role, asyncio.run() blocks until stopped by signal handler
