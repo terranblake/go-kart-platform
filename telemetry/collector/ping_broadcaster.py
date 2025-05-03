@@ -77,7 +77,7 @@ class PingBroadcaster(threading.Thread):
                     component_type_name=comp_type_name,
                     component_name=comp_name,
                     command_name=cmd_name,
-                    value_name=None,
+                    value_type=value_type_name,
                     direct_value=time_value_24bit,
                     delay_override=estimated_delay_ms # Pass calculated delay
                 )
@@ -105,52 +105,50 @@ class PingBroadcaster(threading.Thread):
         pong_received_time = time.time()
         original_ping_value = value # This is the 24-bit timestamp sent in PING
 
-        # Find the corresponding PING send time
-        if original_ping_value in self._pending_pings:
-            ping_send_time = self._pending_pings.pop(original_ping_value)
-            rtt_ms = (pong_received_time - ping_send_time) * 1000
+        if original_ping_value not in self._pending_pings:
+            self.logger.warning(f"Received PONG from {source_node_id:#04x} with unknown PING value: {original_ping_value}. Skipping RTT update.")
+            return
 
-            if rtt_ms < 0:
-                self.logger.warning(f"Negative RTT calculated for node {source_node_id:#04x} (RTT: {rtt_ms:.2f} ms). Skipping RTT update.")
-            else:
-                # Store RTT estimate for this specific node
-                if source_node_id not in self._rtt_estimates:
-                    self._rtt_estimates[source_node_id] = []
-                self._rtt_estimates[source_node_id].append(rtt_ms)
-                # Keep only the last N samples (e.g., 10)
-                max_samples = 10
-                self._rtt_estimates[source_node_id] = self._rtt_estimates[source_node_id][-max_samples:]
-                avg_rtt = sum(self._rtt_estimates[source_node_id]) / len(self._rtt_estimates[source_node_id])
-                
-                self.logger.debug(f"Received PONG from {source_node_id:#04x}. RTT: {rtt_ms:.2f} ms. Avg RTT: {avg_rtt:.2f} ms.")
-                
-                # --- Send SET_TIME Command --- 
-                # Estimate one-way delay (half RTT)
-                one_way_delay_ms = rtt_ms / 2.0
-                
-                # Calculate the target device time: Time PONG received + estimated one-way delay
-                # We need this in milliseconds since epoch
-                target_device_time_ms = int((pong_received_time * 1000) + one_way_delay_ms)
-                
-                # Get the 24-bit value for the SET_TIME command
-                target_time_ms_24bit = target_device_time_ms & 0xFFFFFF
-                
-                # Send the SET_TIME command specifically to the source node
-                self.can_interface.send_command(
-                    message_type_name='COMMAND',
-                    component_type_name='SYSTEM_MONITOR',
-                    component_name='TIME_MASTER', # Logical sender ID?
-                    command_name='SET_TIME',
-                    direct_value=target_time_ms_24bit,
-                    delay_override=None, # No delay override needed for SET_TIME
-                    destination_node_id=source_node_id # Target the specific node
-                )
-                self.logger.debug(f"Sent SET_TIME command to {source_node_id:#04x} with value {target_time_ms_24bit} (Target epoch ms: {target_device_time_ms})")
-                # ---------------------------
+        ping_send_time = self._pending_pings.pop(original_ping_value)
+        rtt_ms = (pong_received_time - ping_send_time) * 1000
 
-        else:
-            # PONG received for an unknown/expired PING
-            self.logger.warning(f"Received PONG from {source_node_id:#04x} for unknown/expired PING value {original_ping_value}")
+        if rtt_ms < 0:
+            self.logger.warning(f"Negative RTT calculated for node {source_node_id:#04x} (RTT: {rtt_ms:.2f} ms). Skipping RTT update.")
+
+        # Store RTT estimate for this specific node
+        if source_node_id not in self._rtt_estimates:
+            self._rtt_estimates[source_node_id] = []
+        self._rtt_estimates[source_node_id].append(rtt_ms)
+        # Keep only the last N samples (e.g., 10)
+        max_samples = 10
+        self._rtt_estimates[source_node_id] = self._rtt_estimates[source_node_id][-max_samples:]
+        avg_rtt = sum(self._rtt_estimates[source_node_id]) / len(self._rtt_estimates[source_node_id])
+        
+        self.logger.debug(f"Received PONG from {source_node_id:#04x}. RTT: {rtt_ms:.2f} ms. Avg RTT: {avg_rtt:.2f} ms.")
+        
+        # --- Send SET_TIME Command --- 
+        # Estimate one-way delay (half RTT)
+        one_way_delay_ms = rtt_ms / 2.0
+        
+        # Calculate the target device time: Time PONG received + estimated one-way delay
+        # We need this in milliseconds since epoch
+        target_device_time_ms = int((pong_received_time * 1000) + one_way_delay_ms)
+        
+        # Get the 24-bit value for the SET_TIME command
+        target_time_ms_24bit = target_device_time_ms & 0xFFFFFF
+        
+        # Send the SET_TIME command specifically to the source node
+        self.can_interface.send_command(
+            message_type_name='COMMAND',
+            component_type_name='SYSTEM_MONITOR',
+            component_name='TIME_MASTER', # Logical sender ID?
+            command_name='SET_TIME',
+            direct_value=target_time_ms_24bit,
+            delay_override=None, # No delay override needed for SET_TIME
+            destination_node_id=source_node_id # Target the specific node
+        )
+        self.logger.debug(f"Sent SET_TIME command to {source_node_id:#04x} with value {target_time_ms_24bit} (Target epoch ms: {target_device_time_ms})")
+
 
     def store_ping_send_time(self, ping_value_24bit: int, send_timestamp: float):
         """Stores the send time for a specific PING value.

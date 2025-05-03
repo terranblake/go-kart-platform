@@ -136,11 +136,12 @@ class CANSimulator:
             # Send the message using the CAN interface
             self.can_interface.send_command(
                 'COMMAND', 
-                comp_type, 
-                comp_name, 
-                command,
-                value_name, 
-                direct_value
+                component_type_name=comp_type, 
+                component_name=comp_name, 
+                command_name=command,
+                value_type=None,
+                value_name=value_name, 
+                direct_value=direct_value
             )
             logger.info(f"Sent random message: {comp_type}/{comp_name}/{command}/{value_name or direct_value}")
             return True

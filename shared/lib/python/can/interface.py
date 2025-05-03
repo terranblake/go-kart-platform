@@ -216,6 +216,7 @@ class CANInterfaceWrapper:
 
             pong_comp_type = self.protocol_registry.get_component_type('SYSTEM_MONITOR') # Still need these for the check below
             pong_cmd_id = self.protocol_registry.get_command_id('SYSTEM_MONITOR', 'PONG')
+            ping_cmd_id = self.protocol_registry.get_command_id('SYSTEM_MONITOR', 'PING')
             
             for component_type_name in self.protocol_registry.get_component_types():
                 component_type_id = self.protocol_registry.get_component_type(component_type_name)
@@ -225,9 +226,7 @@ class CANInterfaceWrapper:
                     command_id = self.protocol_registry.get_command_id(component_type_name, command_name)
                     if command_id is None: continue
 
-                    # Skip registering default _handle_message if it's PONG
-                    if component_type_id == pong_comp_type and command_id == pong_cmd_id:
-                         self.logger.debug(f"Skipping default handler registration for PONG.")
+                    if component_type_id == pong_comp_type and (command_id == pong_cmd_id or command_id == ping_cmd_id):
                          continue
 
                     self.logger.debug(f"Registering default handler for {component_type_name}/{command_name} (STATUS)")
@@ -327,7 +326,7 @@ class CANInterfaceWrapper:
         )
 
     def send_command(self, message_type_name, component_type_name, component_name, command_name,
-                     value_name=None, direct_value=None,
+                     value_type=None, value_name=None, direct_value=None,
                      delay_override: Optional[int] = None,
                      destination_node_id: Optional[int] = None):
         """
@@ -337,6 +336,7 @@ class CANInterfaceWrapper:
             component_type_name (str): The name of the component type (e.g., 'LIGHTS', 'MOTORS')
             component_name (str): The name of the component (e.g., 'FRONT', 'REAR')
             command_name (str): The name of the command (e.g., 'MODE', 'BRIGHTNESS')
+            value_type (str, optional): The type of the value (e.g., 'INT8', 'UINT8', 'INT16', 'UINT16', 'INT24', 'UINT24')
             value_name (str, optional): The name of the value (e.g., 'ON', 'OFF')
             direct_value (int, optional): A direct integer value to send instead of a named value.
             delay_override (Optional[int]): Value for data[1].
@@ -347,7 +347,7 @@ class CANInterfaceWrapper:
         try:
             msg_type, comp_type, comp_id, cmd_id, val_type, val = self.protocol_registry.create_message(
                 message_type_name, component_type_name, component_name,
-                command_name, value_name, direct_value
+                command_name, value_type, value_name, direct_value
             )
 
             log_extra = ""

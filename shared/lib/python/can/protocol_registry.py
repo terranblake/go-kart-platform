@@ -367,8 +367,8 @@ class ProtocolRegistry:
         return self.registry['commands'][component_type][command_name]['values']
     
     def create_message(self, message_type: str, component_type: str, 
-                      component_name: str, command_name: str, value_name: str = None, 
-                      value: int = None) -> Tuple[Optional[int], Optional[int], Optional[int], 
+                      component_name: str, command_name: str, value_type: str = None,
+                      value_name: str = None, value: int = None) -> Tuple[Optional[int], Optional[int], Optional[int], 
                                                  Optional[int], Optional[int], Optional[int]]:
         """Create a complete message tuple from high-level parameters"""
         msg_type = self.get_message_type(message_type)
@@ -377,7 +377,7 @@ class ProtocolRegistry:
         cmd_id = self.get_command_id(component_type, command_name)
         
         # Handle value - either named value or direct integer
-        val_type = self.get_value_type("INT8")  # Default
+        val_type = self.get_value_type(value_type or "INT8")  # Default
         val = 0
         
         value_by_name = self.get_command_value(component_type, command_name, value_name)

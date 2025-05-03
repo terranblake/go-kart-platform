@@ -99,6 +99,7 @@ def build_crossplatform_can():
             "-I", include_dir,
             "-I", nanopb_include_dir,
             "-DDEBUG_MODE",
+            "-DCAN_LOGGING_ENABLED",
             "CANInterface.cpp", "ProtobufCANInterface.cpp", "c_api.cpp",
             "-o", output_lib
         ]

@@ -65,7 +65,6 @@ class PersistentTelemetryStore(TelemetryStore):
             # Tune WAL settings for potentially better commit performance
             cursor.execute("PRAGMA synchronous = NORMAL;") # Less stringent sync than FULL
             cursor.execute("PRAGMA wal_autocheckpoint = 4000;") # Checkpoint less often (default 1000)
-            logger.debug(f"Set journal_mode=WAL, synchronous=NORMAL, wal_autocheckpoint=4000")
         except sqlite3.Error as e:
             # Log error but continue, maybe WAL isn't supported/needed
             logger.warning(f"Could not configure WAL journal mode/settings: {e}") 

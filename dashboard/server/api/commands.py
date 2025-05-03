@@ -58,6 +58,7 @@ def register_command_routes(app, can_interface: CANInterfaceWrapper):
                 component_type_name=component_type,
                 component_name=component_name,
                 command_name=command_name,
+                value_type=None,
                 value_name=value_name,
                 direct_value=direct_value
             )
