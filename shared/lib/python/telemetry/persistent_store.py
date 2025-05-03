@@ -141,6 +141,7 @@ class PersistentTelemetryStore(TelemetryStore):
         received_ts = time.time()
         
         # Create record for Redis stream with descriptive field names
+        # Ensure all values are strings, ints, floats, or bytes for Redis
         record = {
             'timestamp': str(state.timestamp),
             'node_id': node_id,
@@ -150,67 +151,97 @@ class PersistentTelemetryStore(TelemetryStore):
             'component_id': str(state.component_id),
             'command_id': str(state.command_id),
             'value_type': str(state.value_type),
-            'value': str(state.value)
+            'value': str(state.value) # Value must be suitable type
         }
         
+        actual_stream_id = None
+        new_message_count = None
+
         try:
             r_local = self._get_local_redis()
             
-            # Create a pipeline for batch operations
+            # --- Pipeline Part 1: Add stream entry, component/node hashes (partial), expirations ---
             pipe = r_local.pipeline(transaction=False)
             
-            # 1. Add to main stream with size-based pruning
-            stream_id = pipe.xadd(
+            # 1. Add to main stream (Command 0 in pipeline results)
+            pipe.xadd(
                 self.stream_key,
                 record,
                 maxlen=self.max_history_records,
                 approximate=True
             )
             
-            # 2. Set expiration on the stream (automatic pruning)
+            # 2. Set expiration on the stream (Command 1)
             pipe.expire(self.stream_key, self.retention_seconds)
             
-            # 3. Update component state hash for quick lookups
+            # 3. Update component state hash (Partial - without last_stream_id) (Command 2)
             component_key = self.component_key_pattern.format(state.component_type, state.component_id)
-            component_data = {
-                'last_value': state.value,
-                'last_timestamp': state.timestamp,
-                'last_received': received_ts,
-                'message_type': state.message_type,
-                'command_id': state.command_id,
-                'value_type': state.value_type,
-                'last_stream_id': stream_id
+            # Ensure all values are primitive types
+            component_data_partial = {
+                'last_value': str(state.value), # Ensure string
+                'last_timestamp': state.timestamp, # Float OK
+                'last_received': received_ts, # Float OK
+                'message_type': state.message_type, # Int OK
+                'command_id': state.command_id, # Int OK
+                'value_type': state.value_type, # Int OK
+                # 'last_stream_id': Will be added later
             }
-            pipe.hset(component_key, mapping=component_data)
+            pipe.hset(component_key, mapping=component_data_partial)
+            
+            # 4. Set expiration on component hash (Command 3)
             pipe.expire(component_key, self.retention_seconds)
             
-            # 4. Update node status hash
+            # 5. Update node status hash (Increment count, set others) (Command 4, 5)
             node_key = self.node_key_pattern.format(node_id)
-            node_data = {
+            pipe.hincrby(node_key, 'message_count', 1) # Increment count (Command 4)
+            node_data_partial = {
                 'last_update': received_ts,
                 'last_latency': received_ts - state.timestamp,
-                'message_count': r_local.hincrby(node_key, 'message_count', 1) or 1
+                # 'message_count': Will be added/updated by hincrby
             }
-            pipe.hset(node_key, mapping=node_data)
+            pipe.hset(node_key, mapping=node_data_partial) # Set other fields (Command 5)
+            
+            # 6. Set expiration on node hash (Command 6)
             pipe.expire(node_key, self.retention_seconds)
             
             # Execute local pipeline
-            pipe.execute()
+            results = pipe.execute()
             
-            # 5. If in vehicle role, replicate to remote Redis
+            # --- Post-Pipeline Updates --- 
+            # Retrieve results from pipeline execution
+            actual_stream_id = results[0] # Result of XADD
+            new_message_count = results[4] # Result of HINCRBY
+            
+            # Now update component and node hashes with the actual stream ID and count
+            # These are separate commands, not pipelined with the first batch
+            if actual_stream_id:
+                 r_local.hset(component_key, 'last_stream_id', actual_stream_id)
+            # Note: new_message_count is already set by HINCRBY in the pipeline
+            # If node_data_partial had other fields relying on count, update them here
+
+            logger.debug(f"Added telemetry record {actual_stream_id} for {component_key}")
+
+            # --- Remote Replication (if applicable) --- 
             if self.role == 'vehicle':
                 r_remote = self._get_remote_redis()
                 if r_remote:
                     try:
+                        # Build complete data dictionaries now that we have the stream ID
+                        component_data_complete = component_data_partial.copy()
+                        component_data_complete['last_stream_id'] = actual_stream_id
+                        
+                        node_data_complete = node_data_partial.copy()
+                        node_data_complete['message_count'] = new_message_count
+
                         # Use a separate pipeline for remote Redis
                         remote_pipe = r_remote.pipeline(transaction=False)
                         
-                        # Add to remote stream without trimming (keep all history remotely)
-                        remote_pipe.xadd(self.stream_key, record)
+                        # Add to remote stream (no trimming)
+                        remote_pipe.xadd(self.stream_key, record) 
                         
                         # Update component and node data on remote
-                        remote_pipe.hset(component_key, mapping=component_data)
-                        remote_pipe.hset(node_key, mapping=node_data)
+                        remote_pipe.hset(component_key, mapping=component_data_complete)
+                        remote_pipe.hset(node_key, mapping=node_data_complete)
                         
                         # No expiration on remote Redis - data preserved long-term
                         
@@ -219,10 +250,10 @@ class PersistentTelemetryStore(TelemetryStore):
                     except RedisError as e:
                         logger.error(f"Error adding to remote Redis: {e}")
             
-            logger.debug(f"Added telemetry record for component {state.component_type}:{state.component_id}")
-            
         except RedisError as e:
             logger.error(f"Redis update_state error: {e}")
+        except IndexError:
+             logger.error("Redis pipeline result indexing error. Mismatch between commands and results?", exc_info=True)
         
         return state_dict
 
