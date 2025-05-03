@@ -117,6 +117,7 @@ def signal_handler(signum, frame):
         # No need for sleep or join here, let main loop check stop_event
     else:
         logger.info("Shutdown already in progress.")
+        exit(0)
 
 
 def main():

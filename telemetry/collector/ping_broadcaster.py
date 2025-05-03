@@ -54,24 +54,10 @@ class PingBroadcaster(threading.Thread):
                 current_time_ms = int(time.time() * 1000)
                 time_value_24bit = current_time_ms & 0xFFFFFF
 
-                # --- Calculate Estimated One-Way Delay --- 
-                estimated_delay_ms = 0 # Default to 0
-                all_rtts = [rtt for rtt in self._rtt_estimates.values() if rtt is not None and not math.isnan(rtt)]
-                if all_rtts:
-                    avg_rtt = sum(all_rtts) / len(all_rtts)
-                    # One-way delay is roughly RTT / 2
-                    estimated_delay_ms = int(avg_rtt / 2)
-                    # Clamp to 8 bits (0-255)
-                    estimated_delay_ms = max(0, min(estimated_delay_ms, 255))
-                    self.logger.debug(f"Calculated estimated one-way delay: {estimated_delay_ms} ms (avg RTT: {avg_rtt:.1f} ms)")
-                else:
-                    self.logger.debug("No valid RTT estimates available yet to calculate delay.")
-
                 ping_send_time = time.time()
                 self.store_ping_send_time(time_value_24bit, ping_send_time)
-                # -------------------------------------
 
-                # Send the PING command with the estimated delay
+                # Send the PING command (no delay override needed)
                 success = self.can_interface.send_command(
                     message_type_name=msg_type_name,
                     component_type_name=comp_type_name,
@@ -79,11 +65,12 @@ class PingBroadcaster(threading.Thread):
                     command_name=cmd_name,
                     value_type=value_type_name,
                     direct_value=time_value_24bit,
-                    delay_override=estimated_delay_ms # Pass calculated delay
+                    delay_override=None # Set to None (or -1 handled by C++ default)
+                    # destination_node_id=None # PING is broadcast
                 )
 
                 if success:
-                    self.logger.debug(f"Sent PING command with value: {time_value_24bit}, delay: {estimated_delay_ms}")
+                    self.logger.debug(f"Sent PING command with value: {time_value_24bit}")
                 else:
                     self.logger.warning("Failed to send PING command.")
 

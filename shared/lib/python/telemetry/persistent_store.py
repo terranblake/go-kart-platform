@@ -1,534 +1,577 @@
-""" Telemetry Storage Logic (including persistence) """
+""" Optimized Telemetry Storage using Redis Streams with Field Names """
 
-import sqlite3
 import logging
 import time
-import threading
-from threading import Timer, Event # Import Timer and Event
+from typing import List, Dict, Any, Optional, Union
+
+import redis
+from redis.exceptions import RedisError
+
 from shared.lib.python.telemetry.store import TelemetryStore, state_to_readable_dict
 from shared.lib.python.telemetry.state import GoKartState
 from shared.lib.python.can.protocol_registry import ProtocolRegistry
-from typing import List # Added for type hinting
 
 logger = logging.getLogger(__name__)
 
 class PersistentTelemetryStore(TelemetryStore):
     def __init__(self, protocol: ProtocolRegistry,
-                 db_path: str = "telemetry.db",
-                 max_history_records: int = 10000, # Safety cap
-                 role: str = 'vehicle', # 'vehicle' or 'remote'
-                 dashboard_retention_s: int = 600, # Default 10 minutes
-                 local_uplinked_retention_s: int = 3600): # Added
+                 local_redis_config: dict = None,
+                 remote_redis_config: dict = None,
+                 max_history_records: int = 10000,
+                 role: str = 'vehicle',
+                 retention_seconds: int = 600,  # Default 10 minutes
+                 stream_key_prefix: str = "telemetry"):
+        """
+        Initialize Redis-based telemetry store using Redis Streams with field names.
+        
+        Args:
+            protocol: Protocol registry for telemetry interpretation
+            local_redis_config: Configuration for local Redis (host, port, db)
+            remote_redis_config: Configuration for remote Redis (host, port, db)
+            max_history_records: Maximum number of records to keep in stream
+            role: 'vehicle' or 'remote'
+            retention_seconds: How long to keep data for dashboard (seconds)
+            stream_key_prefix: Prefix for Redis keys
+        """
         # Pass protocol and memory history limit to base class
-        # The base class memory history is still used for immediate state access
-        # Reduced memory cache limit as DB is primary store
-        super().__init__(protocol, limit=1000) 
-        self.db_path = db_path
+        super().__init__(protocol, limit=1000)
+        
+        # Set up default configurations if not provided
+        self.local_redis_config = local_redis_config or {
+            'host': 'localhost',
+            'port': 6379,
+            'db': 0
+        }
+        
+        self.remote_redis_config = remote_redis_config or {
+            'host': 'remote-server',
+            'port': 6379,
+            'db': 0
+        }
+        
+        # Configuration
+        self.stream_key = f"{stream_key_prefix}:stream"
+        self.component_key_pattern = f"{stream_key_prefix}:component:{{}}:{{}}"
+        self.node_key_pattern = f"{stream_key_prefix}:node:{{}}"
         self.max_history_records = max_history_records
         self.role = role
-        self.dashboard_retention_s = dashboard_retention_s
-        self.local_uplinked_retention_s = local_uplinked_retention_s # Store this
-        self._db_lock = threading.Lock() # Use lock for thread safety
-        self._duplicate_skip_count = 0 # Initialize counter for skipped duplicates
-
-        # --- Background Pruning Setup ---
-        self._pruning_interval = 60 # Prune every 60 seconds
-        self._pruning_stop_event = Event()
-        self._pruning_timer = None
-        self._start_pruning_timer()
-        # -----------------------------
+        self.retention_seconds = retention_seconds
         
-        self._init_db()
-        # Attempt to enable WAL mode once at startup for potentially better concurrency
-        try:
-            conn = self._get_db_conn() # Gets a connection with WAL potentially enabled by _get_db_conn
-            # The WAL pragma needs to be set per connection, but setting it once
-            # *might* influence the db file's default mode if it works.
-            # We primarily rely on _get_db_conn setting it for each new connection.
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA journal_mode = WAL;")
-            result = cursor.fetchone()
-            logger.info(f"Attempted to set journal_mode=WAL. Result: {result['journal_mode'] if result else 'N/A'}")
-            conn.close()
-        except sqlite3.Error as e:
-            logger.error(f"Failed to set WAL mode during init: {e}")
-        # TODO: Load recent history from DB on startup?
-        # TODO: Start background pruning thread?
-
-    def _get_db_conn(self):
-        conn = sqlite3.connect(self.db_path, timeout=10)
-        # Enable WAL mode for potentially better write concurrency
-        try:
-            # Set WAL mode first
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL;")
-            # Tune WAL settings for potentially better commit performance
-            cursor.execute("PRAGMA synchronous = NORMAL;") # Less stringent sync than FULL
-            cursor.execute("PRAGMA wal_autocheckpoint = 4000;") # Checkpoint less often (default 1000)
-        except sqlite3.Error as e:
-            # Log error but continue, maybe WAL isn't supported/needed
-            logger.warning(f"Could not configure WAL journal mode/settings: {e}") 
-        conn.row_factory = sqlite3.Row # Access columns by name
-        return conn
-
-    def _init_db(self):
-        logger.info(f"Initializing database at {self.db_path}")
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                # Create table if not exists with the new schema
-                # Note: This won't migrate existing data if the table already exists with the old schema.
-                # Manual migration or deleting the old DB file might be needed for testing.
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS telemetry_history (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        recorded_at REAL NOT NULL,       -- Timestamp from originating device/event
-                        received_at REAL NOT NULL,       -- Timestamp when collector received/processed it
-                        created_at REAL NOT NULL, -- Timestamp of DB insert (Unix epoch)
-                        message_type INTEGER,         -- Original message fields
-                        component_type INTEGER,
-                        component_id INTEGER,
-                        command_id INTEGER,
-                        value_type INTEGER,
-                        value INTEGER,
-                        uplinked INTEGER DEFAULT 0 NOT NULL -- Flag for uplink status
-                    )
-                """)
-                # Add indices for common query patterns
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_recorded_at ON telemetry_history (recorded_at)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_uplinked_created_at ON telemetry_history (uplinked, created_at)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_uplinked_id ON telemetry_history (uplinked, id)") # Index for fetching un-uploaded records by ID order
-                
-                # Attempt to drop the old primary key constraint if it exists (best effort)
-                # This is tricky and might fail depending on SQLite version and previous state
-                try:
-                     # Check if timestamp is still PK (indicating old schema)
-                     cursor.execute("PRAGMA table_info(telemetry_history)")
-                     cols = cursor.fetchall()
-                     is_old_schema = any(col['name'] == 'timestamp' and col['pk'] == 1 for col in cols)
-                     has_id_col = any(col['name'] == 'id' for col in cols)
-                     
-                     if is_old_schema and not has_id_col:
-                         logger.warning("Detected old schema (timestamp as PK). Data migration NOT automatically handled.")
-                         # Ideally, handle migration here or instruct user to delete DB.
-                         # Raising an error might be safer:
-                         # raise Exception("Database schema mismatch. Please delete old telemetry.db file.")
-                     # If 'id' column exists but 'timestamp' is still PK, it's even weirder.
-                     # For now, we assume CREATE TABLE IF NOT EXISTS handles the basic case.
-                         
-                except sqlite3.Error as e:
-                     logger.warning(f"Could not check/modify old schema constraints: {e}")
-
-                # Add uplinked column if it doesn't exist (might be needed if upgrading from very old schema)
-                try:
-                    cursor.execute("ALTER TABLE telemetry_history ADD COLUMN uplinked INTEGER DEFAULT 0 NOT NULL")
-                    logger.info("Added 'uplinked' column to telemetry_history table.")
-                except sqlite3.OperationalError as e:
-                    if "duplicate column name" not in str(e).lower():
-                        raise e
-
-                conn.commit()
-                logger.info("Database initialized successfully with new schema.")
-            except sqlite3.Error as e:
-                logger.error(f"Database initialization error: {e}")
-            finally:
-                conn.close()
-
-    def update_state(self, state: GoKartState):
-        """Update the current state (in memory) and add to DB history"""
-        # Update in-memory state (from base class)
-        super().update_state(state) 
-        state_dict = state.to_dict() # Use the dict from base class
+        # Redis connection pools for thread safety
+        self.local_redis_pool = redis.ConnectionPool(
+            **self.local_redis_config,
+            max_connections=10,
+            socket_timeout=2,
+            socket_keepalive=True,
+            decode_responses=True  # Auto-decode to strings
+        )
         
-        # --- Persist to DB ---
-        t_before_lock = time.time() # Time before acquiring lock
-        with self._db_lock: 
-            t_after_lock = time.time() # Time after acquiring lock
-            received_time = time.time() # Capture receive time
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                # Use INSERT OR IGNORE (though less critical now with new PK)
-                t_before_insert = time.time()
-                cursor.execute("""
-                    INSERT OR IGNORE INTO telemetry_history 
-                        (recorded_at, received_at, created_at, message_type, component_type,
-                         component_id, command_id, value_type, value)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    state.timestamp, # Original event time is recorded_at
-                    received_time,   # Current time is received_at
-                    time.time(),     # Use a *new* timestamp for created_at
-                    state.message_type,
-                    state.component_type,
-                    state.component_id,
-                    state.command_id,
-                    state.value_type,
-                    state.value
-                    # uplinked defaults to 0
-                ))
-                # Check if the row was actually inserted or ignored
-                if cursor.rowcount == 0:
-                    self._duplicate_skip_count += 1
-                    # Note: Duplicate check happens *before* commit
-                    # Optionally log less frequently to avoid spam
-                    if self._duplicate_skip_count % 100 == 1: # Log every 100 skips
-                         logger.warning(f"Ignored insert potentially due to UNIQUE constraint conflict (Total skips: {self._duplicate_skip_count})")
-                
-                t_before_commit = time.time()
-                conn.commit()
-                t_after_commit = time.time()
-
-            except sqlite3.Error as e:
-                logger.error(f"Database update error: {e}")
-            finally:
-                conn.close()
-                
-            # --- Log Timings ---
-            lock_wait_ms = (t_after_lock - t_before_lock) * 1000
-            insert_exec_ms = (t_before_commit - t_before_insert) * 1000
-            commit_ms = (t_after_commit - t_before_commit) * 1000
-            total_in_lock_ms = (t_after_commit - t_after_lock) * 1000
-            if lock_wait_ms > 5 or total_in_lock_ms > 5: # Log if lock wait or operation is > 5ms
-                 logger.debug(
-                     f"update_state timing (ms): lock_wait={lock_wait_ms:.2f}, "
-                     f"insert_exec={insert_exec_ms:.2f}, commit={commit_ms:.2f}, "
-                     f"total_in_lock={total_in_lock_ms:.2f}"
-                 )
-            # -----------------
-                
-        # Update in-memory store (base class) *after* successful DB insert
-        super().update_state(state)
-        return state_dict # Return dict consistent with base class
-
-    def get_unuploaded_records(self, limit: int) -> List[dict]:
-        """Fetch a batch of un-uploaded records, ordered by timestamp.
-
-        Args:
-            limit: The maximum number of records to fetch.
-
-        Returns:
-            A list of telemetry records (as dictionaries including their 'id') 
-            that haven't been uploaded.
-        """
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT id, recorded_at, message_type, component_type,
-                           component_id, command_id, value_type, value 
-                    FROM telemetry_history
-                    WHERE uplinked = 0
-                    ORDER BY id ASC -- Send oldest un-uploaded first
-                    LIMIT ?
-                """, (limit,))
-                rows = cursor.fetchall()
-                # Convert rows to dictionaries, renaming recorded_at to timestamp for GoKartState
-                records = []
-                for row in rows:
-                    record_dict = dict(row)
-                    record_dict['timestamp'] = record_dict.pop('recorded_at')
-                    records.append(record_dict)
-                return records
-            except sqlite3.Error as e:
-                logger.error(f"Database get_unuploaded_records query error: {e}")
-                return []
-            finally:
-                conn.close()
-
-    def mark_records_uploaded(self, ids: List[int]):
-        """Mark records as uploaded in the database based on their IDs.
-
-        Args:
-            ids: A list of integer IDs corresponding to the records
-                 that have been successfully uploaded.
-        """
-        if not ids:
-            return
-
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                # Create placeholders for the IN clause
-                placeholders = ', '.join('?' * len(ids))
-                sql = f"UPDATE telemetry_history SET uplinked = 1 WHERE id IN ({placeholders})"
-                cursor.execute(sql, ids)
-                conn.commit()
-                logger.debug(f"Marked {cursor.rowcount} records as uploaded by ID.")
-            except sqlite3.Error as e:
-                logger.error(f"Database mark_records_uploaded error: {e}")
-            finally:
-                conn.close()
-
-    def prune_uploaded_records(self):
-        """Deletes records marked as uploaded and older than the configured retention period."""
-        # This uses local_uplinked_retention_s which needs to be passed in __init__
-        if not hasattr(self, 'local_uplinked_retention_s') or self.local_uplinked_retention_s <= 0:
-             logger.debug("Pruning of uploaded records is disabled (retention <= 0).")
-             return
-
-        cutoff_timestamp = time.time() - self.local_uplinked_retention_s
-        logger.debug(f"Pruning uploaded records created before {cutoff_timestamp}")
-
-        with self._db_lock:
-             conn = self._get_db_conn()
-             try:
-                 cursor = conn.cursor()
-                 cursor.execute("""
-                     DELETE FROM telemetry_history
-                     WHERE uplinked = 1 AND created_at < ?
-                 """, (cutoff_timestamp,))
-                 conn.commit()
-                 deleted_count = cursor.rowcount
-                 if deleted_count > 0:
-                     logger.info(f"Pruned {deleted_count} old uploaded records.")
-             except sqlite3.Error as e:
-                 logger.error(f"Database prune_uploaded_records error: {e}")
-             finally:
-                 conn.close()
-
-    # --- Background Pruning --- 
-    def _start_pruning_timer(self):
-        # Schedule the next pruning run
-        if not self._pruning_stop_event.is_set():
-            self._pruning_timer = Timer(self._pruning_interval, self._run_pruning_task)
-            self._pruning_timer.daemon = True # Allow exit even if timer thread is running
-            self._pruning_timer.start()
-
-    def _run_pruning_task(self):
-        """Wrapper to run pruning and reschedule the timer."""
-        if not self._pruning_stop_event.is_set():
-            logger.info(f"Running background pruning task (interval: {self._pruning_interval}s)...")
-            self._prune_db_max_records()
-            self._prune_db_time_based()
-            self._start_pruning_timer() # Reschedule next run
+        # Remote Redis connection pool (if role is 'vehicle')
+        if self.role == 'vehicle' and self.remote_redis_config:
+            self.remote_redis_pool = redis.ConnectionPool(
+                **self.remote_redis_config,
+                max_connections=5,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+                retry_on_timeout=True,
+                decode_responses=True
+            )
         else:
-            logger.info("Pruning stop event set, not rescheduling.")
+            self.remote_redis_pool = None
+        
+        # Initialize Redis
+        self._init_redis()
 
-    def _prune_db_max_records(self):
-        """Prunes based on the absolute max_history_records limit."""
-        if not self.max_history_records or self.max_history_records <= 0:
-            return
+    def _get_local_redis(self):
+        """Get a Redis connection from the local pool"""
+        return redis.Redis(connection_pool=self.local_redis_pool)
+
+    def _get_remote_redis(self):
+        """Get a Redis connection from the remote pool if available"""
+        if self.remote_redis_pool:
+            return redis.Redis(connection_pool=self.remote_redis_pool)
+        return None
+
+    def _init_redis(self):
+        """Initialize Redis data structures and optimal settings"""
+        logger.info(f"Initializing Redis connections: local={self.local_redis_config['host']}:{self.local_redis_config['port']}")
+        
+        try:
+            # Configure local Redis for optimal performance on Pi Zero W
+            r_local = self._get_local_redis()
             
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM telemetry_history")
-                count = cursor.fetchone()[0]
-                if count > self.max_history_records:
-                    records_to_delete = count - self.max_history_records
-                    logger.warning(f"Background Prune: Max record limit ({self.max_history_records}) exceeded. Deleting {records_to_delete} oldest records by ID.")
-                    cursor.execute(f"""
-                        DELETE FROM telemetry_history
-                        WHERE id IN (
-                            SELECT id
-                            FROM telemetry_history
-                            ORDER BY id ASC -- Delete oldest by insertion order (ID)
-                            LIMIT ?
-                        )
-                    """, (records_to_delete,))
-                    conn.commit()
-                    logger.info(f"Background Prune: Deleted {cursor.rowcount} records based on max limit.")
-            except sqlite3.Error as e:
-                logger.error(f"Background Prune (Max Records) DB error: {e}")
-            finally:
-                conn.close()
+            # Set memory policy
+            r_local.config_set('maxmemory-policy', 'allkeys-lru')
+            
+            # Disable AOF persistence for higher throughput
+            r_local.config_set('appendonly', 'no')
+            
+            # Disable RDB persistence
+            r_local.config_set('save', '')
+            
+            # Create stream if it doesn't exist (will be created implicitly with XADD)
+            logger.info(f"Using stream key: {self.stream_key}")
+            
+            # Configure remote Redis (if available and vehicle role)
+            r_remote = self._get_remote_redis()
+            if r_remote:
+                logger.info(f"Remote Redis connection established to {self.remote_redis_config['host']}:{self.remote_redis_config['port']}")
+            
+            logger.info("Redis successfully initialized")
+        except RedisError as e:
+            logger.error(f"Redis initialization error: {e}")
 
-    def _prune_db_time_based(self):
-        """Prunes records based on time retention policies."""
-        # Prune old *uplinked* records (vehicle role only)
-        if self.role == 'vehicle' and self.local_uplinked_retention_s > 0:
-            cutoff_uplinked = time.time() - self.local_uplinked_retention_s
-            with self._db_lock:
-                conn = self._get_db_conn()
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        DELETE FROM telemetry_history
-                        WHERE uplinked = 1 AND created_at < ?
-                    """, (cutoff_uplinked,))
-                    conn.commit()
-                    if cursor.rowcount > 0:
-                        logger.info(f"Background Prune: Deleted {cursor.rowcount} old uploaded records (older than {self.local_uplinked_retention_s}s).")
-                except sqlite3.Error as e:
-                    logger.error(f"Background Prune (Uplinked) DB error: {e}")
-                finally:
-                    conn.close()
-                    
-        # Prune old records for dashboard history (both roles?)
-        if self.dashboard_retention_s > 0:
-            cutoff_dashboard = time.time() - self.dashboard_retention_s
-            # This is controversial - should we delete non-uplinked data based on dashboard needs?
-            # For now, let's only delete if it's ALSO uplinked (for vehicle) or just old (for remote)
-            condition = "uplinked = 1" if self.role == 'vehicle' else "1=1" # Always true for remote
-            with self._db_lock:
-                conn = self._get_db_conn()
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute(f"""
-                        DELETE FROM telemetry_history
-                        WHERE {condition} AND created_at < ?
-                    """, (cutoff_dashboard,))
-                    # Avoid duplicate deletion if uplinked retention is shorter
-                    # Check if rows were actually deleted by *this* query
-                    if cursor.rowcount > 0 and self.role == 'vehicle' and self.local_uplinked_retention_s < self.dashboard_retention_s:
-                         logger.info(f"Background Prune: Deleted {cursor.rowcount} old uploaded records based on dashboard retention ({self.dashboard_retention_s}s).")
-                    elif cursor.rowcount > 0 and self.role == 'remote':
-                         logger.info(f"Background Prune: Deleted {cursor.rowcount} old records based on dashboard retention ({self.dashboard_retention_s}s).")
-                    conn.commit()
-                except sqlite3.Error as e:
-                    logger.error(f"Background Prune (Dashboard) DB error: {e}")
-                finally:
-                    conn.close()
-                    
-    def stop_pruning(self): # Method to stop the timer
-        logger.info("Stopping background pruning timer...")
-        self._pruning_stop_event.set()
-        if self._pruning_timer:
-            self._pruning_timer.cancel()
-            self._pruning_timer = None
-        logger.info("Background pruning stopped.")
-    # --------------------------
+    def update_state(self, state: GoKartState, node_id: str = "default"):
+        """
+        Update the current state (in memory) and add to Redis stream with full field names.
+        Also replicates to remote Redis if in vehicle role.
+        
+        Args:
+            state: The telemetry state to store
+            node_id: ID of the node sending the telemetry
+            
+        Returns:
+            Dictionary with state information
+        """
+        # Update in-memory state (from base class)
+        super().update_state(state)
+        state_dict = state.to_dict()
+        
+        # Calculate current timestamp
+        received_ts = time.time()
+        
+        # Create record for Redis stream with descriptive field names
+        record = {
+            'timestamp': str(state.timestamp),
+            'node_id': node_id,
+            'received_at': str(received_ts),
+            'message_type': str(state.message_type),
+            'component_type': str(state.component_type),
+            'component_id': str(state.component_id),
+            'command_id': str(state.command_id),
+            'value_type': str(state.value_type),
+            'value': str(state.value)
+        }
+        
+        try:
+            r_local = self._get_local_redis()
+            
+            # Create a pipeline for batch operations
+            pipe = r_local.pipeline(transaction=False)
+            
+            # 1. Add to main stream with size-based pruning
+            stream_id = pipe.xadd(
+                self.stream_key,
+                record,
+                maxlen=self.max_history_records,
+                approximate=True
+            )
+            
+            # 2. Set expiration on the stream (automatic pruning)
+            pipe.expire(self.stream_key, self.retention_seconds)
+            
+            # 3. Update component state hash for quick lookups
+            component_key = self.component_key_pattern.format(state.component_type, state.component_id)
+            component_data = {
+                'last_value': state.value,
+                'last_timestamp': state.timestamp,
+                'last_received': received_ts,
+                'message_type': state.message_type,
+                'command_id': state.command_id,
+                'value_type': state.value_type,
+                'last_stream_id': stream_id
+            }
+            pipe.hset(component_key, mapping=component_data)
+            pipe.expire(component_key, self.retention_seconds)
+            
+            # 4. Update node status hash
+            node_key = self.node_key_pattern.format(node_id)
+            node_data = {
+                'last_update': received_ts,
+                'last_latency': received_ts - state.timestamp,
+                'message_count': r_local.hincrby(node_key, 'message_count', 1) or 1
+            }
+            pipe.hset(node_key, mapping=node_data)
+            pipe.expire(node_key, self.retention_seconds)
+            
+            # Execute local pipeline
+            pipe.execute()
+            
+            # 5. If in vehicle role, replicate to remote Redis
+            if self.role == 'vehicle':
+                r_remote = self._get_remote_redis()
+                if r_remote:
+                    try:
+                        # Use a separate pipeline for remote Redis
+                        remote_pipe = r_remote.pipeline(transaction=False)
+                        
+                        # Add to remote stream without trimming (keep all history remotely)
+                        remote_pipe.xadd(self.stream_key, record)
+                        
+                        # Update component and node data on remote
+                        remote_pipe.hset(component_key, mapping=component_data)
+                        remote_pipe.hset(node_key, mapping=node_data)
+                        
+                        # No expiration on remote Redis - data preserved long-term
+                        
+                        # Execute remote pipeline
+                        remote_pipe.execute()
+                    except RedisError as e:
+                        logger.error(f"Error adding to remote Redis: {e}")
+            
+            logger.debug(f"Added telemetry record for component {state.component_type}:{state.component_id}")
+            
+        except RedisError as e:
+            logger.error(f"Redis update_state error: {e}")
+        
+        return state_dict
 
     def get_history(self, limit: int = 100):
-        """Return the telemetry history from the database.
-        If role is 'vehicle', only returns records received within the dashboard_retention_s window.
-        Otherwise (for role 'remote' or other), returns the latest records up to the limit.
-        Uses 'received_at' for vehicle role filtering, 'recorded_at' for general ordering.
         """
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                select_cols = "recorded_at, message_type, component_type, component_id, command_id, value_type, value"
-
-                if self.role == 'vehicle':
-                    min_received_timestamp = time.time() - self.dashboard_retention_s
-                    cursor.execute(f"""
-                        SELECT {select_cols} FROM telemetry_history
-                        WHERE received_at >= ?
-                        ORDER BY recorded_at DESC
-                        LIMIT ?
-                    """, (min_received_timestamp, limit))
-                else: # Remote role or unspecified
-                    cursor.execute(f"""
-                        SELECT {select_cols} FROM telemetry_history
-                        ORDER BY recorded_at DESC
-                        LIMIT ?
-                    """, (limit,))
-
-                rows = cursor.fetchall()
-                # Convert rows to dictionaries and make readable
-                readable_history = []
-                for row in rows:
-                    record_dict = dict(row)
-                    # Rename recorded_at to timestamp for GoKartState compatibility
-                    record_dict['timestamp'] = record_dict.pop('recorded_at') 
-                    state_obj = GoKartState(**record_dict)
-                    readable_record = state_to_readable_dict(state_obj, self.protocol)
-                    readable_history.append(readable_record)
-                return readable_history
-            except sqlite3.Error as e:
-                logger.error(f"Database history query error: {e}")
-                return []
-            finally:
-                conn.close()
-
-    def get_history_with_pagination(self, limit: int = 100, offset: int = 0):
+        Return the telemetry history from Redis using field names.
+        
+        Args:
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of telemetry records
         """
-        Return paginated telemetry history from the database.
-        If role is 'vehicle', only includes records received within the dashboard_retention_s window.
-        Uses 'received_at' for vehicle role filtering, 'recorded_at' for general ordering.
-        """
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                select_cols = "recorded_at, message_type, component_type, component_id, command_id, value_type, value"
-
-                if self.role == 'vehicle':
-                    min_received_timestamp = time.time() - self.dashboard_retention_s
-                    cursor.execute(f"""
-                        SELECT {select_cols} FROM telemetry_history
-                        WHERE received_at >= ?
-                        ORDER BY recorded_at DESC
-                        LIMIT ? OFFSET ?
-                    """, (min_received_timestamp, limit, offset))
-                else: # Remote role or unspecified
-                    cursor.execute(f"""
-                        SELECT {select_cols} FROM telemetry_history
-                        ORDER BY recorded_at DESC
-                        LIMIT ? OFFSET ?
-                    """, (limit, offset))
-
-                rows = cursor.fetchall()
-                # Convert rows to dictionaries and make them readable
-                readable_history = []
-                for row in rows:
-                    row_dict = dict(row)
-                    row_dict['timestamp'] = row_dict.pop('recorded_at')
-                    state_obj = GoKartState(**row_dict)
-                    readable_record = state_to_readable_dict(state_obj, self.protocol)
-                    # Optionally add other metadata if needed downstream
-                    readable_history.append(readable_record)
-                return readable_history
-            except sqlite3.Error as e:
-                logger.error(f"Database paginated history query error: {e}")
-                return []
-            finally:
-                conn.close()
+        try:
+            r_local = self._get_local_redis()
+            
+            # Get records from stream (newest first)
+            stream_entries = r_local.xrevrange(self.stream_key, count=limit)
+            
+            # Convert to the format expected by the application
+            readable_history = []
+            for entry_id, entry in stream_entries:
+                # Create GoKartState object from record
+                state_obj = GoKartState(
+                    timestamp=float(entry.get('timestamp', 0)),
+                    message_type=int(entry.get('message_type', 0)),
+                    component_type=int(entry.get('component_type', 0)),
+                    component_id=int(entry.get('component_id', 0)),
+                    command_id=int(entry.get('command_id', 0)),
+                    value_type=int(entry.get('value_type', 0)),
+                    value=int(entry.get('value', 0))
+                )
                 
+                # Convert to readable format
+                readable_record = state_to_readable_dict(state_obj, self.protocol)
+                
+                # Add additional info
+                readable_record['node_id'] = entry.get('node_id', 'unknown')
+                readable_record['received_at'] = float(entry.get('received_at', 0))
+                readable_record['latency_ms'] = (float(entry.get('received_at', 0)) - float(entry.get('timestamp', 0))) * 1000
+                readable_record['stream_id'] = entry_id
+                
+                readable_history.append(readable_record)
+                    
+            return readable_history
+            
+        except RedisError as e:
+            logger.error(f"Redis get_history error: {e}")
+            return []
+
+    def get_history_with_pagination(self, 
+                                   limit: int = 100, 
+                                   offset: int = 0, 
+                                   start_time: Optional[float] = None,
+                                   end_time: Optional[float] = None,
+                                   component_type: Optional[int] = None,
+                                   component_id: Optional[int] = None,
+                                   command_id: Optional[int] = None):
+        """
+        Return paginated telemetry history with advanced filtering options.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            start_time: Filter records after this timestamp
+            end_time: Filter records before this timestamp
+            component_type: Filter by component type
+            component_id: Filter by component ID
+            command_id: Filter by command ID
+            
+        Returns:
+            List of filtered telemetry records
+        """
+        try:
+            r_local = self._get_local_redis()
+            
+            # Convert timestamps to milliseconds for Redis streams
+            min_id = "-"  # Start from oldest
+            max_id = "+"  # Up to newest
+            
+            if start_time:
+                min_id = f"{int(start_time * 1000)}-0"
+                
+            if end_time:
+                max_id = f"{int(end_time * 1000)}-0"
+            
+            # Determine if we need component filtering
+            need_filtering = component_type is not None or component_id is not None or command_id is not None
+            
+            # If using component filtering, we need to fetch more records
+            fetch_count = limit + offset
+            if need_filtering:
+                fetch_count = fetch_count * 3  # Fetch extra to account for filtering
+                
+            # Get records from stream within time range
+            stream_entries = r_local.xrevrange(
+                self.stream_key, 
+                max=max_id,
+                min=min_id,
+                count=fetch_count
+            )
+            
+            # Filter by component if needed
+            filtered_entries = []
+            for entry_id, entry in stream_entries:
+                # Apply component filters if specified
+                if component_type is not None and int(entry.get('component_type', -1)) != component_type:
+                    continue
+                    
+                if component_id is not None and int(entry.get('component_id', -1)) != component_id:
+                    continue
+                    
+                if command_id is not None and int(entry.get('command_id', -1)) != command_id:
+                    continue
+                
+                filtered_entries.append((entry_id, entry))
+            
+            # Apply pagination
+            paginated_entries = filtered_entries[offset:offset + limit]
+            
+            # Convert to the format expected by the application
+            readable_history = []
+            for entry_id, entry in paginated_entries:
+                # Create GoKartState object
+                state_obj = GoKartState(
+                    timestamp=float(entry.get('timestamp', 0)),
+                    message_type=int(entry.get('message_type', 0)),
+                    component_type=int(entry.get('component_type', 0)),
+                    component_id=int(entry.get('component_id', 0)),
+                    command_id=int(entry.get('command_id', 0)),
+                    value_type=int(entry.get('value_type', 0)),
+                    value=int(entry.get('value', 0))
+                )
+                
+                # Convert to readable format
+                readable_record = state_to_readable_dict(state_obj, self.protocol)
+                
+                # Add additional info
+                readable_record['node_id'] = entry.get('node_id', 'unknown')
+                readable_record['received_at'] = float(entry.get('received_at', 0))
+                readable_record['latency_ms'] = (float(entry.get('received_at', 0)) - float(entry.get('timestamp', 0))) * 1000
+                readable_record['stream_id'] = entry_id
+                
+                readable_history.append(readable_record)
+                
+            return readable_history
+            
+        except RedisError as e:
+            logger.error(f"Redis get_history_with_pagination error: {e}")
+            return []
+
+    def get_component_state(self, component_type_name: str, component_id_name: str):
+        """
+        Get the most recent state for a specific component using the dedicated hash.
+        Uses component hash for O(1) lookup instead of scanning the stream.
+        
+        Args:
+            component_type_name: Name of the component type
+            component_id_name: Name of the component ID
+            
+        Returns:
+            Component state dictionary or None if not found
+        """
+        comp_type = self.protocol.get_component_type(component_type_name.upper())
+        comp_id = self.protocol.get_component_id(component_type_name.lower(), component_id_name.upper())
+
+        if comp_type is None or comp_id is None:
+            logger.warning(f"Could not find component type/id for {component_type_name}/{component_id_name}")
+            return None
+
+        try:
+            r_local = self._get_local_redis()
+            
+            # Get component hash directly - O(1) operation
+            component_key = self.component_key_pattern.format(comp_type, comp_id)
+            component_data = r_local.hgetall(component_key)
+            
+            if not component_data:
+                return None
+                
+            # Create a GoKartState from the hash data
+            state_obj = GoKartState(
+                timestamp=float(component_data.get('last_timestamp', 0)),
+                message_type=int(component_data.get('message_type', 0)),
+                component_type=comp_type,
+                component_id=comp_id,
+                command_id=int(component_data.get('command_id', 0)),
+                value_type=int(component_data.get('value_type', 0)),
+                value=int(component_data.get('last_value', 0))
+            )
+            
+            # Convert to readable format
+            readable_state = state_to_readable_dict(state_obj, self.protocol)
+            
+            # Add additional information
+            readable_state['last_received'] = float(component_data.get('last_received', 0))
+            
+            return readable_state
+            
+        except RedisError as e:
+            logger.error(f"Redis get_component_state error: {e}")
+            return None
+
+    def get_component_history(self, 
+                             component_type: int, 
+                             component_id: int, 
+                             command_id: Optional[int] = None,
+                             start_time: Optional[float] = None,
+                             end_time: Optional[float] = None,
+                             limit: int = 100):
+        """
+        Get historical values for a specific component over time.
+        
+        Args:
+            component_type: The component type number
+            component_id: The component ID number
+            command_id: Optional command ID to filter by
+            start_time: Start time (default: retention window)
+            end_time: End time (default: now)
+            limit: Maximum number of points to return
+            
+        Returns:
+            List of component states over time
+        """
+        try:
+            r_local = self._get_local_redis()
+            
+            # Convert timestamps to milliseconds for Redis streams
+            min_id = "-"
+            max_id = "+"
+            
+            if start_time:
+                min_id = f"{int(start_time * 1000)}-0"
+                
+            if end_time:
+                max_id = f"{int(end_time * 1000)}-0"
+            
+            # Create filters for the query
+            match_filters = {
+                'component_type': str(component_type),
+                'component_id': str(component_id)
+            }
+            
+            if command_id is not None:
+                match_filters['command_id'] = str(command_id)
+                
+            # Get matching records from stream
+            stream_entries = r_local.xrevrange(
+                self.stream_key,
+                min=min_id,
+                max=max_id,
+                count=limit
+            )
+            
+            # Filter entries manually (would be nice if Redis supported field filtering)
+            filtered_entries = []
+            for entry_id, entry in stream_entries:
+                # Check if all match_filters are satisfied
+                if all(entry.get(k) == v for k, v in match_filters.items()):
+                    filtered_entries.append((entry_id, entry))
+            
+            # Convert to readable format
+            readable_history = []
+            for entry_id, entry in filtered_entries:
+                # Create GoKartState object
+                state_obj = GoKartState(
+                    timestamp=float(entry.get('timestamp', 0)),
+                    message_type=int(entry.get('message_type', 0)),
+                    component_type=component_type,
+                    component_id=component_id,
+                    command_id=int(entry.get('command_id', 0)),
+                    value_type=int(entry.get('value_type', 0)),
+                    value=int(entry.get('value', 0))
+                )
+                
+                # Convert to readable format
+                readable_record = state_to_readable_dict(state_obj, self.protocol)
+                readable_record['stream_id'] = entry_id
+                readable_history.append(readable_record)
+                
+            return readable_history
+            
+        except RedisError as e:
+            logger.error(f"Redis get_component_history error: {e}")
+            return []
+
     def get_database_stats(self):
         """
-        Get statistics about the telemetry database
+        Get statistics about the Redis telemetry store
         
         Returns:
-            Dictionary with database statistics
+            Dictionary with statistics
         """
-        with self._db_lock:
-            conn = self._get_db_conn()
+        try:
+            r_local = self._get_local_redis()
+            
+            # Get stream length with XLEN (O(1) operation)
+            stream_length = r_local.xlen(self.stream_key)
+            
+            # Get first and last entry timestamps efficiently
+            first_timestamp = None
+            last_timestamp = None
+            
+            if stream_length > 0:
+                # Get oldest entry ID
+                first_entries = r_local.xrange(self.stream_key, count=1)
+                if first_entries:
+                    first_id, _ = first_entries[0]
+                    first_timestamp = float(first_id.split('-')[0]) / 1000
+                
+                # Get newest entry ID
+                last_entries = r_local.xrevrange(self.stream_key, count=1)
+                if last_entries:
+                    last_id, _ = last_entries[0]
+                    last_timestamp = float(last_id.split('-')[0]) / 1000
+            
+            # Count active components and nodes using key patterns
+            component_keys = r_local.keys(self.component_key_pattern.format('*', '*'))
+            node_keys = r_local.keys(self.node_key_pattern.format('*'))
+            
+            # Get memory usage
             try:
-                cursor = conn.cursor()
-                # Get total count
-                cursor.execute("SELECT COUNT(*) as total FROM telemetry_history")
-                total_count = cursor.fetchone()['total']
-                
-                # Get earliest and latest timestamps
-                cursor.execute("SELECT MIN(timestamp) as earliest, MAX(timestamp) as latest FROM telemetry_history")
-                time_range = cursor.fetchone()
-                earliest = time_range['earliest'] if time_range else None
-                latest = time_range['latest'] if time_range else None
-                
-                # Get component type distribution
-                cursor.execute("""
-                    SELECT component_type, COUNT(*) as count 
-                    FROM telemetry_history 
-                    GROUP BY component_type
-                """)
-                component_distribution = {}
-                for row in cursor.fetchall():
-                    comp_type = row['component_type']
-                    comp_name = self.protocol.get_component_type_name(comp_type)
-                    component_distribution[comp_name] = row['count']
-                
-                return {
-                    'total_records': total_count,
-                    'earliest_timestamp': earliest,
-                    'latest_timestamp': latest,
-                    'component_distribution': component_distribution,
-                    'duplicate_skips': self._duplicate_skip_count, # Add the skip count
-                    'db_path': self.db_path
-                }
-            except sqlite3.Error as e:
-                logger.error(f"Database stats query error: {e}")
-                return {'error': str(e)}
-            finally:
-                conn.close()
-                
+                memory_usage = r_local.memory_usage(self.stream_key)
+            except RedisError:
+                memory_usage = None
+            
+            # Get TTL for stream
+            ttl = r_local.ttl(self.stream_key)
+            
+            return {
+                'total_records': stream_length,
+                'active_components': len(component_keys),
+                'active_nodes': len(node_keys),
+                'earliest_timestamp': first_timestamp,
+                'latest_timestamp': last_timestamp,
+                'memory_usage_bytes': memory_usage,
+                'stream_key': self.stream_key,
+                'local_host': self.local_redis_config['host'],
+                'local_port': self.local_redis_config['port'],
+                'remote_host': self.remote_redis_config['host'] if self.remote_redis_pool else None,
+                'remote_port': self.remote_redis_config['port'] if self.remote_redis_pool else None,
+                'retention_seconds': self.retention_seconds,
+                'ttl_seconds': ttl
+            }
+            
+        except RedisError as e:
+            logger.error(f"Redis get_database_stats error: {e}")
+            return {'error': str(e)}
+
     def get_last_update_time(self):
         """
         Get the timestamp of the most recent telemetry update
@@ -538,41 +581,92 @@ class PersistentTelemetryStore(TelemetryStore):
         """
         return self.last_update_time
 
-    # Optional: Method to get state for a specific component
-    def get_component_state(self, component_type_name: str, component_id_name: str):
-        """Get the most recent state for a specific component from the DB (based on recorded_at)."""
-        comp_type = self.protocol.get_component_type(component_type_name.upper())
-        comp_id = self.protocol.get_component_id(component_type_name.lower(), component_id_name.upper())
+    def get_active_nodes(self):
+        """
+        Get list of active nodes and their basic statistics
+        
+        Returns:
+            Dictionary mapping node_id to statistics
+        """
+        try:
+            r_local = self._get_local_redis()
+            
+            # Get all node keys
+            node_keys = r_local.keys(self.node_key_pattern.format('*'))
+            
+            # Extract node IDs from keys
+            node_ids = [key.split(':')[-1] for key in node_keys]
+            
+            # Get stats for each node
+            node_stats = {}
+            for node_id in node_ids:
+                node_key = self.node_key_pattern.format(node_id)
+                node_data = r_local.hgetall(node_key)
+                
+                if node_data:
+                    node_stats[node_id] = {
+                        'last_update': float(node_data.get('last_update', 0)),
+                        'last_latency': float(node_data.get('last_latency', 0)),
+                        'message_count': int(node_data.get('message_count', 0)),
+                        'seconds_since_update': time.time() - float(node_data.get('last_update', 0))
+                    }
+            
+            return node_stats
+            
+        except RedisError as e:
+            logger.error(f"Redis get_active_nodes error: {e}")
+            return {}
 
-        if comp_type is None or comp_id is None:
-            logger.warning(f"Could not find component type/id for {component_type_name}/{component_id_name}")
-            return None
-
-        with self._db_lock:
-            conn = self._get_db_conn()
-            try:
-                cursor = conn.cursor()
-                select_cols = "recorded_at, message_type, component_type, component_id, command_id, value_type, value"
-                cursor.execute(f"""
-                    SELECT {select_cols} FROM telemetry_history
-                    WHERE component_type = ? AND component_id = ?
-                    ORDER BY recorded_at DESC -- Get latest based on original event time
-                    LIMIT 1
-                """, (comp_type, comp_id))
-                row = cursor.fetchone()
-                if row:
-                    # Convert row to a readable dictionary format
-                    row_dict = dict(row)
-                    row_dict['timestamp'] = row_dict.pop('recorded_at')
-                    state_obj = GoKartState(**row_dict)
-                    readable_state = state_to_readable_dict(state_obj, self.protocol)
-                    return readable_state
-                else:
-                    return None # No state found for this component
-            except sqlite3.Error as e:
-                logger.error(f"Database component state query error for {component_type_name}/{component_id_name}: {e}")
-                return None
-            finally:
-                conn.close()
-
-
+    def get_active_components(self):
+        """
+        Get list of active components and their basic info
+        
+        Returns:
+            List of dictionaries with component information
+        """
+        try:
+            r_local = self._get_local_redis()
+            
+            # Get all component keys
+            component_keys = r_local.keys(self.component_key_pattern.format('*', '*'))
+            
+            # Extract component types and IDs from keys
+            components = []
+            for key in component_keys:
+                parts = key.split(':')
+                if len(parts) >= 4:
+                    try:
+                        comp_type = int(parts[-2])
+                        comp_id = int(parts[-1])
+                        
+                        # Get type and ID names
+                        comp_type_name = self.protocol.get_component_type_name(comp_type) or f"Type_{comp_type}"
+                        comp_id_name = self.protocol.get_component_id_name(comp_type, comp_id) or f"ID_{comp_id}"
+                        
+                        components.append({
+                            'component_type': comp_type,
+                            'component_id': comp_id,
+                            'component_type_name': comp_type_name,
+                            'component_id_name': comp_id_name,
+                            'key': key
+                        })
+                    except (ValueError, IndexError):
+                        continue
+            
+            # Get detailed info for each component
+            for comp in components:
+                comp_data = r_local.hgetall(comp['key'])
+                
+                if comp_data:
+                    comp.update({
+                        'last_value': int(comp_data.get('last_value', 0)),
+                        'last_timestamp': float(comp_data.get('last_timestamp', 0)),
+                        'last_received': float(comp_data.get('last_received', 0)),
+                        'seconds_since_update': time.time() - float(comp_data.get('last_timestamp', 0))
+                    })
+            
+            return components
+            
+        except RedisError as e:
+            logger.error(f"Redis get_active_components error: {e}")
+            return []
